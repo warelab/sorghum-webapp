@@ -17,7 +17,7 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2021-11-18'
+    date='2021-11-19'
   />
 )
 const Guides = () => (
