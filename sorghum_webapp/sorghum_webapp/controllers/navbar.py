@@ -30,11 +30,11 @@ def engage():
     return menu
 
 def genomes():
-    ensemblURL = 'https://ensembl.sorghumbase.org'
+    ensemblURL = 'https://ensembl-dev.sorghumbase.org'
     ref = make_menu('Genomes')
 
     add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(ref, 'FTP site','http://ftp.sorghumbase.org')
+    add_link(ref, 'FTP site','https://ftp.sorghumbase.org')
     add_link(ref, '--Genomes--','none')
 
     pages = [

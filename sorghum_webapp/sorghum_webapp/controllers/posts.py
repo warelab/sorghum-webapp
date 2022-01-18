@@ -71,7 +71,7 @@ def posts():
 		team_request = api.UserRequest()
 		team_request.context = "edit"
 		team_request.per_page = 50
-		team_request.roles = ['team_member','former_team_member']
+		team_request.roles = ['team_member','former_team_member', 'editor']
 		team = team_request.get(class_object=SBUser)
 		teamDict = {}
 		for i in team:
