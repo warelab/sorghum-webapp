@@ -19,6 +19,8 @@ from .footer import populate_footer_template
 from ..wordpress_orm_extensions.germplasm import GermplasmRequest
 from ..wordpress_orm_extensions.population import PopulationRequest
 from ..wordpress_orm_extensions.scientific_paper import ScientificPaperRequest
+from ..wordpress_orm_extensions.user import SBUser
+
 
 WP_BASE_URL = app.config["WP_BASE_URL"]
 
@@ -43,6 +45,18 @@ def post(slug):
 		except exc.NoEntityFound:
 			# TODO return top level posts page
 			raise Exception("Return top level posts page, maybe with an alert of 'post not found'.")
+
+		team_request = api.UserRequest()
+		team_request.context = "edit"
+		team_request.per_page = 50
+		team_request.roles = ['team_member','former_team_member', 'editor']
+		team = team_request.get(class_object=SBUser)
+		teamDict = {}
+		for i in team:
+			teamDict[i.s.name] = 'SorghumBase Team'
+		if post.author.s.name not in teamDict:
+			teamDict[post.author.s.name] = post.author.s.name
+		templateDict['authors'] = teamDict
 
 		# Get the three latest "News" posts from WordPress.
 		# -------------------------------------------------

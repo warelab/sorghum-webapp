@@ -75,15 +75,13 @@ def posts():
 		team = team_request.get(class_object=SBUser)
 		teamDict = {}
 		for i in team:
-# 			print(i)
-# 			print(i.s.name)
 			teamDict[i.s.name] = 'SorghumBase Team'
 
 		# pre-cache these items so new HTTP connections aren't made from the template
 		for p in posts:
 			p.categories
 			p.author
-			if teamDict[p.author.s.name] is None:
+			if p.author.s.name not in teamDict:
 				teamDict[p.author.s.name] = p.author.s.name
 
 		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[posts_banner_media])

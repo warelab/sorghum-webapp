@@ -82,35 +82,35 @@ def index():
 		ta_banner["link_text"] = "Try it!"
 		ta_banner["title"] = "type-ahead search"
 		ta_banner["format"] = "video"
-		banners.append(ta_banner)
+#		banners.append(ta_banner)
 		pg_banner = {"id" : "pan-genome-dist", "group": "Visualize genomic positions of genes containing the NB-ARC InterPro domain. This domain is often found in disease resistance genes."}
 		pg_banner["media"] = api.media(slug="pan_genome_dist")
 		pg_banner["link_url"] = "/genes?filters={%22status%22:%22init%22,%22operation%22:%22AND%22,%22negate%22:false,%22marked%22:false,%22leftIdx%22:0,%22rightIdx%22:3,%22children%22:[{%22fq_field%22:%22domains__ancestors%22,%22fq_value%22:%222182%22,%22name%22:%22NB-ARC%22,%22category%22:%22InterPro%20Domain%22,%22leftIdx%22:1,%22rightIdx%22:2,%22negate%22:false,%22showMenu%22:false,%22marked%22:true}],%22showMarked%22:true,%22showMenu%22:false,%22moveCopyMode%22:%22%22,%22searchOffset%22:0,%22rows%22:20}&genomes="
 		pg_banner["link_text"] = "Explore"
 		pg_banner["title"] = "pan-genome distribution"
 		pg_banner["format"] = "wide"
-		banners.append(pg_banner)
+#		banners.append(pg_banner)
 		gn_banner = {"id" : "neighbors", "group": "The Yellow seed1 gene has two to three local copies in sorghum."}
 		gn_banner["media"] = api.media(slug="yellow-seed1-neighborhood")
 		gn_banner["link_url"] = "/genes?filters={%22status%22:%22init%22,%22rows%22:20,%22operation%22:%22AND%22,%22negate%22:false,%22leftIdx%22:0,%22rightIdx%22:3,%22children%22:[{%22fq_field%22:%22gene_tree%22,%22fq_value%22:%22SORGHUM1GT_226935%22,%22name%22:%22Homologs%20of%20SORBI_3001G397900%22,%22category%22:%22Gene%20Tree%22,%22leftIdx%22:1,%22rightIdx%22:2,%22negate%22:false,%22marked%22:false}],%22searchOffset%22:0}&genomes=#tools_section"
 		gn_banner["link_text"] = "Search for homologs"
 		gn_banner["title"] = "MYB transcription factor"
 		gn_banner["format"] = "wide"
-		banners.append(gn_banner)
+#		banners.append(gn_banner)
 		fo_banner = {"id" : "family-overview", "group": "Compare differences in functional annotation within gene families"}
 		fo_banner["media"] = api.media(slug="yellow-seed1-overview")
 		fo_banner["link_url"] = "/genes"
 		fo_banner["link_text"] = "Try it!"
 		fo_banner["title"] = "family overview"
 		fo_banner["format"] = "wide"
-		banners.append(fo_banner)
+#		banners.append(fo_banner)
 		msa_banner = {"id" : "msa", "group": "Find segregating alleles in coding regions"}
 		msa_banner["media"] = api.media(slug="yellow-seed1-msa")
 		msa_banner["link_url"] = "/genes"
 		msa_banner["link_text"] = "Try it!"
 		msa_banner["title"] = "multiple sequence alignment"
 		msa_banner["format"] = "wide"
-		banners.append(msa_banner)
+#		banners.append(msa_banner)
 # 		shuffle(banners)
 
 		templateDict["banners"] = banners
@@ -122,8 +122,12 @@ def index():
 		user_request = api.UserRequest()
 		user_request.context = "edit"
 		user_request.per_page = 50
-		user_request.roles = ["team_member"]
+		user_request.roles = ["team_member","former_team_member","editor"]
 		users = user_request.get(class_object=SBUser)
+
+		teamDict = {}
+		for i in users:
+			teamDict[i.s.name] = 'SorghumBase Team'
 
 		# Way to check if WP access is authenticated - all users would be returned in that case,
 		# not just the ones who have posted.
@@ -161,12 +165,15 @@ def index():
 		# fetch linked objects we know we'll need while we have this open connection
 		for post in posts:
 			photos_to_credit.append(post.featured_media)
+			if post.author.s.name not in teamDict:
+				teamDict[post.author.s.name] = post.author.s.name
 
 		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=photos_to_credit)
 
 	#for post in posts:
 	#	print(post.featured_media.s.link, post.featured_media.s.source_url)
 	templateDict["team"] = someUsers
+	templateDict['authors'] = teamDict
 	templateDict["tools"] = someTools
 	templateDict["toolicons"] = ["icon-layers", "icon-telescope", "icon-globe"]
 	templateDict["posts"] = posts

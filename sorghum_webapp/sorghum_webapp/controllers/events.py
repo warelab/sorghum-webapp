@@ -5,6 +5,7 @@ from datetime import datetime
 
 import flask
 import logging
+import re
 from flask import request, render_template
 from ..wordpress_orm_extensions.event import EventRequest
 
@@ -36,9 +37,19 @@ def events():
 		events = event_request.get()
 		pastEvents = []
 		futureEvents = []
+		offset=0
+		eventDict = {}
+
+		for e in events:
+			offset += 1
+			e.s.id=offset
+			eventDict[e.s.short_name] = str(offset)
 
 		for e in events:
 			eventDate = datetime.strptime(e.s.start_date, '%Y-%m-%d')
+			parts = re.split(r'http://events/#',e.s.event_url)
+			if len(parts) == 2 and parts[1] in eventDict:
+				e.s.event_url = "#" + eventDict[parts[1]]
 			if not e.s.short_name:
 				e.s.short_name = e.s.title
 			if (eventDate.date() < today.date()): # Is the event in the past?

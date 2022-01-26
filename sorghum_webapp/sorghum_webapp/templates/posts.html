@@ -19,32 +19,36 @@
 </div><!--page title end-->
 <div class="container pt90 ">
 <div class="container mb30">
-    <div class="row" id="blog-masonry" style="position: relative; height: 1179.5px;">
+    <div class="row">
         {% for post in posts %}
-        <article class="col-md-4 post-masonry mb40" style="position: absolute; left: 0px; top: 0px;">
-            {% if post.s.featured_media %}
-            <a href="/post/{{post.s.slug}}"> <img src="{{post.featured_media.s.source_url}}" alt="" class="img-fluid mb20"></a>
-            {% endif %}
-            <a href="/post/{{post.s.slug}}"><h4 class="masonry-title mb0">{{post.s.title | safe}}</h4></a>
-            <ul class="post-meta list-inline" style="font-size:smaller">
-                    <li class="list-inline-item">
-                        <i class="fa fa-user-circle-o"></i>{{ authors[post.author.s.name] | safe }}
-                    </li>
-<!--                    <li class="list-inline-item">-->
-<!--                        <i class="fa fa-tags"></i>-->
-<!--                        {% for category in post.categories %}-->
-<!--                            <a href="/posts?categories={{category.s.slug}}">{{ category.s.name | safe}} </a>-->
-<!--                        {% endfor %}-->
-<!--                    </li>-->
-                    <li class="list-inline-item">
-                        <i class="fa fa-calendar-o"></i>{{(post.s.date|str2datetime).strftime('%d %B %Y')}}
-                    </li>
-                </ul>
-            <p>
-                {{post.s.excerpt | safe}}
-            </p>
-<!--            <a href="/post/{{post.s.slug}}" class="btn btn-outline-secondary">Read More</a>-->
-        </article><!--article post-->
+        <div class="col-lg-4 mb30">
+            <div class="entry-card">
+                <a href="/post/{{post.s.slug}}" class="entry-thumb">
+                    {% if post.featured_media is not none %}
+                    <img src="{{post.featured_media.s.source_url}}" alt="" class="img-fluid mb20">
+                    {% endif %}
+                    <span class="thumb-hover ti-back-right"></span>
+                </a><!--/entry thumb-->
+                <div class="entry-content">
+                    <h5 class="text-capitalize">{{post.s.title | safe}}</h5>
+
+                    <ul class="post-meta list-inline" style="font-size:smaller">
+                        <li class="list-inline-item">
+                            <i class="fa fa-user-circle-o"></i>{{ authors[post.author.s.name] | safe }}
+                        </li>
+                        <li class="list-inline-item">
+                            <i class="fa fa-calendar-o"></i>{{(post.s.date|str2datetime).strftime('%d %B %Y')}}
+                        </li>
+                    </ul>
+                    <p>
+                        {{post.s.excerpt | safe}}
+                    </p>
+                    <div class="text-right">
+                        <a href="/post/{{post.s.slug}}" class="btn-link btn">Read More</a>
+                    </div>
+                </div><!--/entry content-->
+            </div>
+        </div>
         {% endfor %}
     </div>
     {% if post_tally > n_per_page %}

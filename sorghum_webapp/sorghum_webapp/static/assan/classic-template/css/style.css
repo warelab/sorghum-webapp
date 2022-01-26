@@ -1640,9 +1640,9 @@ Breadcrumb style
 Blog post entries
 */
 .entry-card {
-  -webkit-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05);
-  -moz-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05);
-  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05); }
+  -webkit-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  -moz-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15); }
 
 .entry-content {
   background-color: #fff;
