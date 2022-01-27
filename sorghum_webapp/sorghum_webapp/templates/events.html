@@ -8,103 +8,77 @@
     <div class="container">
         <div class="row">
             <div class=" col-md-12">
-                <h1 class="text-uppercase">Events</h1>
-
+                {% if past %}
+                <h1 class="text-uppercase">Past Events</h1>
+                {% else %}
+                <h1 class="text-uppercase">Upcoming Events</h1>
+                {% endif %}
             </div>
         </div>
     </div>
 </div><!--page title end-->
-<div class="container pt60 pb50">
-    <div class="row">
-        <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block"
-             style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">
-            <!--/col-->
-            <div class="theiaStickySidebar"
-                 style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">
-
-                {% if past %}
-                <div class="pt50 title">Past Events</div>
-                {% else %}
-                <div class="pt50 title">Upcoming Events</div>
-                {% endif %}
-
-                <div class="mb40">
-                  {% for event in eventsDisplayed %}
-                      <a href="#{{event.s.id}}" class="nav-link">{{event.s.short_name | safe}}</a>
-                  {% endfor %}
-                </div>
-
-                {% if past %}
-                <div class="pt10 title"><a href="/events">Upcoming Events</a></div>
-                {% else %}
-                <div class="pt10 title"><a href="/events?past=true">Past events</a></div>
-                {% endif %}
-
-                <div class="mb40">
-                  {% for event in eventsNotDisplayed %}
-                      {% if past %}
-                      <a href="/events#{{event.s.id}}" class="nav-link">{{event.s.short_name | safe}}</a>
-                      {% else %}
-                      <a href="/events?past=true#{{event.s.id}}" class="nav-link">{{event.s.short_name | safe}}</a>
-                      {% endif %}
-                  {% endfor %}
-                </div>
+{% if past %}
+<div class="pt10 title"><a href="/events" class="nav-link" style="float:right">View upcoming events</a></div>
+{% else %}
+<div class="pt10 title"><a href="/events?past=true" class="nav-link" style="float:right">View past events</a></div>
+{% endif %}
+<div class="container mb80">
+    <div id='eventList' class="page-timeline">
+        {% for event in eventsDisplayed %}
+        <div class="vtimeline-point">
+            <div id='{{event.s.id}}' style="position:absolute; top:-90px;"></div>
+            <div class="vtimeline-icon">
+                <i class="fa fa-calendar"></i>
             </div>
-        </div>
-        <div class="col-lg-10">
-            <div id='eventList' class="page-timeline">
-              {% for event in eventsDisplayed %}
-                <div class="vtimeline-point">
-                  <div id='{{event.s.id}}' style="position:absolute; top:-90px;"></div>
-                    <div class="vtimeline-icon">
-                        <i class="fa fa-calendar"></i>
-                    </div>
-                    <div class="vtimeline-block">
-                        <!-- <div class="vtimeline-date">{{(event.s.start_date|str2datetime).strftime('%-d %B %Y')}}</div> -->
-                        <div class="vtimeline-content" id="accordion{{event.s.id}}">
-                            <div class="accordion-header" role="tab" id="heading{{event.s.id}}">
-                                <h2>
-                                {% if event.s.featured_image %}
-                                <img style='float:right; width:160px' src='{{event.featured_image.s.source_url}}' alt='' class='img-fluid mb20'>
-                                {% endif %}
-                                {{event.s.title | safe}}
-                                <h3>{{(event.s.start_date|str2datetime).strftime('%-d %B %Y')}}
-                                    {% if (event.s.end_date != "0000-00-00") %}
-                                    - {{(event.s.end_date|str2datetime).strftime('%-d %B %Y')}}
-                                    {% endif %}</h3>
-                                <h5>{{event.s.location | safe}}</h5>
-                                    {% if event.s.content|length > 300 %}
-                                    <a class="collapsed" data-toggle="collapse" data-parent="#accordion{{event.s.id}}" href="#collapse{{event.s.id}}" aria-expanded="false" aria-controls="collapse{{event.s.id}}">
-                                        Event details
-                                    </a>
-                                    {% endif %}
-                                </h2>
-                            </div>
-                            {% if event.s.content|length > 300 %}
-                            <div id="collapse{{event.s.id}}" class="collapse" role="tabpanel" aria-labelledby="heading{{event.s.id}}">
-                                <ul class="post-meta list-inline">
-                                    <li class="list-inline-item">
-                                        <i class="fa fa-bank"></i>{{event.s.organizer | safe}}
-                                    </li>
-                                </ul>
-                                <div class="mb10">{{event.s.content | safe }}</div>
-                                <a href='{{event.s.event_url}}' class='btn btn-outline-secondary btn-sm'>Event</a>
-                            </div>
-                            {% else %}
-                            <ul class="post-meta list-inline">
-                                <li class="list-inline-item">
-                                    <i class="fa fa-bank"></i>{{event.s.organizer | safe}}
-                                </li>
-                            </ul>
-                            <div class="mb10">{{event.s.content | safe }}</div>
-                            <a href='{{event.s.event_url}}' class='btn btn-outline-secondary btn-sm'>Event</a>
+            <div class="vtimeline-block">
+                <div class="vtimeline-date">{{(event.s.start_date|str2datetime).strftime('%-d %B %Y')}}</div>
+                <div class="vtimeline-content" id="accordion{{event.s.id}}">
+                    <div class="accordion-header" role="tab" id="heading{{event.s.id}}">
+                        <div style="min-height:100px">
+                            {% if event.s.featured_image %}
+                            <img style='float:right; height:100px' src='{{event.featured_image.s.source_url}}' alt=''
+                                 class='img-fluid mb20'>
                             {% endif %}
+                            <h2>{{event.s.title | safe}}</h2>
+                            <h5>{{(event.s.start_date|str2datetime).strftime('%-d %B %Y')}}
+                                {% if (event.s.end_date != "0000-00-00") %}
+                                - {{(event.s.end_date|str2datetime).strftime('%-d %B %Y')}}
+                                {% endif %}</h5>
                         </div>
+                        {% if event.s.content|length > -300 %}
+                        <a class="collapsed" data-toggle="collapse" data-parent="#accordion{{event.s.id}}"
+                           href="#collapse{{event.s.id}}" aria-expanded="false"
+                           aria-controls="collapse{{event.s.id}}">
+                            Event details
+                        </a>
+                        {% endif %}
                     </div>
+                    {% if event.s.content|length > -300 %}
+                    <div id="collapse{{event.s.id}}" class="collapse" role="tabpanel"
+                         aria-labelledby="heading{{event.s.id}}">
+                        <h5>{{event.s.location | safe}}</h5>
+                        <ul class="post-meta list-inline">
+                            <li class="list-inline-item">
+                                <i class="fa fa-bank"></i>{{event.s.organizer | safe}}
+                            </li>
+                        </ul>
+                        <div class="mb10">{{event.s.content | safe }}</div>
+                        <a href='{{event.s.event_url}}' class='btn btn-outline-secondary btn-sm'>Event</a>
+                    </div>
+                    {% else %}
+                    <h5>{{event.s.location | safe}}</h5>
+                    <ul class="post-meta list-inline">
+                        <li class="list-inline-item">
+                            <i class="fa fa-bank"></i>{{event.s.organizer | safe}}
+                        </li>
+                    </ul>
+                    <div class="mb10">{{event.s.content | safe }}</div>
+                    <a href='{{event.s.event_url}}' class='btn btn-outline-secondary btn-sm'>Event</a>
+                    {% endif %}
                 </div>
-                {% endfor %}
             </div>
         </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}
