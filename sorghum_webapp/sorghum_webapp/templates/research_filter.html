@@ -3,68 +3,81 @@
 {% block additional_header %}{% endblock %}
 {% block content %}
 
-<div class="page-titles-img title-space-lg parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}' style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
-  <div class="container">
-    <div class="row">
-      <div class=" col-md-12">
-        <h1 class="text-uppercase">Publications</h1>
+<div class="page-titles-img title-space-lg parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}'
+     style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
+    <div class="container">
+        <div class="row">
+            <div class=" col-md-12">
+                <h1 class="text-uppercase">Publications</h1>
 
-      </div>
+            </div>
+        </div>
     </div>
-  </div>
 </div><!--page title end-->
 <div class="container pt90">
-  <div class="row">
-    <div class="col-lg-2 col-md-2">
-      <!-- <div class="filters-group-wrap"> -->
-        <div class="filters-group ">
-          <p>Filter by year:</p>
-          <div class="btn-group-vertical filter-options">
-            {% for year in years %}
-              <button class="btn btn-xs btn-outline-primary" data-group='{{year}}'>{{year}}</button>
-            {% endfor %}
-          </div>
-        </div>
-      <!-- </div> -->
-    </div>
-    <div class="col-lg-10 col-md-6">
-      <div id="grid" class="row my-shuffle-container">
-        {% for paper in papers %}
-        <div id="{{paper.s.paper_title}}" class="col-lg-12 col-md-6 mb50 shuffle-item" data-groups= '{{paper.s.publication_date[:4]}}'>
-          <h4 class="mb0 text-uppercase">{{ paper.s.title | safe}}</h4>
-          <br>
-          <h6>First published on {{(paper.s.publication_date|str2datetime).strftime('%-d %B %Y')}}</h6>
-          {% if paper.s.pubmed_id %}
-          <p>Pubmed ID: {{paper.s.pubmed_id}}</p>
-          <p><b>Keywords: </b>{{paper.s.keywords}}</p>
-          {% endif %}
-          <p><em>{{ paper.s.paper_authors | safe }}</em></p>
-          <p>{{ paper.s.abstract | safe }}</p>
-          {% if paper.s.posts %}
-          <div class="card mb10">
-            <div class="card-header" role="tab" id="posts">
-              <h5 class="mb-0">
-                Related Posts
-              </h5>
+    <div class="row">
+        <div class="col-lg-2 col-md-2">
+            <!-- <div class="filters-group-wrap"> -->
+            <div class="filters-group ">
+                <p>Filter by year:</p>
+                <div class="btn-group-vertical filter-options">
+                    {% for year in years %}
+                    <button class="btn btn-xs btn-outline-primary" data-group='{{year}}'>{{year}}</button>
+                    {% endfor %}
+                </div>
             </div>
-            {% for post in paper.s.posts %}
-            <div id="{{post}}" role="tabpanel" aria-labelledby="posts">
-              <div class="card-body">
-                <a href="/post/{{post|replace(" ", "-")}}">
-                <h6 class="masonry-title mb0">{{ post }}</h6>
-                </a>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% endif %}
-          <a href="{{paper.s.source_url}}"><h6 class="masonry-title mb0">View full paper at source</h6></a>
+            <!-- </div> -->
         </div>
-        {% endfor %}
-      </div>
+        <div class="col-lg-10 col-md-6">
+            <div id="grid" class="row my-shuffle-container">
+                {% for paper in papers %}
+                <div id="{{paper.s.paper_title}}" class="col-lg-12 col-md-6 mb50 shuffle-item"
+                     data-groups='{{paper.s.publication_date[:4]}}'>
+                    <h4 class="mb0 text-uppercase">{{ paper.s.title | safe}}</h4>
+                    <p><em>{{ paper.s.paper_authors | safe }}</em></p>
+                    <p>Published {{(paper.s.publication_date|str2datetime).strftime('%-d %B %Y')}}
+                        {% if paper.s.journal %}
+                        in {{paper.s.journal}}
+                        {% endif %}
+                    </p>
+                    {% if paper.s.keywords %}
+                    <p><b>Keywords: </b>{{paper.s.keywords}}</p>
+                    {% endif %}
+                    {% if paper.s.pubmed_id %}
+                    <p>Pubmed ID: <a style="color:#9F3D34" target=none
+                                     href="https://pubmed.ncbi.nlm.nih.gov/{{paper.s.pubmed_id}}">{{paper.s.pubmed_id}}</a>
+                    </p>
+                    {% endif %}
+                    {% if paper.s.doi %}
+                    <p>DOI: <a style="color:#9F3D34" target=none
+                               href="https://doi.org/{{paper.s.doi}}">{{paper.s.doi}}</a></p>
+                    {% endif %}
+                    <p><a href="/paper/{{paper.s.slug}}">Details</a></p>
+<!--                    <p>{{ paper.s.abstract | safe }}</p>-->
+<!--                    {% if paper.s.posts %}-->
+<!--                    <div class="card mb10">-->
+<!--                        <div class="card-header" role="tab" id="posts">-->
+<!--                            <h5 class="mb-0">-->
+<!--                                Related Posts-->
+<!--                            </h5>-->
+<!--                        </div>-->
+<!--                        {% for post in paper.s.posts %}-->
+<!--                        <div id="{{post}}" role="tabpanel" aria-labelledby="posts">-->
+<!--                            <div class="card-body">-->
+<!--                                <a href="/post/{{post|replace(" ", "-")}}">-->
+<!--                                <h6 class="masonry-title mb0">{{ post }}</h6>-->
+<!--                                </a>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                        {% endfor %}-->
+<!--                    </div>-->
+<!--                    {% endif %}-->
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
-
-  </div>
+</div>
 </div>
 
 {% endblock %}

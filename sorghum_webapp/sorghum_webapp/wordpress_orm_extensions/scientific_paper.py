@@ -38,12 +38,12 @@ class ScientificPaper(WPEntity):
 		return ["id", "date", "date_gmt", "guid", "modified", "modified_gmt",
 				"slug", "status", "type", "link", "title", "content", "author",
 				"template", "tags", "abstract","source_url", "paper_authors",
-				"publication_date", "pubmed_id", "keywords", "posts"]
+				"publication_date", "pubmed_id", "keywords", "posts", "journal","doi","funding"]
 
 	@property
 	def post_fields(self):
 		return ["title", "author", "abstract", "source_url", "paper_authors",
-				"publication_date", "pubmed_id", "keywords", "posts"]
+				"publication_date", "pubmed_id", "keywords", "posts", "journal","doi","funding"]
 
 	def update(self):
 		'''
