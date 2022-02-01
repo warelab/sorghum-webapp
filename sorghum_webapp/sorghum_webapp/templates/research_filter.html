@@ -31,26 +31,27 @@
         <div class="col-lg-10 col-md-6">
             <div id="grid" class="row my-shuffle-container">
                 {% for paper in papers %}
-                <div id="{{paper.s.paper_title}}" class="col-lg-12 col-md-6 mb50 shuffle-item"
+                <div id="{{paper.s.paper_title}}" class="col-lg-12 col-md-6 mb20 pt10 shuffle-item"
+                     style="border-bottom:solid thin grey;"
                      data-groups='{{paper.s.publication_date[:4]}}'>
-                    <h4 class="mb0 text-uppercase">{{ paper.s.title | safe}}</h4>
+                    <h4 class="mb0">{{ paper.s.title | safe}}</h4>
                     <p><em>{{ paper.s.paper_authors | safe }}</em></p>
-                    <p>Published {{(paper.s.publication_date|str2datetime).strftime('%-d %B %Y')}}
+                    <h6><b>Published: </b>{{(paper.s.publication_date|str2datetime).strftime('%-d %B %Y')}}
                         {% if paper.s.journal %}
-                        in {{paper.s.journal}}
+                        in <em>{{paper.s.journal}}</em>
                         {% endif %}
-                    </p>
+                    </h6>
                     {% if paper.s.keywords %}
-                    <p><b>Keywords: </b>{{paper.s.keywords}}</p>
+                    <h6><b>Keywords: </b>{{paper.s.keywords}}</h6>
                     {% endif %}
                     {% if paper.s.pubmed_id %}
-                    <p>Pubmed ID: <a style="color:#9F3D34" target=none
-                                     href="https://pubmed.ncbi.nlm.nih.gov/{{paper.s.pubmed_id}}">{{paper.s.pubmed_id}}</a>
-                    </p>
+                    <h6><b>Pubmed ID: </b><a style="color:#9F3D34" target=none
+                                            href="https://pubmed.ncbi.nlm.nih.gov/{{paper.s.pubmed_id}}">{{paper.s.pubmed_id}}</a>
+                    </h6>
                     {% endif %}
                     {% if paper.s.doi %}
-                    <p>DOI: <a style="color:#9F3D34" target=none
-                               href="https://doi.org/{{paper.s.doi}}">{{paper.s.doi}}</a></p>
+                    <h6><b>DOI: </b><a style="color:#9F3D34" target=none
+                                      href="https://doi.org/{{paper.s.doi}}">{{paper.s.doi}}</a></h6>
                     {% endif %}
                     <p><a href="/paper/{{paper.s.slug}}">Details</a></p>
 <!--                    <p>{{ paper.s.abstract | safe }}</p>-->
