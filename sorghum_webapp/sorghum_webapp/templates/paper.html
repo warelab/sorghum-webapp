@@ -40,7 +40,16 @@
             <a href="{{paper.s.source_url}}"><h6 class="masonry-title mb1">View full paper at source</h6></a>
 
             {% endif %}
-            <p>{{ paper.s.abstract | safe }}</p>
+            <div class="card mb10">
+                <div class="card-header" role="tab" id="posts">
+                    <h5 class="mb-0">
+                        Abstract
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ paper.s.abstract | safe }}</p>
+                </div>
+            </div>
             {% if paper.s.posts %}
             <div class="card mb10">
                 <div class="card-header" role="tab" id="posts">
