@@ -39,26 +39,26 @@ def publications():
 
 		papersWithInfo = [p for p in rawPapers if not (len(p.s.abstract) == 0 or len(p.s.keywords) == 0) or len(p.s.pubmed_id) == 0]
 
-		queryPubmed = [p for p in rawPapers if (len(p.s.abstract) == 0 or len(p.s.keywords) == 0 and not len(p.s.pubmed_id) == 0)]
-
-		if len(queryPubmed) > 0:
-			info = getMetaData(queryPubmed)
-
-			for paper in info:
-				paper.s.content = paper.s.abstract
-				if not len(paper.s.paper_authors) == 0 :
-					if paper.s.keywords != "No keywords in Pubmed":
-						paper_tags = []
-						kwl = paper.s.keywords.split(',')
-						kwd = [w.strip() for w in kwl]
-						for keyword in kwd:
-							new_tag = Tag(api=api)
-							new_tag.s.name = keyword
-							tag_id = str(new_tag.post)
-							paper_tags.append(tag_id)
-						paper.s.tags = ', '.join(paper_tags)
-					paper.update()
-					papersWithInfo.append(paper)
+# 		queryPubmed = [p for p in rawPapers if (len(p.s.abstract) == 0 or len(p.s.keywords) == 0 and not len(p.s.pubmed_id) == 0)]
+#
+# 		if len(queryPubmed) > 0:
+# 			info = getMetaData(queryPubmed)
+#
+# 			for paper in info:
+# 				paper.s.content = paper.s.abstract
+# 				if not len(paper.s.paper_authors) == 0 :
+# 					if paper.s.keywords != "No keywords in Pubmed":
+# 						paper_tags = []
+# 						kwl = paper.s.keywords.split(',')
+# 						kwd = [w.strip() for w in kwl]
+# 						for keyword in kwd:
+# 							new_tag = Tag(api=api)
+# 							new_tag.s.name = keyword
+# 							tag_id = str(new_tag.post)
+# 							paper_tags.append(tag_id)
+# 						paper.s.tags = ', '.join(paper_tags)
+# 					paper.update()
+# 					papersWithInfo.append(paper)
 
 		all_keywords = set()
 		all_years = []
