@@ -74,8 +74,17 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% for funder in paper.s.funding %}
-                    <h6 class="masonry-title mb1">{{ funder.agency }} {{ funder.grant_id}}</h6>
+                    {% for funder in paper.s.funding|sort(attribute="grant_id")|sort(attribute="program")|sort(attribute="agency") %}
+                    <h6 class="masonry-title mb1">{{ funder.agency }}
+                        {% if funder.program %}
+                        - {{ funder.program }}
+                        {% endif %}
+                        {% if funder.link %}
+                        <a href="{{funder.link}}">{{ funder.grant_id }}</a>
+                        {% else %}
+                        {{ funder.grant_id }}
+                        {% endif %}
+                    </h6>
                     {% endfor %}
                 </div>
             </div>
