@@ -30,7 +30,7 @@ def engage():
     return menu
 
 def genomes():
-    ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+    ensemblURL = 'https://ensembl.sorghumbase.org'
     ref = make_menu('Genomes')
 
     add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
