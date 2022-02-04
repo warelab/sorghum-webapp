@@ -1640,9 +1640,9 @@ Breadcrumb style
 Blog post entries
 */
 .entry-card {
-  -webkit-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05);
-  -moz-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05);
-  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.05); }
+  -webkit-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  -moz-box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15);
+  box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15); }
 
 .entry-content {
   background-color: #fff;
@@ -3173,7 +3173,7 @@ Timeline
   content: '';
   top: 0;
   bottom: 0;
-  left: 100px;
+  left: 203px;
   right: auto;
   height: 100%;
   width: 3px;
@@ -3189,10 +3189,10 @@ Timeline
   background: -webkit-linear-gradient(top, #00A14B, rgba(0,161,75, 0));
   background: linear-gradient(to bottom, #00A14B, rgba(0,161,75, 0));
   top: 100%;
-  left: 100px; }
+  left: 203px; }
 
 .vtimeline-content {
-  margin-left: 150px;
+  margin-left: 250px;
   background: #fff;
   border: 1px solid #e6e6e6;
   padding: 35px 20px;
@@ -3226,7 +3226,7 @@ Timeline
   text-align: center;
   line-height: 50px;
   z-index: 99;
-  margin-left: 75px; }
+  margin-left: 180px; }
 
 .vtimeline-icon i {
   display: block;
@@ -3235,9 +3235,9 @@ Timeline
 
 .vtimeline-date {
   width: 260px;
-  text-align: left;
+  text-align: right;
   position: absolute;
-  left: 0;
+  left: -100px;
   top: 10px;
   font-weight: 400;
   color: #374054; }

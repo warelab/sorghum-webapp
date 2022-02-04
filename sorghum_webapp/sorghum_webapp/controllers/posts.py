@@ -8,6 +8,7 @@ from flask import request, render_template
 from wordpress_orm import wp_session
 from ..wordpress_orm_extensions.germplasm import GermplasmRequest
 from ..wordpress_orm_extensions.population import PopulationRequest
+from ..wordpress_orm_extensions.user import SBUser
 from math import ceil
 
 from .. import app
@@ -67,14 +68,26 @@ def posts():
 
 		templateDict["banner_media"] = posts_banner_media
 
+		team_request = api.UserRequest()
+		team_request.context = "edit"
+		team_request.per_page = 50
+		team_request.roles = ['team_member','former_team_member', 'editor']
+		team = team_request.get(class_object=SBUser)
+		teamDict = {}
+		for i in team:
+			teamDict[i.s.name] = 'SorghumBase Team'
+
 		# pre-cache these items so new HTTP connections aren't made from the template
 		for p in posts:
 			p.categories
 			p.author
+			if p.author.s.name not in teamDict:
+				teamDict[p.author.s.name] = p.author.s.name
 
 		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[posts_banner_media])
 
 	templateDict['posts'] = posts
+	templateDict['authors'] = teamDict
 	templateDict['post_tally'] = post_tally
 	if categories:
 		templateDict['categories'] = spacer.join(categories)
