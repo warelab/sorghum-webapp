@@ -135,12 +135,20 @@ img {
 
 .logo-sb {
 	height: 69px;
-	width: 300px;
-	background-size: 300px;
+	width: 100%;
+	background-size: 240px;
 	background-repeat: no-repeat;
 	background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
 }
-
+@media (min-width: 1200px) {
+	.logo-sb {
+		height: 69px;
+		width: 300px;
+		background-size: 300px;
+		background-repeat: no-repeat;
+		background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
+	}
+}
 @media (max-width: 991px) {
   .logo-sb {
 	  height: 100%;
