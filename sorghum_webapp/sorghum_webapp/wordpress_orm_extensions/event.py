@@ -96,7 +96,7 @@ class Event(WPEntity):
 			except WPORMCacheObjectNotFoundError:
 				media = Media(api=self.api)
 				media = self.api.media(id=resource_data['id'])
-				self.api.wordpress_object_cache.set(value=media, keys=[media.s.id])
+# 				self.api.wordpress_object_cache.set(value=media, keys=[media.s.id])
 				self._featured_image = media
 
 		return self._featured_image
@@ -203,7 +203,7 @@ class EventRequest(WPRequest):
 				logger.debug("TODO: implement _embedded content for Event object")
 
 			# add to cache
-			self.api.wordpress_object_cache.set(value=event, keys=(event.s.id, event.s.slug))
+# 			self.api.wordpress_object_cache.set(value=event, keys=(event.s.id, event.s.slug))
 
 			events.append(event)
 

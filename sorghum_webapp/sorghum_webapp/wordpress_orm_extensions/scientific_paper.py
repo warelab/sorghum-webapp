@@ -213,7 +213,7 @@ class ScientificPaperRequest(WPRequest):
 				logger.debug("TODO: implement _embedded content for ScientificPaper object")
 
 			# add to cache
-			self.api.wordpress_object_cache.set(value=paper, keys=(paper.s.id, paper.s.slug))
+# 			self.api.wordpress_object_cache.set(value=paper, keys=(paper.s.id, paper.s.slug))
 
 			papers.append(paper)
 
