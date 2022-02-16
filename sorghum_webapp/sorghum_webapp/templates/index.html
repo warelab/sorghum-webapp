@@ -12,7 +12,7 @@
 
 <div id="rev_slider_1078_1_wrapper" class="rev_slider_wrapper fullwidthbanner-container" data-alias="classic4export" data-source="gallery" style="margin:0px auto;background-color:transparent;padding:0px;margin-top:0px;margin-bottom:0px;">
     <!-- START REVOLUTION SLIDER 5.4.1 auto mode -->
-    <div id="rev_slider_1078_1" class="rev_slider fullwidthabanner" style="display:none;" data-version="5.4.1">
+    <div id="rev_slider_1078_1" class="rev_slider fullwidthbanner" style="display:none;" data-version="5.4.1">
         <ul>
           <!-- SLIDE  -->
           <li data-index="rs-3046" data-transition="parallaxtoleft" data-slotamount="default" data-hideafterloop="0" data-hideslideonmobile="off"  data-easein="Power4.easeInOut" data-easeout="Power4.easeInOut" data-masterspeed="2000" data-rotate="0"  data-fstransition="fade" data-fsmasterspeed="1500" data-fsslotamount="7" data-saveperformance="off"  data-title="Intro" data-param1="" data-param2="" data-param3="" data-param4="" data-param5="" data-param6="" data-param7="" data-param8="" data-param9="" data-param10="" data-description="">
@@ -64,7 +64,9 @@
             <!-- SLIDE  -->
             {% for banner in banners %}
                 {% if banner.format == "left" %}
-                <li data-index="rs-3045-{{banner.id}}" data-transition="parallaxtoleft" data-slotamount="default" data-hideafterloop="0" data-hideslideonmobile="off"  data-easein="Power4.easeInOut" data-easeout="Power4.easeInOut" data-masterspeed="2000" data-rotate="0"  data-fstransition="fade" data-fsmasterspeed="1500" data-fsslotamount="7" data-saveperformance="off"  data-title="Intro" data-param1="" data-param2="" data-param3="" data-param4="" data-param5="" data-param6="" data-param7="" data-param8="" data-param9="" data-param10="" data-description="">
+                <li data-index="rs-3045-{{banner.id}}" data-transition="parallaxtoleft" data-slotamount="default" data-hideafterloop="0" data-hideslideonmobile="off"
+                    data-easein="Power4.easeInOut" data-easeout="Power4.easeInOut" data-masterspeed="2000" data-rotate="0"  data-fstransition="fade" data-fsmasterspeed="1500" data-fsslotamount="7" data-saveperformance="off"
+                    data-title="Intro" data-param1="" data-param2="" data-param3="" data-param4="" data-param5="" data-param6="" data-param7="" data-param8="" data-param9="" data-param10="" data-description="">
                     <img src="{{banner.bgmedia.s.source_url}}"  alt=""  data-bgposition="center center" data-bgfit="cover" data-bgrepeat="no-repeat" data-bgparallax="10" class="rev-slidebg" data-no-retina>
                     <img src="{{banner.media.s.source_url}}"  alt=""  data-bgposition="left center" data-bgfit="50%" data-bgrepeat="no-repeat" data-bgparallax="10" class="rev-slidebg" data-no-retina>
                     <div class="tp-caption mainSlide-Title-Centered tp-resizeme"
@@ -73,7 +75,7 @@
                          data-y="['middle','middle','middle','middle']" data-voffset="['-80','-80','-80','-80']"
                          data-fontsize="['40','40','40','40']" data-lineheight="['65','55','55','55']"
                          data-width="['500','500','400','300']" data-height="none" data-whitespace="normal" data-type="text" data-responsive_offset="on"
-                         data-frames='[{"delay":1400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
+                         data-frames='[{"delay":0,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
                          data-textalign="['center','center','center','center']" data-paddingtop="[0,0,0,0]" data-paddingright="[0,0,0,0]" data-paddingbottom="[10,10,10,10]" data-paddingleft="[0,0,0,0]"
                     >{{banner.title}}</div>
                     <div class="tp-caption  mainSlide-caption  tp-resizeme"
@@ -82,7 +84,7 @@
                          data-y="['middle','middle','middle','middle']" data-voffset="[0,0,0,0]"
                          data-fontsize="[24,22,20,16]" data-lineheight="[34,34,34,26]"
                          data-width="[500,500,400,300]" data-height="none" data-whitespace="normal" data-type="text" data-responsive_offset="on"
-                         data-frames='[{"delay":1400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
+                         data-frames='[{"delay":400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
                          data-textalign="['center','center','center','center']" data-paddingtop="[0,0,0,0]" data-paddingright="[0,0,0,0]" data-paddingbottom="[10,10,10,10]" data-paddingleft="[0,0,0,0]"
                          style="font-weight:bold;"
                     >{{banner.group}}</div>
@@ -98,7 +100,7 @@
                              data-actions='[{"event":"click","action":"scrollbelow","offset":"px","delay":""}]'
                              data-responsive_offset="on"
                              data-responsive="off"
-                             data-frames='[{"delay":2000,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
+                             data-frames='[{"delay":1000,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
                              data-textAlign="['center','center','center','center']"
                              data-paddingtop="[50,50,50,50]"
                              data-paddingright="[35,35,35,35]"
@@ -204,16 +206,22 @@
                 {% if banner.format == "video" %}
                 <li data-index="rs-3045-{{banner.id}}" data-transition="parallaxtoleft" data-slotamount="default" data-hideafterloop="0" data-hideslideonmobile="off"  data-easein="Power4.easeInOut" data-easeout="Power4.easeInOut" data-masterspeed="2000" data-rotate="0"  data-fstransition="fade" data-fsmasterspeed="1500" data-fsslotamount="7" data-saveperformance="off"  data-title="Intro" data-param1="" data-param2="" data-param3="" data-param4="" data-param5="" data-param6="" data-param7="" data-param8="" data-param9="" data-param10="" data-description="">
                     <img src="{{banner.media.s.source_url}}"  alt=""  data-bgposition="center center" data-bgfit="cover" data-bgrepeat="no-repeat" data-bgparallax="10" class="rev-slidebg" data-no-retina>
-                    <video autoplay muted loop style="object-fit: contain; background-size: cover; width: 60%; height: auto; visibility: inherit; opacity: 1; position: absolute; left: 0px; top: -25%; display: block;" class="resizelistener" preload="auto">
-                        <source src="{{banner.video.s.source_url}}" type="video/mp4">
-                    </video>
+                    <div class="slotholder" style="position: absolute; top: 0px; left: 0px; z-index: 0; width: 100%; height: 100%; backface-visibility: hidden; transform: translate3d(0px, 0px, 0px); visibility: inherit; opacity: 1;">
+                        <!--Runtime Modification - Img tag is Still Available for SEO Goals in Source - <img src="https://content.sorghumbase.org/wordpress/wp-content/uploads/2022/02/test_img5.png" alt="" data-bgposition="left center" data-bgfit="50%" data-bgrepeat="no-repeat" data-bgparallax="10" class="rev-slidebg defaultimg" data-no-retina="">-->
+                        <div class="tp-bgimg defaultimg " data-bgcolor="undefined" style="background-repeat: no-repeat; background-image: url(&quot;{{banner.media.s.source_url}}&quot;); background-size: 50%; background-position: left center; width: 100%; height: 100%; opacity: 1; visibility: inherit; z-index: 20;" src="{{banner.media.s.source_url}}">
+                            <video autoplay muted loop
+                                   style="object-fit: contain; background-size: cover; width: 50%; height: auto; visibility: inherit; opacity: 1; position: absolute; left: 0px; top: -25%; display: block;" class="resizelistener" preload="auto">
+                                <source src="{{banner.video.s.source_url}}" type="video/mp4">
+                            </video>
+                        </div>
+                    </div>
                     <div class="tp-caption mainSlide-Title-Centered tp-resizeme"
                          id="slide-{{banner.id}}-layer-2"
                          data-x="['left','left','left','left']" data-hoffset="['700','500','500','500']"
                          data-y="['middle','middle','middle','middle']" data-voffset="['-80','-80','-80','-80']"
                          data-fontsize="['40','40','40','40']" data-lineheight="['65','55','55','55']"
                          data-width="['500','500','400','300']" data-height="none" data-whitespace="normal" data-type="text" data-responsive_offset="on"
-                         data-frames='[{"delay":1400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
+                         data-frames='[{"delay":0,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
                          data-textalign="['center','center','center','center']" data-paddingtop="[0,0,0,0]" data-paddingright="[0,0,0,0]" data-paddingbottom="[10,10,10,10]" data-paddingleft="[0,0,0,0]"
                     >{{banner.title}}</div>
                     <div class="tp-caption  mainSlide-caption  tp-resizeme"
@@ -222,7 +230,7 @@
                          data-y="['middle','middle','middle','middle']" data-voffset="[0,0,0,0]"
                          data-fontsize="[24,22,20,16]" data-lineheight="[34,34,34,26]"
                          data-width="[450,450,400,300]" data-height="none" data-whitespace="normal" data-type="text" data-responsive_offset="on"
-                         data-frames='[{"delay":1400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
+                         data-frames='[{"delay":400,"speed":1500,"frame":"0","from":"y:50px;opacity:0;","to":"o:1;","ease":"Power3.easeInOut"},{"delay":"wait","speed":300,"frame":"999","to":"opacity:0;","ease":"Power3.easeInOut"}]'
                          data-textalign="['center','center','center','center']" data-paddingtop="[0,0,0,0]" data-paddingright="[0,0,0,0]" data-paddingbottom="[10,10,10,10]" data-paddingleft="[0,0,0,0]"
                          style="font-weight:bold;"
                     >{{banner.group}}</div>

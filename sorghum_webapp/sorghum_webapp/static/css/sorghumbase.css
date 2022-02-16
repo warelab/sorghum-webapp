@@ -4,6 +4,12 @@
 .post-content a {
 	color: #7c1212!important;
 }
+.post-content blockquote {
+	border-width: 15px;
+	padding: 12px;
+	border-color: burlywood;
+	border-radius: 5px;
+}
 /* $add_circle_color = rgb(222, 222, 220); */
 
 .add-circle::before {
