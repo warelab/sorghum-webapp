@@ -105,7 +105,9 @@
 
     Ref: https://stackoverflow.com/questions/26421274/css-circular-cropping-of-rectangle-image
 */
-
+.tooltip-inner {
+	max-width:400px!important;
+}
 .image-cropper {
     width: 100px;
     height: 100px;
