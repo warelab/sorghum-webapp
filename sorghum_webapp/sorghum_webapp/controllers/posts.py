@@ -48,7 +48,7 @@ def posts():
 		if categories:
 			post_count.categories = categories
 		post_count.categories_exclude = ["faq", 17]  # 17 is the category for Sorghumbase CMS Tutorials
-		post_count.per_page = WAY_MORE_THAN_WE_WILL_EVER_HAVE
+# 		post_count.per_page = WAY_MORE_THAN_WE_WILL_EVER_HAVE
 		post_tally = post_count.get(count=True)
 
 		post_request = api.PostRequest()

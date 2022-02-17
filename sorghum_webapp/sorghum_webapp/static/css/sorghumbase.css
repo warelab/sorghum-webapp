@@ -4,6 +4,12 @@
 .post-content a {
 	color: #7c1212!important;
 }
+.post-content blockquote {
+	border-width: 15px;
+	padding: 12px;
+	border-color: burlywood;
+	border-radius: 5px;
+}
 /* $add_circle_color = rgb(222, 222, 220); */
 
 .add-circle::before {
@@ -99,7 +105,9 @@
 
     Ref: https://stackoverflow.com/questions/26421274/css-circular-cropping-of-rectangle-image
 */
-
+.tooltip-inner {
+	max-width:400px!important;
+}
 .image-cropper {
     width: 100px;
     height: 100px;
@@ -135,12 +143,20 @@ img {
 
 .logo-sb {
 	height: 69px;
-	width: 300px;
-	background-size: 300px;
+	width: 100%;
+	background-size: 240px;
 	background-repeat: no-repeat;
 	background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
 }
-
+@media (min-width: 1200px) {
+	.logo-sb {
+		height: 69px;
+		width: 300px;
+		background-size: 300px;
+		background-repeat: no-repeat;
+		background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
+	}
+}
 @media (max-width: 991px) {
   .logo-sb {
 	  height: 100%;

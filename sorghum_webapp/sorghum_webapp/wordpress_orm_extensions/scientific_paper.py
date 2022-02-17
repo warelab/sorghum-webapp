@@ -109,6 +109,7 @@ class ScientificPaperRequest(WPRequest):
 		self._before = None
 		self._after = None
 		self._per_page = None
+		self._page = None
 
 		self._status = list()
 		self._category_ids = list()
@@ -124,7 +125,7 @@ class ScientificPaperRequest(WPRequest):
 	def parameter_names(self):
 		return ["slug", "before", "after", "status", "categories", "title"]
 
-	def get(self):
+	def get(self, count=False):
 		'''
 		Returns a list of 'Scientific Paper' objects that match the parameters set in this object.
 		'''
@@ -156,6 +157,9 @@ class ScientificPaperRequest(WPRequest):
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
 
+		if self.page:
+			self.parameters["page"] = self.page
+
 		if self.tags:
 			self.parameters["tags"] = self.tags
 
@@ -174,6 +178,13 @@ class ScientificPaperRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
+
+		self.process_response_headers()
+
+		if count:
+			if self.total is None:
+				raise Exception("Header 'X-WP-Total' was not found.")
+			return self.total
 
 		papers_data = self.response.json()
 
@@ -202,7 +213,7 @@ class ScientificPaperRequest(WPRequest):
 				logger.debug("TODO: implement _embedded content for ScientificPaper object")
 
 			# add to cache
-			self.api.wordpress_object_cache.set(value=paper, keys=(paper.s.id, paper.s.slug))
+# 			self.api.wordpress_object_cache.set(value=paper, keys=(paper.s.id, paper.s.slug))
 
 			papers.append(paper)
 
@@ -345,6 +356,25 @@ class ScientificPaperRequest(WPRequest):
 				self._per_page = int(value)
 			except ValueError:
 				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
+
+	@property
+	def page(self):
+		'''
+		Page number of items to be returned in result set.
+		'''
+		return self._page
+
+	@page.setter
+	def page(self, value):
+		# only accept integers or strings that can become integers
+		#
+		if isinstance(value, int):
+			self._page = value
+		elif isinstance(value, str):
+			try:
+				self._page = int(value)
+			except ValueError:
+				raise ValueError("The 'page' parameter must be an integer, was given '{0}'".format(value))
 
 	@property
 	def exclude(self):
