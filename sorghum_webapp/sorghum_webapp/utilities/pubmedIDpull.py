@@ -40,9 +40,9 @@ def getMetaData(papersToFind):
 			keywordlist = root[0].find("KeywordList").findall("Keyword")
 
 			kwl =[]
-
 			for word in keywordlist:
-				kwl.append((word.text).strip())
+				if word.text:
+					kwl.append((word.text).strip())
 			papersToFind[num].s.keywords = ', '.join(kwl)
 		else:
 			papersToFind[num].s.keywords = 'No keywords in Pubmed'
