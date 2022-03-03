@@ -26,7 +26,6 @@
                     {% endfor %}
                 </div>
             </div>
-            <!-- </div> -->
         </div>
         <div class="col-lg-10 col-md-6">
             <div id="grid" class="row my-shuffle-container">
@@ -41,8 +40,16 @@
                         in <em>{{paper.s.journal}}</em>
                         {% endif %}
                     </h6>
-                    {% if paper.s.keywords %}
-                    <h6><b>Keywords: </b>{{paper.s.keywords}}</h6>
+                    {% if paper.s.tags %}
+                    <h6><b>Keywords: </b>
+                        <ul class="comma-separated">
+                        {% for tag in paper.s.tags %}
+                            {% if tagname[tag] %}
+                            <li><a style="color:#9F3D34" href="publications?tag={{tag}}">{{tagname[tag]}}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        </ul>
+                    </h6>
                     {% endif %}
                     {% if paper.s.pubmed_id %}
                     <h6><b>Pubmed ID: </b><a style="color:#9F3D34" target=none

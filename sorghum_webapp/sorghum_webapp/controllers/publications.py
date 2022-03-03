@@ -7,7 +7,7 @@ import logging
 import json
 from flask import request, render_template
 from wordpress_orm import wp_session
-from wordpress_orm.entities import Tag
+from wordpress_orm.entities.tag import Tag, TagRequest
 from ..wordpress_orm_extensions.scientific_paper import ScientificPaperRequest
 
 from ..utilities.pubmedIDpull import getMetaData
@@ -31,20 +31,26 @@ def publications():
     ''' List of research papers '''
     templateDict = navbar_template('Research')
     update_all = valueFromRequest(key="update_by_pubmed", request=request) or 0
-    print("update_all?",update_all)
+    tag_filter = valueFromRequest(key="tag", request=request)
     with api.Session():
         paper_count = ScientificPaperRequest(api=api)
+        if tag_filter:
+            paper_count.tags = [tag_filter]
+        paper_count.per_page = 1
+        paper_count.page = 1
         paper_tally = paper_count.get(count=True)
         current_page=0
         per_page = 100
 
         updatedPapers = []
-        all_keywords = set()
         all_years = []
+        tag_freq = {}
 
         while per_page * current_page < paper_tally :
             current_page = current_page + 1
             paper_request = ScientificPaperRequest(api=api)
+            if tag_filter:
+                paper_request.tags = [tag_filter]
             paper_request.per_page = per_page
             paper_request.page = current_page
             page_of_papers = paper_request.get()
@@ -84,17 +90,39 @@ def publications():
 
         papersByDate = sorted(updatedPapers, reverse=True, key=lambda k: k.s.publication_date)
         for paper in papersByDate:
-            if len(paper.s.keywords) > 0 and paper.s.keywords != "No keywords in Pubmed":
-                kwl = paper.s.keywords.split(',')
-                kwd = [w.strip() for w in kwl]
-                [all_keywords.add(x) for x in kwd]
+            for tag in paper.s.tags:
+                if tag not in tag_freq:
+                    tag_freq[tag] = 1
+                else:
+                    tag_freq[tag] += 1
             if paper.s.publication_date[:4] not in all_years:
                 all_years.append(paper.s.publication_date[:4])
 
 
         templateDict['papers'] = papersByDate
-        templateDict['keywords'] = all_keywords
         templateDict['years'] = all_years
+        min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
+        tag_counter = TagRequest(api=api)
+        tag_counter.per_page = 1
+        tag_counter.page = 1
+        tag_counter.include = ','.join(map(str,min_2_tags.keys()))
+        tag_counter.populate_request_parameters()
+        tags_tally = tag_counter.get(count=True)
+        tag_page = 0
+        tags_per_page = 100
+        tag_names = {}
+        while tags_per_page * tag_page < tags_tally :
+            tag_page = tag_page + 1
+            tag_getter = TagRequest(api=api)
+            tag_getter.per_page = tags_per_page
+            tag_getter.page = tag_page
+            tag_getter.include = tag_counter.include
+            tag_getter.populate_request_parameters()
+            page_of_tags = tag_getter.get()
+            for t in page_of_tags :
+                tag_names[t.s.id] = t.s.name
+        templateDict['tags'] = min_2_tags
+        templateDict['tagname'] = tag_names
 
     news_banner_media = api.media(slug="sorghum_panicle")
     templateDict["banner_media"] = news_banner_media

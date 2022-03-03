@@ -1,6 +1,25 @@
 .sb-link a {
 	color: #7c1212!important;
 }
+
+.comma-separated {
+	display: inline;
+	list-style: none;
+	padding: 0px;
+}
+
+.comma-separated li {
+	display: inline;
+}
+
+.comma-separated li::after {
+	content: ", ";
+}
+
+.comma-separated li:last-child::after {
+	content: "";
+}
+
 .post-content a {
 	color: #7c1212!important;
 }
