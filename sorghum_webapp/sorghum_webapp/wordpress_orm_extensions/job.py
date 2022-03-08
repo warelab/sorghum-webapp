@@ -195,7 +195,7 @@ class JobRequest(WPRequest):
 				logger.debug("TODO: implement _embedded content for Job object")
 
 			# add to cache
-			self.api.wordpress_object_cache.set(value=job, keys=(job.s.id, job.s.slug))
+# 			self.api.wordpress_object_cache.set(value=job, keys=(job.s.id, job.s.slug))
 
 			jobs.append(job)
 

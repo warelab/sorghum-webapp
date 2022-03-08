@@ -242,7 +242,7 @@ class ProjectRequest(WPRequest):
 				logger.debug("TODO: implement _embedded content for Project object")
 
 			# add to cache
-			self.api.wordpress_object_cache.set(value=project, keys=(project.s.id, project.s.slug))
+# 			self.api.wordpress_object_cache.set(value=project, keys=(project.s.id, project.s.slug))
 
 			projects.append(project)
 

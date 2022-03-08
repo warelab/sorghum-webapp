@@ -93,7 +93,7 @@ class ResourceLink(WPEntity):
 			except WPORMCacheObjectNotFoundError:
 				media = Media(api=self.api)
 				media = self.api.media(id=resource_data['id'])
-				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
+# 				self.api.wordpress_object_cache.set(value=media, keys=(media.s.id, media.s.slug))
 				self._resource_image = media
 
 		return self._resource_image
@@ -207,7 +207,7 @@ class ResourceLinkRequest(WPRequest):
 					logger.debug("TODO: implement _embedded content for ResourceLink object")
 
 				# add to cache
-				self.api.wordpress_object_cache.set(value=link, keys=(link.s.id, link.s.slug))
+# 				self.api.wordpress_object_cache.set(value=link, keys=(link.s.id, link.s.slug))
 			finally:
 				links.append(link)
 
