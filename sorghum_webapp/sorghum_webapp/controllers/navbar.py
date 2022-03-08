@@ -34,6 +34,7 @@ def genomes():
     ref = make_menu('Genomes')
 
     add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
+    add_link(ref, 'Phylogenetic overview','https://ensembl.sorghumbase.org/prot_tree_stats.html')
     add_link(ref, 'FTP site','https://ftp.sorghumbase.org')
     add_link(ref, '--Genomes--','none')
 
