@@ -34,6 +34,7 @@ def genomes():
     ref = make_menu('Genomes')
 
     add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
+    add_link(ref, 'Phylogenetic overview','https://ensembl.sorghumbase.org/prot_tree_stats.html')
     add_link(ref, 'FTP site','https://ftp.sorghumbase.org')
     add_link(ref, '--Genomes--','none')
 
@@ -140,11 +141,14 @@ def community_resources():
     add_link(platforms, 'JGI Phytozome', 'https://phytozome.jgi.doe.gov/pz/portal.html#!info?alias=Org_Sbicolor')
     add_link(platforms, 'MaizeGDB', 'https://www.maizegdb.org/')
 
-    research = make_menu('Research')
-    add_link(research, 'Publications', '/publications')
-    return research
     menu = make_menu('Community Resources','mega')
     menu['categories'] = [projects, databases, platforms, research]
+    return menu
+
+def research():
+    menu = make_menu('Research')
+    add_link(menu, 'Publications', '/publications')
+#     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
     return menu
 
 # def resources():
@@ -172,5 +176,5 @@ def support():
     return menu
 
 def navbar_template(activemenu='NA'):
-    return {'navbar': [news(), engage(), genomes(), tools(), community_resources(), about()],'activemenu':activemenu}
+    return {'navbar': [news(), engage(), genomes(), tools(), research(), about()],'activemenu':activemenu}
 #     return {'navbar': [news(), engage(), germplasm(), tools(), community_resources(), about()],'activemenu':activemenu}
