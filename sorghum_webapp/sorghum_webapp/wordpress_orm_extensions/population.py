@@ -179,7 +179,7 @@ class PopulationRequest(WPRequest):
 					logger.debug("TODO: implement _embedded content for Population object")
 
 				# add to cache
-				self.api.wordpress_object_cache.set(value=link, keys=(link.s.id, link.s.slug))
+# 				self.api.wordpress_object_cache.set(value=link, keys=(link.s.id, link.s.slug))
 			finally:
 				links.append(link)
 
