@@ -16,7 +16,7 @@ gramoogle_page = flask.Blueprint("gramoogle_page", __name__)
 @gramoogle_page.route('/genes') #, methods=['GET'])
 def func_name():
 	''' Documentation here. '''
-	templateDict = navbar_template()
+	templateDict = navbar_template('Tools')
 	
 	
 	return render_template("genes.html", **templateDict)

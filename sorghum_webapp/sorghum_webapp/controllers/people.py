@@ -31,7 +31,7 @@ def chooseFace(wpapi,users):
 @people_page.route('/people')
 def people():
     ''' People page. '''
-    templateDict = navbar_template('Community')
+    templateDict = navbar_template('About')
 
     with wpapi.Session():
 
