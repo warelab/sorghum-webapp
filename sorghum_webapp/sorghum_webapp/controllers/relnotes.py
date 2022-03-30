@@ -17,7 +17,7 @@ logger = logging.getLogger("wordpress_orm")
 relnotes_page = flask.Blueprint("relnotes_page", __name__)
 @relnotes_page.route('/relnotes', methods=['GET'])
 def feedbackPage():
-    templateDict = navbar_template('About')
+    templateDict = navbar_template('News')
     ms_banner_media = api.media(slug="aerial_combines")
     templateDict["banner_media"] = ms_banner_media
 

@@ -24,7 +24,7 @@ def paper(slug):
 	'''
 	This page displays a single research paper retrieved from WordPress.
 	'''
-	templateDict = navbar_template()
+	templateDict = navbar_template('Research')
 
 	#api = wp.API(url="http://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/")
 

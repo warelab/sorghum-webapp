@@ -37,7 +37,7 @@
             <h6><b>DOI: </b><a style="color:#9F3D34" target=none
                                href="https://doi.org/{{paper.s.doi}}">{{paper.s.doi}}</a></h6>
             {% else %}
-            <a href="{{paper.s.source_url}}"><h6 class="masonry-title mb1">View full paper at source</h6></a>
+            <a style="color:#9F3D34" href="{{paper.s.source_url}}"><h6 class="masonry-title mb1">View full paper at source</h6></a>
 
             {% endif %}
             <div class="card mb10">
@@ -59,9 +59,9 @@
                 </div>
                 <div class="card-body">
                     {% for post in paper.s.posts %}
-                    <a href="/post/{{post|replace(" ", "-")}}">
-                    <h6 class="masonry-title mb1">{{ post }}</h6>
-                    </a>
+                    <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="/post/{{post|replace(" ", "-")}}">
+                    {{ post }}
+                    </a></h6>
                     {% endfor %}
                 </div>
             </div>
@@ -80,7 +80,7 @@
                         - {{ funder.program }}
                         {% endif %}
                         {% if funder.link %}
-                        <a href="{{funder.link}}">{{ funder.grant_id }}</a>
+                        <a style="color:#9F3D34" href="{{funder.link}}">{{ funder.grant_id }}</a>
                         {% else %}
                         {{ funder.grant_id }}
                         {% endif %}
