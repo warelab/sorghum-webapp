@@ -3,7 +3,7 @@ from litter_getter import pubmed
 import xml.etree.ElementTree as ET
 
 # register with user account
-pubmed.connect('68732cb76781df2d9ad6d6197712a42b7108')
+pubmed.connect('4310661ddba8abf80e4be5c7c0850ae71d09')
 
 def getMetaData(papersToFind):
 

@@ -57,7 +57,7 @@ def publications():
 
             queryPubmed = []
             for p in page_of_papers :
-                if len(p.s.pubmed_id) > 0 and (update_all == '1' or len(p.s.abstract) == 0) :
+                if len(p.s.pubmed_id) > 0 and (update_all == '1' or len(p.s.content) == 0) :
                    queryPubmed.append(p)
                 else :
                    updatedPapers.append(p)
@@ -80,7 +80,8 @@ def publications():
                                 paper_tags.append(tag_id)
                                 paper.s.tags = ', '.join(paper_tags)
                         paper.s.content += "\n" + paper.s.pubmed_id
-                        paper.s.content += "\n" + paper.s.doi
+                        if paper.s.doi:
+                            paper.s.content += "\n" + paper.s.doi
                         paper.update()
                         print("updated paper", paper.s.pubmed_id, paper.s.title)
                         updatedPapers.append(paper)
