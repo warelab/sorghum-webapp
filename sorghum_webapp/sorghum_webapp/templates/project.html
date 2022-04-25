@@ -33,20 +33,94 @@
               </div>
               {% endif %}
               <div class="clearfix pb20">
-                  <h2 class="mb0">{{project.s.title | safe}}</h2>
+                  <h2 class="mb0">{{project.s.project_title | safe}}</h2>
               </div>
               <p>
-                {{project.s.content | safe }}
+                {{project.s.dates | safe }}
               </p>
               <br>
-              <h6>Researcher</h6>
-              <p>{{ project.author.s.name | safe}}</p>
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            {{project.s.funding_agency}}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6><a  style="color:#9F3D34" href="{{project.s.funding_link}}">Award ID {{project.s.award_id}}</a></h6>
+                    </div>
+                </div>
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            Awardees
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>{{project.s.awardees | safe}}</h6>
+                    </div>
+                </div>
+
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            Description
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>{{project.s.project_description | safe}}</h6>
+                    </div>
+                </div>
+
+                {% if project.s.project_web_sites %}
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            Project Links
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for rlink in project.s.project_web_sites %}
+                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="{{rlink.resource_url}}">
+                            {{ rlink.post_title | safe }}
+                            </a></h6>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if project.s.project_news %}
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            Project News
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for post in project.s.project_news %}
+                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="/post/{{post|replace(" ", "-")}}">
+                            {{ post | safe }}
+                            </a></h6>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% if project.s.project_publications %}
+                <div class="card mb10">
+                    <div class="card-header" role="tab" id="posts">
+                        <h5 class="mb-0">
+                            Project Publications
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for paper in project.s.project_publications %}
+                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="/paper/{{paper.id|replace(" ", "-")}}">
+                            {{ paper.post_title | safe }}
+                            </a></h6>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
               <br>
-              <h6>Project citations</h6>
-              <p>
-                {{project.s.project_publications | safe}}
-              </p>
-              <br>
+                {% if project.s.project_images %}
               <h6>Project Images</h6>
               <div id="js-grid-lightbox-gallery" class="cbp">
               {% for image in project.project_images %}
@@ -68,19 +142,7 @@
               </div>
               {% endfor %}
             </div>
-            <br>
-            <h6>Project Funding</h6>
-            <p>
-              {{project.s.project_funding}}
-            </p>
-            <br>
-            <h6>Affiliated Projects</h6>
-            <p>
-              {{project.s.affiliated_projects}}
-            </p>
-            <br>
-              <a href="{{project.s.project_url}}" class="btn btn-sm btn-primary">Learn More at project website</a>
-            <hr class="mb40">
+                {% endif %}
             </article>
         </div>
     </div>

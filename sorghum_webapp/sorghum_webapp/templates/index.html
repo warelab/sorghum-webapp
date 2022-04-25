@@ -345,7 +345,7 @@
 
     <div class="row">
         <div class="col-lg-4 mb40">
-          <a href="/posts?categories=news">
+          <a href="/posts?categories=news,research-highlights">
             <div class="media icon-simple">
                 <div class="d-flex mr-3">
                     <i class="icon-newspaper fa-3x text-primary"></i>
@@ -466,7 +466,7 @@
 <div class=" pt90 pb60">
     <div class="container">
         <div class="title-heading1 mb40">
-            <h3>Latest News</h3>
+            <h3>Latest Community News</h3>
         </div>
         <div class="row">
         {% for post in posts[0:3] %}
@@ -498,38 +498,52 @@
                     </div><!--/entry content-->
                 </div>
             </div>
-<!--            <div class="col-lg-4 mb30">-->
-<!--                <div class="entry-card">-->
-<!--                    <a href="/post/{{post.s.slug}}" class="entry-thumb">-->
-<!--                      {% if post.featured_media is not none %}-->
-<!--                        <img src="{{post.featured_media.s.source_url}}" alt="" class="img-fluid">-->
-<!--                      {% endif %}-->
-<!--                        <span class="thumb-hover ti-back-right"></span>-->
-<!--                    </a>&lt;!&ndash;/entry thumb&ndash;&gt;-->
-<!--                    <div class="entry-content">-->
-<!--                        <div class="entry-meta mb5">-->
-<!--                            <span>-->
-<!--                                {{(post.s.date|str2datetime).strftime('%-d %B %Y')}}-->
-<!--                            </span>-->
-<!--                        </div>-->
-<!--                        <h4 class="entry-title text-capitalize">-->
-<!--                            <a href="/post/{{post.s.slug}}">-->
-<!--                                {{post.s.title | safe}}-->
-<!--                            </a>-->
-<!--                        </h4>-->
-<!--                        <p>-->
-<!--                            {{post.s.excerpt | safe}}-->
-<!--                        </p>-->
-<!--                        <div class="text-right">-->
-<!--                            <a href="/post/{{post.s.slug}}" class="btn-link btn">Read More</a>-->
-<!--                        </div>-->
-<!--                    </div>&lt;!&ndash;/entry content&ndash;&gt;-->
-<!--                </div>-->
-<!--            </div>&lt;!&ndash;/.col&ndash;&gt;-->
         {% endfor %}
         </div>
     </div>
 </div><!--news-->
+
+{# Recent research section #}
+
+<div class=" pt90 pb60">
+    <div class="container">
+        <div class="title-heading1 mb40">
+            <h3>Recent Research</h3>
+        </div>
+        <div class="row">
+            {% for post in highlights[0:3] %}
+            <div class="col-lg-4 mb30">
+                <div class="entry-card">
+                    <a href="/post/{{post.s.slug}}" class="entry-thumb">
+                        {% if post.featured_media is not none %}
+                        <img src="{{post.featured_media.s.source_url}}" alt="" class="img-fluid mb20">
+                        {% endif %}
+                        <span class="thumb-hover ti-back-right"></span>
+                    </a><!--/entry thumb-->
+                    <div class="entry-content">
+                        <h5 class="text-capitalize">{{post.s.title | safe}}</h5>
+
+                        <ul class="post-meta list-inline" style="font-size:smaller">
+                            <li class="list-inline-item">
+                                <i class="fa fa-user-circle-o"></i>{{ authors[post.author.s.name] | safe }}
+                            </li>
+                            <li class="list-inline-item">
+                                <i class="fa fa-calendar-o"></i>{{(post.s.date|str2datetime).strftime('%d %B %Y')}}
+                            </li>
+                        </ul>
+                        <p>
+                            {{post.s.excerpt | safe}}
+                        </p>
+                        <div class="text-right">
+                            <a href="/post/{{post.s.slug}}" class="btn-link btn">Read More</a>
+                        </div>
+                    </div><!--/entry content-->
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div><!--highlights-->
 
 <div class="bg-faded pt90 pb90">
     <div class="container">

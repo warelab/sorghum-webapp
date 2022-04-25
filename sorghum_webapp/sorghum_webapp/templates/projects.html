@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block page_title %}SorghumBase{% endblock %}
+{% block page_title %}Funded Projects{% endblock %}
 {% block additional_header %}{% endblock %}
 {% block content %}
 
@@ -14,20 +14,20 @@
   </div>
 </div><!--page title end-->
 <div class="container pt90">
-    <div class="row">
-      <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">
-      <!--/col-->
-        <div class="theiaStickySidebar"
-          style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">
-          <div class="pt50 title">Projects in sorghum</div>
-          <div class="mb40">
-            {% for project in projects %}
-            <a data-scroll="" href="#{{project.s.title}}" class="nav-link active">{{project.s.title | safe}}</a>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-        <div class="col-lg-10">
+<!--    <div class="row">-->
+<!--      <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">-->
+<!--      &lt;!&ndash;/col&ndash;&gt;-->
+<!--        <div class="theiaStickySidebar"-->
+<!--          style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">-->
+<!--          <div class="pt50 title">Projects in sorghum</div>-->
+<!--          <div class="mb40">-->
+<!--            {% for project in projects %}-->
+<!--            <a data-scroll="" href="#{{project.s.project_title}}" class="nav-link active">{{project.s.project_title | safe}}</a>-->
+<!--            {% endfor %}-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--        <div class="col-lg-10">-->
           {% for project in projects %}
             <div class="career-card clearfix">
 
@@ -37,16 +37,19 @@
                 </div>
                 {% endif %}
                 <div class="clearfix pb20">
-                    <h2 class="mb0">{{project.s.title | safe}}</h2>
+                    <h3 class="mb0">{{project.s.project_title | safe}}</h3>
                 </div>
                 <p>
-                  {{project.s.content | safe }}
+                  <b>{{project.s.funding_agency | safe }}</b> Award ID {{project.s.award_id}}
+                </p>
+                <p>
+                    {{project.s.dates | safe }}
                 </p>
               <br>
                 <a href="/project/{{project.s.slug}}" class="btn btn-sm btn-primary">Read More</a>
             </div>
           {% endfor %}
-        </div>
-    </div>
+<!--        </div>-->
+<!--    </div>-->
 </div>
 {% endblock %}
