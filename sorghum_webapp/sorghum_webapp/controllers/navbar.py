@@ -149,6 +149,7 @@ def research():
     menu = make_menu('Research')
     add_link(menu, 'Publications', '/publications')
     add_link(menu, 'Highlighted Papers', '/posts?categories=research-highlights')
+    add_link(menu, "Funded Projects", '/projects')
     return menu
 
 # def resources():
