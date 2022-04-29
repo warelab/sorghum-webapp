@@ -5,7 +5,7 @@
   "ensemblURL": 'https://ensembl.sorghumbase.org',
   "ensemblSite": 'https://ensembl.sorghumbase.org',
   "ensemblRest": 'https://data.gramene.org/pansite-ensembl',
-  "grameneData": 'https://devdata.gramene.org/sorghum_v2',
+  "grameneData": 'https://data.sorghumbase.org/sorghum_v2',
   "targetTaxonId": 4588,
   "alertText": 'Click the search icon in the menu bar or type / to search'
 }
