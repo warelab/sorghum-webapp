@@ -12,7 +12,7 @@ def add_link(menu, label, link, links=[]):
 
 def news():
     menu = make_menu('News')
-    add_link(menu, 'News', '/posts?categories=news')
+    add_link(menu, 'News', '/posts?categories=news,research-highlights')
     add_link(menu, 'Meetings & Events', '/events')
 #     add_link(menu, 'Job Postings', '/jobs')
 #     add_link(menu, 'Publications', '/publications')
@@ -148,7 +148,8 @@ def community_resources():
 def research():
     menu = make_menu('Research')
     add_link(menu, 'Publications', '/publications')
-#     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
+    add_link(menu, 'Highlighted Papers', '/posts?categories=research-highlights')
+    add_link(menu, "Funded Projects", '/projects')
     return menu
 
 # def resources():

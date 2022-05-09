@@ -56,12 +56,21 @@ def index():
 	with api.Session():
 
 		post_request = api.PostRequest()
-		post_request.categories = ["researchnote","news"]	# search by slug
+		post_request.categories = ["news"]	# search by slug
 		post_request.orderby = "date"
 		post_request.order = "desc"
 		post_request.per_page = 3			# only get three newest
 
 		posts = post_request.get()
+
+		post_request2 = api.PostRequest()
+		post_request2.categories = ["research-highlights"]	# search by slug
+		post_request2.orderby = "date"
+		post_request2.order = "desc"
+		post_request2.per_page = 3			# only get three newest
+
+		highlights = post_request2.get()
+
 
 		small_banner = api.media(slug="sorghum-grains_1920x1000")
 		templateDict["small_banner"] = small_banner
@@ -179,5 +188,6 @@ def index():
 	templateDict["tools"] = someTools
 	templateDict["toolicons"] = ["icon-layers", "icon-telescope", "icon-globe"]
 	templateDict["posts"] = posts
+	templateDict["highlights"] = highlights
 	app_logger.debug(" ============= controller finished ============= ")
 	return render_template("index.html", **templateDict, zip=zip)

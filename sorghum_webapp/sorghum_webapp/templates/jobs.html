@@ -20,7 +20,7 @@
       <!--/col-->
       <div class="theiaStickySidebar"
       style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">
-      <div class="pt50 title">Jobs in sorghum</div>
+<!--      <div class="pt50 title">Jobs in sorghum</div>-->
       <div class="mb40">
         {% if jobs[0] %}
           {% for job in jobs %}
@@ -47,10 +47,12 @@
                     {{job.s.content | safe }}
                   </p>
                   <br>
+                  {% if job.s.job_requirements %}
                   <h6>Job Requirements</h6>
                   <p>
                     {{job.s.job_requirements | safe}}
                   </p>
+                  {% endif %}
                   <a href="{{job.s.job_url}}" class="btn float-right btn-sm btn-primary">Learn More</a>
               </div><!--/career-->
             {% endfor %}

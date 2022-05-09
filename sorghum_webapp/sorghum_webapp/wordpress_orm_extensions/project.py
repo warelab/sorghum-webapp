@@ -38,10 +38,10 @@ class Project(WPEntity):
 	def schema_fields(self):
 		return ["id", "date", "date_gmt", "guid", "modified", "modified_gmt",
 				"slug", "status", "type", "link", "title", "content", "author",
-				"featured_media", "template", "project_url", "larger_project_title",
-				"larger_project_url", "project_images", "project_participants",
-				"project_data_sets", "project_publications", "project_funding",
-				"affiliated_projects"]
+				"featured_media", "template",
+				"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
+				"project_description", "project_web_sites", "project_publications",
+				"project_news", "project_logo", "project_events","project_images"]
 
 	@property
 	def post_fields(self):
@@ -51,9 +51,9 @@ class Project(WPEntity):
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
 			self._post_fields = ["title", "content", "featured_media",
-			"project_url", "larger_project_title", "larger_project_url",
-			"project_images", "project_participants", "project_data_sets",
-			"project_publications", "project_funding", "affiliated_projects"]
+			"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
+			"project_description", "project_web_sites", "project_publications",
+			"project_news", "project_logo", "project_events", "project_images"]
 		return self._post_fields
 
 	@property
