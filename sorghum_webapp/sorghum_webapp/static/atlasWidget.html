@@ -10,9 +10,17 @@
 <body>
 <div id="heatmapContainer"></div>
 <script language="JavaScript" type="application/javascript">
-  expressionAtlasHeatmapHighcharts.render({
-    query: { gene: location.search.replace(/\?/,'') },
-    target: "heatmapContainer"
-  });
+  const queryString = location.search;
+  const urlParams = new URLSearchParams(queryString);
+  const genes = urlParams.get('genes');
+  const experiment = urlParams.get('reference');
+  const options = {
+    target: "heatmapContainer",
+    query: { gene: genes }
+  };
+  if (+experiment === 1) {
+    options["experiment"] = "reference"
+  }
+  expressionAtlasHeatmapHighcharts.render(options);
 </script>
 </body>
