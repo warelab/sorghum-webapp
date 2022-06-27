@@ -45,6 +45,7 @@ def publications():
         updatedPapers = []
         all_years = []
         tag_freq = {}
+        pubmed_count = {}
 
         while per_page * current_page < paper_tally :
             current_page = current_page + 1
@@ -89,8 +90,19 @@ def publications():
                         updatedPapers.append(paper)
                         print("pubmed found no authors for",paper.s.pubmed_id)
 
-        papersByDate = sorted(updatedPapers, reverse=True, key=lambda k: k.s.publication_date)
-        for paper in papersByDate:
+        sortedPapersByDate = sorted(updatedPapers, reverse=True, key=lambda k: k.s.publication_date)
+        papersByDate = []
+        for paper in sortedPapersByDate:
+            if paper.s.pubmed_id:
+                if paper.s.pubmed_id not in pubmed_count:
+                    pubmed_count[paper.s.pubmed_id] = 1
+                    papersByDate.append(paper)
+                else:
+                    pubmed_count[paper.s.pubmed_id] += 1
+                    print("duplicated pubmed_id ",paper.s.pubmed_id)
+            else:
+                papersByDate.append(paper)
+
             for tag in paper.s.tags:
                 if tag not in tag_freq:
                     tag_freq[tag] = 1
@@ -99,7 +111,8 @@ def publications():
             if paper.s.publication_date[:4] not in all_years:
                 all_years.append(paper.s.publication_date[:4])
 
-
+        print("total number of papers: ", len(sortedPapersByDate))
+        print("unique papers: ", len(papersByDate))
         templateDict['papers'] = papersByDate
         templateDict['years'] = all_years
         min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
