@@ -30,11 +30,11 @@ def engage():
     return menu
 
 def genomes():
-    ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+    ensemblURL = 'https://ensembl.sorghumbase.org'
     ref = make_menu('Genomes')
 
     add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(ref, 'Phylogenetic overview','https://ensembl-dev.sorghumbase.org/prot_tree_stats.html')
+    add_link(ref, 'Phylogenetic overview','https://ensembl.sorghumbase.org/prot_tree_stats.html')
     add_link(ref, 'FTP site','https://ftp.sorghumbase.org')
     add_link(ref, '--Genomes--','none')
 
@@ -111,8 +111,8 @@ def germplasm():
 def tools():
    menu = make_menu('Tools')
    add_link(menu, 'Gene Search','/genes')
-   add_link(menu, 'Genome Browser','https://ensembl-dev.sorghumbase.org')
-   add_link(menu, 'BLAST','https://ensembl-dev.sorghumbase.org/Tools/Blast')
+   add_link(menu, 'Genome Browser','https://ensembl.sorghumbase.org')
+   add_link(menu, 'BLAST','https://ensembl.sorghumbase.org/Tools/Blast')
    return menu
 
 def community_resources():
