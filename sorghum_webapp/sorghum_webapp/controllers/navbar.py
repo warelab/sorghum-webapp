@@ -41,6 +41,7 @@ def genomes():
     pages = [
         {'prod_name':'Sorghum_bicolor','label':'BTx623'},
         {'prod_name':'Sorghum_rio','label':'Rio'},
+        {'prod_name':'Sorghum_riouncc','label':'Rio (UNCC)'},
         {'prod_name':'Sorghum_tx430nano','label':'Tx430'},
         {'prod_name':'Sorghum_tx436pac','label':'Tx436'},
         {'prod_name':'Sorghum_tx2783pac','label':'Tx2783'},
@@ -56,7 +57,16 @@ def genomes():
         {'prod_name':'Sorghum_pi536008','label':'PI 536008'},
         {'prod_name':'Sorghum_austrcf317961','label':'AusTRCF317961'},
         {'prod_name':'Sorghum_353','label':'353'},
-        {'prod_name':'Sorghum_s3691','label':'S369-1'}
+        {'prod_name':'Sorghum_s3691','label':'S369-1'},
+        {'prod_name':'Sorghum_chineseamber','label':'ChineseAmber'},
+        {'prod_name':'Sorghum_grassl','label':'Grassl'},
+        {'prod_name':'Sorghum_leoti','label':'Leoti'},
+        {'prod_name':'Sorghum_pi2998841','label':'PI 2998841'},
+        {'prod_name':'Sorghum_pi297155','label':'PI 297155'},
+        {'prod_name':'Sorghum_pi329311','label':'PI 329311'},
+        {'prod_name':'Sorghum_pi510069','label':'PI 510069'},
+        {'prod_name':'Sorghum_pi510757','label':'PI 510757'},
+        {'prod_name':'Sorghum_pi655972','label':'PI 655972'}
     ]
 
     for page in pages:
