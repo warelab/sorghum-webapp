@@ -31,6 +31,11 @@
 }
 /* $add_circle_color = rgb(222, 222, 220); */
 
+.wp-caption-text {
+	font-size: smaller;
+	padding-left: 1em;
+	padding-right: 1em;
+}
 .add-circle::before {
 
 	/* Ref: http://aroc.github.io/side-comments-demo/ */
