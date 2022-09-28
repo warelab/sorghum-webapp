@@ -46,6 +46,7 @@ def searchapi(cat):
                 return results
             url = WP_BASE_URL + cat + '?_embed=true'
             if q:
+                results_dict['q'] = q
                 q = urllib.parse.quote(q)
                 url = url + '&search=' + q
             if cat == 'posts':
