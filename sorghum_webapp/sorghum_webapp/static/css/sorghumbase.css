@@ -166,9 +166,9 @@ img {
 }
 
 .logo-sb {
-	height: 69px;
-	width: 100%;
-	background-size: 240px;
+	height: 100%;
+	width: 180px;
+	background-size: 180px;
 	background-repeat: no-repeat;
 	background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
 }
@@ -305,11 +305,11 @@ img {
 	}
 
 	.search-suggestions {
-		top: 85px;
+		top: 79px;
 	}
 
 	#padding-behind-navbar {
-		height: 85px;
+		height: 79px;
 	}
 }
 @media (max-width: 992px) {
@@ -343,8 +343,11 @@ img {
 	font-size: smaller;
 	background-color: gainsboro;
 }
-.sb-navbar-right-elements {
-	top: 2em;
-	float: none !important;
-	position: sticky;
+
+.search-open {
+	position: absolute;
+	left: 97%;
+	z-index: 1;
+	text-decoration: none;
+	color: black;
 }
