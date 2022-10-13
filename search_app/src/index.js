@@ -18,7 +18,9 @@ const Notes = () => (
     path='sorghum'
     heading='Releases'
     date='2022-10-30'
+    offset={200}
   />
+
 )
 const Guides = () => (
     <MDView
@@ -27,6 +29,7 @@ const Guides = () => (
         path='sorghum-guides'
         heading='Guides'
         date='2022-10-30'
+        offset={200}
     />
 )
 
