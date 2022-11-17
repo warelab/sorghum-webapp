@@ -47,7 +47,7 @@ def genomes():
         {'prod_name':'Sorghum_tx2783pac','label':'Tx2783'},
         {'prod_name':'Sorghum_is12661','label':'IS12661'},
         {'prod_name':'Sorghum_is36143','label':'IS36143'},
-        {'prod_name':'Sorghum_is38525','label':'IS38525'},
+        {'prod_name':'Sorghum_is8525','label':'IS8525'},
         {'prod_name':'Sorghum_is929','label':'IS929'},
         {'prod_name':'Sorghum_ji2731','label':'Ji2731'},
         {'prod_name':'Sorghum_r93194522','label':'R931945-2-2'},
@@ -61,10 +61,10 @@ def genomes():
         {'prod_name':'Sorghum_chineseamber','label':'ChineseAmber'},
         {'prod_name':'Sorghum_grassl','label':'Grassl'},
         {'prod_name':'Sorghum_leoti','label':'Leoti'},
-        {'prod_name':'Sorghum_pi2998841','label':'PI 2998841'},
+        {'prod_name':'Sorghum_pi299841','label':'PI 299841'},
         {'prod_name':'Sorghum_pi297155','label':'PI 297155'},
         {'prod_name':'Sorghum_pi329311','label':'PI 329311'},
-        {'prod_name':'Sorghum_pi510069','label':'PI 510069'},
+        {'prod_name':'Sorghum_pi506069','label':'PI 506069'},
         {'prod_name':'Sorghum_pi510757','label':'PI 510757'},
         {'prod_name':'Sorghum_pi655972','label':'PI 655972'}
     ]
