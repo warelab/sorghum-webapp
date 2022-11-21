@@ -44,7 +44,7 @@ def genomes():
         {'prod_name':'Sorghum_leoti','label':'Leoti'},
         {'prod_name':'Sorghum_rio','label':'Rio'},
         {'prod_name':'Sorghum_riouncc','label':'Rio (UNCC)'},
-        {'prod_name':'Sorghum_pi299841','label':'PI 299841'},
+        {'prod_name':'Sorghum_pi229841','label':'PI 229841'},
         {'prod_name':'Sorghum_pi297155','label':'PI 297155'},
         {'prod_name':'Sorghum_pi329311','label':'PI 329311'},
         {'prod_name':'Sorghum_pi506069','label':'PI 506069'},
