@@ -31,20 +31,34 @@ def engage():
 
 def genomes():
     ensemblURL = 'https://ensembl-dev.sorghumbase.org'
-    ref = make_menu('Genomes')
+    genomes = make_menu('Data Access')
 
-    add_link(ref, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(ref, 'Phylogenetic overview','https://ensembl-dev.sorghumbase.org/prot_tree_stats.html')
-    add_link(ref, 'FTP site','https://ftp.sorghumbase.org')
-    add_link(ref, '--Genomes--','none')
+    add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
+    add_link(genomes, 'Phylogenetic overview','https://ensembl-dev.sorghumbase.org/prot_tree_stats.html')
+    add_link(genomes, 'FTP site','https://ftp.sorghumbase.org')
+#     add_link(ref, '--Genomes--','none')
 
-    pages = [
-        {'prod_name':'Sorghum_bicolor','label':'BTx623'},
+    cpnam = [
+        {'prod_name':'Sorghum_chineseamber','label':'ChineseAmber'},
+        {'prod_name':'Sorghum_grassl','label':'Grassl'},
+        {'prod_name':'Sorghum_leoti','label':'Leoti'},
         {'prod_name':'Sorghum_rio','label':'Rio'},
         {'prod_name':'Sorghum_riouncc','label':'Rio (UNCC)'},
+        {'prod_name':'Sorghum_pi299841','label':'PI 299841'},
+        {'prod_name':'Sorghum_pi297155','label':'PI 297155'},
+        {'prod_name':'Sorghum_pi329311','label':'PI 329311'},
+        {'prod_name':'Sorghum_pi506069','label':'PI 506069'},
+        {'prod_name':'Sorghum_pi510757','label':'PI 510757'},
+        {'prod_name':'Sorghum_pi655972','label':'PI 655972'}
+    ]
+
+    pages1 = [
+        {'prod_name':'Sorghum_bicolor','label':'BTx623'},
         {'prod_name':'Sorghum_tx430nano','label':'Tx430'},
         {'prod_name':'Sorghum_tx436pac','label':'Tx436'},
-        {'prod_name':'Sorghum_tx2783pac','label':'Tx2783'},
+        {'prod_name':'Sorghum_tx2783pac','label':'Tx2783'}
+    ]
+    pages2 = [
         {'prod_name':'Sorghum_is12661','label':'IS12661'},
         {'prod_name':'Sorghum_is36143','label':'IS36143'},
         {'prod_name':'Sorghum_is8525','label':'IS8525'},
@@ -57,26 +71,35 @@ def genomes():
         {'prod_name':'Sorghum_pi536008','label':'PI 536008'},
         {'prod_name':'Sorghum_austrcf317961','label':'AusTRCF317961'},
         {'prod_name':'Sorghum_353','label':'353'},
-        {'prod_name':'Sorghum_s3691','label':'S369-1'},
-        {'prod_name':'Sorghum_chineseamber','label':'ChineseAmber'},
-        {'prod_name':'Sorghum_grassl','label':'Grassl'},
-        {'prod_name':'Sorghum_leoti','label':'Leoti'},
-        {'prod_name':'Sorghum_pi299841','label':'PI 299841'},
-        {'prod_name':'Sorghum_pi297155','label':'PI 297155'},
-        {'prod_name':'Sorghum_pi329311','label':'PI 329311'},
-        {'prod_name':'Sorghum_pi506069','label':'PI 506069'},
-        {'prod_name':'Sorghum_pi510757','label':'PI 510757'},
-        {'prod_name':'Sorghum_pi655972','label':'PI 655972'}
+        {'prod_name':'Sorghum_s3691','label':'S369-1'}
     ]
 
-    for page in pages:
+    ref1 = make_menu('Reference')
+    for page in pages1:
         linkPair = [
             {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
             {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
         ]
-        add_link(ref, page["label"], 'na', linkPair)
+        add_link(ref1, page["label"], 'na', linkPair)
+    ref2 = make_menu('Reference')
+    for page in pages2:
+        linkPair = [
+            {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
+            {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
+        ]
+        add_link(ref2, page["label"], 'na', linkPair)
 
-    return ref
+    cpnammenu = make_menu('CP-NAM')
+    for page in cpnam:
+        linkPair = [
+            {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
+            {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
+        ]
+        add_link(cpnammenu, page["label"], 'na', linkPair)
+
+    menu = make_menu('Genomes','mega')
+    menu['categories'] = [cpnammenu, ref2, ref1, genomes]
+    return menu
 
 def germplasm():
     ref = make_menu('Reference')
