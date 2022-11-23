@@ -80,14 +80,16 @@ def genomes():
             {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
             {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
         ]
-        add_link(ref1, page["label"], 'na', linkPair)
+#         add_link(ref1, page["label"], 'na', linkPair)
+        add_link(ref1, page["label"], '/'.join([ensemblURL,page["prod_name"],'Info/Annotation']))
     ref2 = make_menu('Reference')
     for page in pages2:
         linkPair = [
             {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
             {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
         ]
-        add_link(ref2, page["label"], 'na', linkPair)
+#         add_link(ref2, page["label"], 'na', linkPair)
+        add_link(ref2, page["label"], '/'.join([ensemblURL,page["prod_name"],'Info/Annotation']))
 
     cpnammenu = make_menu('CP-NAM')
     for page in cpnam:
@@ -95,7 +97,8 @@ def genomes():
             {'label':'browser','link':'/'.join([ensemblURL,page["prod_name"]])},
             {'label':'genome info','link':'/'.join([ensemblURL,page["prod_name"],'Info/Annotation'])}
         ]
-        add_link(cpnammenu, page["label"], 'na', linkPair)
+#         add_link(cpnammenu, page["label"], 'na', linkPair)
+        add_link(cpnammenu, page["label"], '/'.join([ensemblURL,page["prod_name"],'Info/Annotation']))
 
     menu = make_menu('Genomes','mega')
     menu['categories'] = [cpnammenu, ref2, ref1, genomes]
