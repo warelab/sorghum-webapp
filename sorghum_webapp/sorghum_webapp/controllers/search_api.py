@@ -6,6 +6,7 @@ import requests
 import json
 import flask
 import logging
+import urllib.parse
 from flask import request, jsonify
 
 from .. import app
@@ -45,6 +46,8 @@ def searchapi(cat):
                 return results
             url = WP_BASE_URL + cat + '?_embed=true'
             if q:
+                results_dict['q'] = q
+                q = urllib.parse.quote(q)
                 url = url + '&search=' + q
             if cat == 'posts':
                 url = url + '&categories_exclude=8,17'

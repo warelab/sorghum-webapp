@@ -17,16 +17,19 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2022-06-30'
+    date='2022-11-30'
+    offset={200}
   />
+
 )
 const Guides = () => (
     <MDView
         org='warelab'
         repo='release-notes'
-        path='sorghum-guides'
+        path='test'
         heading='Guides'
-        date='2022-06-30'
+        date='2022-11-30'
+        offset={200}
     />
 )
 
