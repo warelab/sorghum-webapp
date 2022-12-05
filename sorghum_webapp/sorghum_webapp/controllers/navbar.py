@@ -30,13 +30,12 @@ def engage():
     return menu
 
 def genomes():
-    ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+    ensemblURL = 'https://ensembl.sorghumbase.org'
     genomes = make_menu('Data Access')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(genomes, 'Phylogenetic overview','https://ensembl-dev.sorghumbase.org/prot_tree_stats.html')
+    add_link(genomes, 'Phylogenetic overview','https://ensembl.sorghumbase.org/prot_tree_stats.html')
     add_link(genomes, 'FTP site','https://ftp.sorghumbase.org')
-#     add_link(ref, '--Genomes--','none')
 
     cpnam = [
         {'prod_name':'Sorghum_chineseamber','label':'ChineseAmber'},
@@ -147,8 +146,8 @@ def germplasm():
 def tools():
    menu = make_menu('Tools')
    add_link(menu, 'Gene Search','/genes')
-   add_link(menu, 'Genome Browser','https://ensembl-dev.sorghumbase.org')
-   add_link(menu, 'BLAST','https://ensembl-dev.sorghumbase.org/Tools/Blast')
+   add_link(menu, 'Genome Browser','https://ensembl.sorghumbase.org')
+   add_link(menu, 'BLAST','https://ensembl.sorghumbase.org/Tools/Blast')
    return menu
 
 def community_resources():
@@ -185,7 +184,7 @@ def research():
     menu = make_menu('Research')
     add_link(menu, 'Publications', '/publications')
     add_link(menu, 'Highlighted Papers', '/posts?categories=research-highlights')
-    add_link(menu, "Funded Projects", '/projects')
+#     add_link(menu, "Funded Projects", '/projects')
     return menu
 
 # def resources():

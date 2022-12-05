@@ -1,0 +1,47 @@
+{
+  "name": "sorghumbase-meta-search",
+  "version": "1.0.0",
+  "description": "meta search interface for sorghumbase",
+  "main": "src/index.js",
+  "source": "src/index.js",
+  "module": "src/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "start": "parcel ./src/index.html",
+    "build": "parcel build -d ../sorghum_webapp/sorghum_webapp/static/js/ -o search.js src/index.js",
+    "watch": "parcel watch -d ../sorghum_webapp/sorghum_webapp/static/js/ -o search.js src/index.js",
+    "build-searchbar": "parcel build -d ../sorghum_webapp/sorghum_webapp/static/js/ -o searchbar.js src/searchbar.js",
+    "watch-searchbar": "parcel watch -d ../sorghum_webapp/sorghum_webapp/static/js/ -o searchbar.js src/searchbar.js"
+  },
+  "author": "Andrew Olson",
+  "license": "MIT",
+  "dependencies": {
+    "gramene-dbxrefs": "^3.0.7",
+    "gramene-genetree-vis": "ajo2995/gramene-genetree-vis#nam",
+    "gramene-trees-client": "^2.5.6",
+    "lodash": "^4.17.20",
+    "money-clip": "^3.0.2",
+    "querystringify": "^2.2.0",
+    "react": "16.14.0",
+    "react-bootstrap": "^1.4.3",
+    "react-debounce-input": "^3.2.3",
+    "react-dom": "16.14.0",
+    "react-ga": "^2.7.0",
+    "react-icons": "^4.1.0",
+    "redux-bundler": "^21.0.0",
+    "redux-bundler-react": "1.0.1"
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.3",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
+    "node-sass": "^4.9.3",
+    "parcel-bundler": "^1.12.4"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false
+  }
+}

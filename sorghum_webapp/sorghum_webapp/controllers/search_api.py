@@ -35,7 +35,7 @@ def searchapi(cat):
                     page = page+1
                     purl = url + '&page=' + str(page)
                     print(purl)
-                    response = session.get(url=purl)
+                    response = session.get(url=purl, verify=False)
                     tags = response.json()
                     for tag in tags:
                         results_dict[str(tag['id'])] = tag['name']
@@ -56,7 +56,7 @@ def searchapi(cat):
             if cat == 'users':
                 session.auth = (os.environ['SB_WP_USERNAME'], os.environ['SB_WP_PASSWORD'])
                 url = WP_BASE_URL + cat + '?context=edit&roles=team_member&per_page=50&search=' + q
-            response = session.get(url=url)
+            response = session.get(url=url, verify=False)
             if cat == 'resource-link':
                 links = response.json()
                 mediaIDs = []
