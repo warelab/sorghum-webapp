@@ -115,13 +115,17 @@ def publications():
         print("unique papers: ", len(papersByDate))
         templateDict['papers'] = papersByDate
         templateDict['years'] = all_years
+        tags_tally = 0
         min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
-        tag_counter = TagRequest(api=api)
-        tag_counter.per_page = 1
-        tag_counter.page = 1
-        tag_counter.include = ','.join(map(str,min_2_tags.keys()))
-        tag_counter.populate_request_parameters()
-        tags_tally = tag_counter.get(count=True)
+        tlist= list(min_2_tags.keys())
+        step=500
+        for i in range(0,len(tlist), step):
+            tag_counter = TagRequest(api=api)
+            tag_counter.per_page = 1
+            tag_counter.page = 1
+            tag_counter.include = ','.join(map(str,tlist[i:i+step]))
+            tag_counter.populate_request_parameters()
+            tags_tally = tags_tally + tag_counter.get(count=True)
         tag_page = 0
         tags_per_page = 100
         tag_names = {}
