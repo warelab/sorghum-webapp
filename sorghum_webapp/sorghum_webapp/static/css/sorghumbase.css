@@ -157,8 +157,7 @@ img {
 }
 
 .logo-footer {
-	height: auto;
-	width: 96px;
+	height: 50px;
 }
 
 .logo-other {
@@ -346,8 +345,33 @@ img {
 
 .search-open {
 	position: absolute;
-	left: 97%;
-	z-index: 1;
+	right: 20px;
+	top: 35%;
+	width: 90px;
+	height: 100%;
 	text-decoration: none;
+	text-align: center;
 	color: black;
+	display: table;
+}
+.search-open::before {
+	content:'Search';
+	display: table-cell;
+	/*vertical-align: middle;*/
+}
+.search-close {
+	position: absolute;
+	top: 0;
+	right: 20px;
+	color: #999;
+	width: 80px;
+	height: 100%;
+	text-decoration: none;
+	text-align: center;
+	display: table;
+}
+.search-close::before {
+	content:'Close';
+	display: table-cell;
+	vertical-align: middle;
 }
