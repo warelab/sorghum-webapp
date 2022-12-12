@@ -1109,7 +1109,7 @@ Assan Header Style
   .search-inline .search-close {
     position: absolute;
     top: 0;
-    right: 0;
+    right: 20px;
     color: #999;
     width: 80px;
     height: 100%;
@@ -3606,8 +3606,8 @@ Footer styles
     color: rgba(255, 255, 255, 0.7); }
 
 .footer-bottomAlt {
-  padding: 15px 0;
-  padding-top: 20px;
+  padding-bottom: 10px;
+  padding-top: 13px;
   background-color: #000; }
   .footer-bottomAlt span {
     display: block;
