@@ -118,7 +118,8 @@ def publications():
         tags_tally = 0
         min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
         tlist= list(min_2_tags.keys())
-        step=500
+        tag_names = {}
+        step=400
         for i in range(0,len(tlist), step):
             tag_counter = TagRequest(api=api)
             tag_counter.per_page = 1
@@ -126,19 +127,18 @@ def publications():
             tag_counter.include = ','.join(map(str,tlist[i:i+step]))
             tag_counter.populate_request_parameters()
             tags_tally = tags_tally + tag_counter.get(count=True)
-        tag_page = 0
-        tags_per_page = 100
-        tag_names = {}
-        while tags_per_page * tag_page < tags_tally :
-            tag_page = tag_page + 1
-            tag_getter = TagRequest(api=api)
-            tag_getter.per_page = tags_per_page
-            tag_getter.page = tag_page
-            tag_getter.include = tag_counter.include
-            tag_getter.populate_request_parameters()
-            page_of_tags = tag_getter.get()
-            for t in page_of_tags :
-                tag_names[t.s.id] = t.s.name
+            tag_page = 0
+            tags_per_page = 100
+            while tags_per_page * tag_page < tags_tally :
+                tag_page = tag_page + 1
+                tag_getter = TagRequest(api=api)
+                tag_getter.per_page = tags_per_page
+                tag_getter.page = tag_page
+                tag_getter.include = tag_counter.include
+                tag_getter.populate_request_parameters()
+                page_of_tags = tag_getter.get()
+                for t in page_of_tags :
+                    tag_names[t.s.id] = t.s.name
         templateDict['tags'] = min_2_tags
         templateDict['tagname'] = tag_names
 
