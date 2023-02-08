@@ -55,7 +55,7 @@ class ScientificPaper(WPEntity):
 		url = self.api.base_url + "scientific_paper" + "/{}".format(self.s.id) + "?context=edit"
 
 		try:
-			super().post(url=url, data=self._data, parameters=self._data)
+			super().post(url=url, data=self._data)
 			# logger.debug("URL='{}'".format(self.request.url))
 		except requests.exceptions.HTTPError:
 			logger.debug("Post response code: {}".format(self.response.status_code))
