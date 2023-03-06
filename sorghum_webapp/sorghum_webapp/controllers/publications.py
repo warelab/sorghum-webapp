@@ -119,7 +119,7 @@ def publications():
         min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
         tlist= list(min_2_tags.keys())
         tag_names = {}
-        step=400
+        step=200
         for i in range(0,len(tlist), step):
             tag_counter = TagRequest(api=api)
             tag_counter.per_page = 1
