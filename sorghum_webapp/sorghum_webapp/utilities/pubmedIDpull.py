@@ -35,6 +35,7 @@ def getMetaData(papersToFind):
 				break
 
 		papersToFind[num].s.publication_date = year + "-" + month + "-" + day
+		papersToFind[num].s.date = year + "-" + month + "-" + day + "T00:00:00"
 
 		if root[0].find("KeywordList"):
 			keywordlist = root[0].find("KeywordList").findall("Keyword")
