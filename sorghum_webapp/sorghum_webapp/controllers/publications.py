@@ -86,11 +86,12 @@ def publications():
     templateDict = navbar_template('Research')
     show_all = valueFromRequest(key="show_all", request=request, boolean=True) or False
     force_update = valueFromRequest(key="force_update", request=request, boolean=True) or False
-    tag_filter = valueFromRequest(key="tag", request=request, aslist=True)
+    tag_filter = request.args.getlist("tag")
     before = valueFromRequest(key="before", request=request)
     after = valueFromRequest(key="before", request=request)
     current_page = valueFromRequest(key="page", request=request, integer=True) or 1
     per_page = valueFromRequest(key="per_page", request=request, integer=True) or 100
+    keywords_limit = valueFromRequest(key="max_keywords", request=request, integer=True) or 20
     with api.Session():
         paper_count = ScientificPaperRequest(api=api)
         if tag_filter:
@@ -106,7 +107,9 @@ def publications():
         updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update)
 
         tag_freq = {}
-
+        selected_tags = {}
+        for tag in tag_filter:
+            selected_tags[int(tag)] = 1
         for paper in updatedPapers:
             for tag in paper.s.tags:
                 if tag not in tag_freq:
@@ -124,11 +127,20 @@ def publications():
         templateDict['page'] = current_page
         templateDict['n_pages'] = math.ceil(paper_tally / per_page)
         templateDict['n_papers'] = paper_tally
+        templateDict['keywords_limit'] = keywords_limit
         if math.ceil(paper_tally / per_page) > 1:
-            templateDict['url'] = f"/publications?per_page={per_page}"
+            templateDict['filters_url'] = f"/publications?per_page={per_page}&max_keywords={keywords_limit}"
+            templateDict['pagination_url'] = f"/publications?per_page={per_page}&max_keywords={keywords_limit}"
+            templateDict['kw_url'] = f"/publications?per_page={per_page}&page={current_page}"
             if tag_filter:
-                templateDict['url'] += f"&tag={tag_filter}"
-            templateDict['url'] += "&page="
+                templateDict['pagination_url'] += f"&tag={'&tag='.join(tag_filter)}"
+                templateDict['kw_url'] += f"&tag={'&tag='.join(tag_filter)}"
+            if before:
+                templateDict['pagination_url'] += f"&before={before}"
+                templateDict['kw_url'] += f"&before={before}"
+            if after:
+                templateDict['pagination_url'] += f"&after={after}"
+                templateDict['kw_url'] += f"&after={after}"
         tags_tally = 0
         min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
         tlist= list(min_2_tags.keys())
@@ -148,6 +160,7 @@ def publications():
         templateDict['tags'] = min_2_tags
         templateDict['tagname'] = tag_names
         templateDict['tagfreq'] = tag_freq
+        templateDict['selected'] = selected_tags
 
     news_banner_media = api.media(slug="sorghum_panicle")
     templateDict["banner_media"] = news_banner_media
