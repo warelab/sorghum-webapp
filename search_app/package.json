@@ -13,8 +13,8 @@
   "dependencies": {
     "axios": "^0.21.1",
     "formik": "^3.0.0-next.8",
-    "gramene-mdview": "^2.0.5",
-    "gramene-search": "^1.2.46",
+    "gramene-mdview": "^2.0.6",
+    "gramene-search": "^1.2.61",
     "is-email": "^1.0.0",
     "lodash": "^4.17.15",
     "money-clip": "^3.0.2",
@@ -26,6 +26,7 @@
     "react-ga": "^3.3.0",
     "react-icons": "^4.1.0",
     "react-recaptcha": "^2.3.10",
+    "react-simple-maps": "^3.0.0",
     "redux-bundler": "^21.0.0",
     "redux-bundler-react": "^1.2.0",
     "sorghum-search": "^1.1.14",
