@@ -14,16 +14,14 @@ from wordpress_orm.entities import Media
 
 logger = logging.getLogger("wordpress_orm")
 
-class Project(WPEntity):
+class WorkingGroup(WPEntity):
 
 	def __init__(self, id=None, api=None):
 		super().__init__(api=api)
 
 		# related objects that need to be cached
-		self._author = None
 		self._category = None
 		self._featured_media = None
-		self._project_images = None
 
 	def __repr__(self):
 		if len(self.s.title) < 11:
@@ -37,11 +35,9 @@ class Project(WPEntity):
 	@property
 	def schema_fields(self):
 		return ["id", "date", "date_gmt", "guid", "modified", "modified_gmt",
-				"slug", "status", "type", "link", "title", "content", "author",
+				"slug", "status", "type", "link", "title", "content",
 				"featured_media", "template",
-				"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
-				"project_description", "project_web_sites", "project_publications",
-				"project_news", "project_logo", "project_events","project_images"]
+				"members",'chairperson','group_news']
 
 	@property
 	def post_fields(self):
@@ -51,9 +47,7 @@ class Project(WPEntity):
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
 			self._post_fields = ["title", "content", "featured_media",
-			"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
-			"project_description", "project_web_sites", "project_publications",
-			"project_news", "project_logo", "project_events", "project_images"]
+			"members","chairperson","group_news"]
 		return self._post_fields
 
 	@property
@@ -74,39 +68,6 @@ class Project(WPEntity):
 	def category_names(self):
 		return [x.s.name for x in self.categories]
 
-	# @property
-	# def featured_media(self):
-	# 	'''
-	# 	Returns a WordPress 'Media' object.
-	# 	'''
-	# 	if self._featured_media is None:
-	#
-	# 		if self.s.featured_media in [False, None]:
-	# 			return None # no image associated with link
-	#
-	# 		if isinstance(self.s.featured_media, list):
-	# 			if len(self.s.featured_media) > 0:
-	# 				resource_data = self.s.featured_media[0]
-	# 			elif len(self.s.featured_media) > 1:
-	# 				logger.warning("More than one resource image was found associated with an Project; selecting the first.")
-	# 				resource_data = self.s.featured_media[0]
-	# 			else:
-	# 				# empty list returned,  no image
-	# 				self._featured_media = None
-	# 				return None
-	# 		else:
-	# 			resource_data = self.s.featured_media
-	#
-	# 		try:
-	# 			media = self.api.wordpress_object_cache.get(class_name=Media.__name__, key=self.s.id)
-	# 		except WPORMCacheObjectNotFoundError:
-	# 			media = Media(api=self.api)
-	# 			media = self.api.media(id=resource_data['id'])
-	# 			self.api.wordpress_object_cache.set(value=media, keys=[media.s.id])
-	# 			self._featured_media = media
-	#
-	# 	return self._featured_media
-
 	@property
 	def featured_media(self):
 		'''
@@ -122,41 +83,9 @@ class Project(WPEntity):
 				self._featured_media = self.api.media(id=media_id)
 		return self._featured_media
 
-	@property
-	def project_images(self):
-		'''
-		Returns a list of the 'Media' objects that are the "project images" for this project.
-		'''
-		if self._project_images is None and self.s.project_images:
-
-			self._project_images = list()
-			for image in self.s.project_images:
-				media_id = image["ID"]
-				if media_id == 0:
-					# no featured media for this post entry (this is what WordPress returns)
-					self._project_images = None
-				else:
-					self._project_images.append(self.api.media(id=media_id))
-
-		return self._project_images
-
-	@property
-	def author(self):
-		'''
-		Returns the author of this post, class: 'User'.
-		'''
-		if self._author is None:
-			ur = self.api.UserRequest()
-			ur.id = self.s.author # ID for the author of the object
-			user_list = ur.get()
-			if len(user_list) == 1:
-				self._author = user_list[0]
-			else:
-				raise exc.UserNotFound("User ID '{0}' not found.".format(self.author))
-		return self._author
 
 
-class ProjectRequest(WPRequest):
+class WorkingGroupRequest(WPRequest):
 	'''
 	A class that encapsulates requests for WordPress Projects.
 	'''
@@ -178,9 +107,9 @@ class ProjectRequest(WPRequest):
 
 	def get(self):
 		'''
-		Returns a list of 'Project' objects that match the parameters set in this object.
+		Returns a list of 'WorkingGroup' objects that match the parameters set in this object.
 		'''
-		self.url = self.api.base_url + "project"
+		self.url = self.api.base_url + "working_group"
 
 		if self.id:
 			self.url += "/{}".format(self.id)
@@ -216,37 +145,25 @@ class ProjectRequest(WPRequest):
 			elif self.response.status_code == 404: # not found
 				return None
 
-		projects_data = self.response.json()
+		wg_data = self.response.json()
 
-		if isinstance(projects_data, dict):
+		if isinstance(wg_data, dict):
 			# only one object was returned; make it a list
-			projects_data = [projects_data]
+			wg_data = [wg_data]
 
-		projects = list()
-		for d in projects_data:
-			# Before we continue, do we have this Project in the cache already?
-			try:
-				project = self.api.wordpress_object_cache.get(class_name=Project.__name__, key=d["id"])
-				projects.append(project)
-				continue
-			except WPORMCacheObjectNotFoundError:
-				# nope, carry on
-				pass
+		working_groups = list()
+		for d in wg_data:
+			wg = WorkingGroup(api=self.api)
+			wg.json = json.dumps(d)
 
-			project = Project(api=self.api)
-			project.json = json.dumps(d)
-
-			project.update_schema_from_dictionary(d)
+			wg.update_schema_from_dictionary(d)
 
 			if "_embedded" in d:
-				logger.debug("TODO: implement _embedded content for Project object")
+				logger.debug("TODO: implement _embedded content for WorkingGroup object")
 
-			# add to cache
-# 			self.api.wordpress_object_cache.set(value=project, keys=(project.s.id, project.s.slug))
+			working_groups.append(wg)
 
-			projects.append(project)
-
-		return projects
+		return working_groups
 
 	@property
 	def slugs(self):

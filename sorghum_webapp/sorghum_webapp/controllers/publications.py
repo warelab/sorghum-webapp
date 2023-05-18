@@ -104,7 +104,10 @@ def publications():
         paper_count.page = 1
         paper_tally = paper_count.get(count=True)
 
-        updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update)
+        if force_update:
+            updatedPapers = getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update)
+        else:
+            updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update)
 
         tag_freq = {}
         selected_tags = {}

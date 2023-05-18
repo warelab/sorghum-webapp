@@ -9,6 +9,8 @@ from flask import request, render_template
 
 from wordpress_orm import wp_session
 from ..wordpress_orm_extensions.user import SBUser
+from ..wordpress_orm_extensions.working_group import WorkingGroupRequest
+
 
 from .. import app
 from .. import wordpress_api as wpapi
@@ -65,6 +67,9 @@ def people():
         sac = sac_request.get(class_object=SBUser)
         chooseFace(wpapi,sac)
 
+        wg_request = WorkingGroupRequest(api=wpapi)
+        wg = wg_request.get()
+
         people_banner_media = wpapi.media(slug="sorghum_combine")
         templateDict["banner_media"] = people_banner_media
 
@@ -75,5 +80,6 @@ def people():
     templateDict['contributors'] = contributors
     templateDict['sac'] = sac
     templateDict['escapees'] = escapees
+    templateDict['wg'] = wg
 
     return render_template("people.html", **templateDict)

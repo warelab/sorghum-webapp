@@ -46,6 +46,9 @@
             <div class="team-default-content text-center pt30 pb20">
               <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>
               <span>{{user.job_title | safe}}</span><br>
+              {% if user.s.description %}
+              <span>{{user.s.description | safe}}</span><br>
+              {% endif %}
 <!--              <span class="font-weight-bold">{{user.organization | safe}}</span>-->
             </div>
             <!-- <div class="text-center">
@@ -125,4 +128,16 @@
     </div>
   </div>
 </div>
+<div>
+  <h3>Working Groups</h3>
+  {% for g in wg %}
+  <p>{{ g.s.title }}</p>
+  <div>
+    {% for m in g.s.members %}
+    <p>{{ m.display_name }}</p>
+    {% endfor %}}
+  </div>
+  {% endfor %}
+</div>
+<div id="sorghumbase-institutions"></div>
 {% endblock %}
