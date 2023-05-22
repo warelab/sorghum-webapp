@@ -1,4 +1,5 @@
 import qs from 'querystringify'
+import ReactGA from 'react-ga4'
 
 const isString = obj =>
     Object.prototype.toString.call(obj) === '[object String]'
@@ -123,6 +124,11 @@ const UIbundle = {
     possiblyFetch(cat, delta);
   },
   doChangeSuggestionsQuery: query => ({dispatch}) => {
+    ReactGA.event({
+      category: 'search',
+      action: "query",
+      label: query.trim()
+    });
     dispatch({
       type: 'BATCH_ACTIONS', actions: [
         ...clearSuggestions,
