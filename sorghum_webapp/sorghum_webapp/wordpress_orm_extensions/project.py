@@ -56,6 +56,27 @@ class Project(WPEntity):
 			"project_news", "project_logo", "project_events", "project_images"]
 		return self._post_fields
 
+	def update(self):
+		'''
+		Updates a 'Funded Project' object.
+		'''
+
+		self._data = self.s.__dict__
+
+		url = self.api.base_url + "project" + "/{}".format(self.s.id) + "?context=edit"
+		logger.debug("post data='{}'".format(self._data))
+		try:
+			super().post(url=url, data=self._data)
+			logger.debug("URL='{}'".format(url))
+			logger.debug("post data='{}'".format(self._data))
+		except requests.exceptions.HTTPError:
+			logger.debug("Post response code: {}".format(self.post_response.status_code))
+			if self.post_response.status_code == 400: # bad request
+				logger.debug("URL={}".format(self.post_response.url))
+				raise Exception("400: Bad request. Error: \n{0}".format(json.dumps(self.post_response.json(), indent=4)))
+			elif self.post_response.status_code == 404: # not found
+				return None
+
 	@property
 	def categories(self):
 		'''
