@@ -15,23 +15,23 @@
 </div><!--page title end-->
 <div class="container pt90 ">
   <div class="row">
-    <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">
-      <!--/col-->
-      <div class="theiaStickySidebar"
-      style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">
-        <div class="pt50 title">People</div>
-        <div class="mb40">
+<!--    <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">-->
+<!--      &lt;!&ndash;/col&ndash;&gt;-->
+<!--      <div class="theiaStickySidebar"-->
+<!--      style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">-->
+<!--        <div class="pt50 title">People</div>-->
+<!--        <div class="mb40">-->
 
-          <a data-scroll="" href="#team" class="nav-link active">Team Members</a>
+<!--          <a data-scroll="" href="#team" class="nav-link active">Team Members</a>-->
 
-<!--        <a data-scroll="" href="#contributors" class="nav-link active">Contributors</a>-->
-          <a data-scroll="" href="#sac" class="nav-link active">Scientific Advisory Committee</a>
-          <a data-scroll="" href="#escapees" class="nav-link active">Former Team Members</a>
+<!--&lt;!&ndash;        <a data-scroll="" href="#contributors" class="nav-link active">Contributors</a>&ndash;&gt;-->
+<!--          <a data-scroll="" href="#sac" class="nav-link active">Scientific Advisory Committee</a>-->
+<!--          <a data-scroll="" href="#escapees" class="nav-link active">Former Team Members</a>-->
 
-        </div>
-      </div>
-    </div>
-    <div class="col-lg-10">
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+    <div class="col-lg-12">
       <div class="title-heading1 mb60" id = "team">
         <h3 class="mb10">Sorghumbase Team</h3>
       </div>
@@ -46,6 +46,9 @@
             <div class="team-default-content text-center pt30 pb20">
               <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>
               <span>{{user.job_title | safe}}</span><br>
+<!--              {% if user.s.description %}-->
+<!--              <span>{{user.s.description | safe}}</span><br>-->
+<!--              {% endif %}-->
 <!--              <span class="font-weight-bold">{{user.organization | safe}}</span>-->
             </div>
             <!-- <div class="text-center">
@@ -125,4 +128,16 @@
     </div>
   </div>
 </div>
+<!--<div>-->
+<!--  <h3>Working Groups</h3>-->
+<!--  {% for g in wg %}-->
+<!--  <p>{{ g.s.title }}</p>-->
+<!--  <div>-->
+<!--    {% for m in g.s.members %}-->
+<!--    <p>{{ m.display_name }}</p>-->
+<!--    {% endfor %}}-->
+<!--  </div>-->
+<!--  {% endfor %}-->
+<!--</div>-->
+<!--<div id="sorghumbase-institutions"></div>-->
 {% endblock %}

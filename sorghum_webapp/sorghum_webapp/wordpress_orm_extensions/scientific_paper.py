@@ -42,7 +42,7 @@ class ScientificPaper(WPEntity):
 
 	@property
 	def post_fields(self):
-		return ["title", "author", "abstract", "source_url", "paper_authors",
+		return ["title", "author", "abstract", "source_url", "paper_authors","date",
 				"publication_date", "pubmed_id", "keywords", "posts", "journal","doi","funding"]
 
 	def update(self):
@@ -53,16 +53,17 @@ class ScientificPaper(WPEntity):
 		self._data = self.s.__dict__
 
 		url = self.api.base_url + "scientific_paper" + "/{}".format(self.s.id) + "?context=edit"
-
+		logger.debug("post data='{}'".format(self._data))
 		try:
-			super().post(url=url, data=self._data, parameters=self._data)
-			# logger.debug("URL='{}'".format(self.request.url))
+			super().post(url=url, data=self._data)
+			logger.debug("URL='{}'".format(url))
+			logger.debug("post data='{}'".format(self._data))
 		except requests.exceptions.HTTPError:
-			logger.debug("Post response code: {}".format(self.response.status_code))
-			if self.response.status_code == 400: # bad request
-				logger.debug("URL={}".format(self.response.url))
-				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
-			elif self.response.status_code == 404: # not found
+			logger.debug("Post response code: {}".format(self.post_response.status_code))
+			if self.post_response.status_code == 400: # bad request
+				logger.debug("URL={}".format(self.post_response.url))
+				raise Exception("400: Bad request. Error: \n{0}".format(json.dumps(self.post_response.json(), indent=4)))
+			elif self.post_response.status_code == 404: # not found
 				return None
 
 	# @property
@@ -161,7 +162,7 @@ class ScientificPaperRequest(WPRequest):
 			self.parameters["page"] = self.page
 
 		if self.tags:
-			self.parameters["tags"] = self.tags
+			self.parameters["tags"] = ','.join(self.tags)
 
 		if self.tags_exclude:
 			self.parameters["tags_exclude"] = self.tags_exclude

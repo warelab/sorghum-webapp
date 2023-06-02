@@ -5,7 +5,7 @@ from flask import request #, make_response
 # List all of the views to be automatically imported here.
 __all__ = ["index", "controller1", "controller2"]
 
-def valueFromRequest(key=None, request=None, default=None, lower=False, aslist=False, boolean=False):
+def valueFromRequest(key=None, request=None, default=None, lower=False, aslist=False, boolean=False, integer=False):
 	''' Convenience function to retrieve values from HTTP requests (GET or POST).
 		
 		@param key Key to extract from HTTP request.
@@ -20,7 +20,10 @@ def valueFromRequest(key=None, request=None, default=None, lower=False, aslist=F
 		except KeyError:
 			return default
 	else: # GET
-		value = request.args.get(key, default)
+		if integer:
+			value = request.args.get(key, default, type=int)
+		else:
+			value = request.args.get(key, default)
 		if value == None:
 			return default
 			

@@ -53,6 +53,7 @@ def genomes():
 
     pages1 = [
         {'prod_name':'Sorghum_bicolor','label':'BTx623'},
+        {'prod_name':'Sorghum_bicolorv5','label':'BTx623 v5.1'},
         {'prod_name':'Sorghum_tx430nano','label':'Tx430'},
         {'prod_name':'Sorghum_tx436pac','label':'Tx436'},
         {'prod_name':'Sorghum_tx2783pac','label':'Tx2783'}
@@ -106,6 +107,7 @@ def genomes():
 def germplasm():
     ref = make_menu('Reference')
     add_link(ref, 'PI 564163 - BTx623', '/accession/btx623')
+    add_link(ref, 'PI 564163 - BTx623 v5.1', '/accession/btx623')
     add_link(ref, 'PI 651496 - Rio', '/accession/rio')
     add_link(ref, 'PI 655996 - Tx430', '/accession/rtx430')
     add_link(ref, 'PI 561071 - Tx436', '/accession/rtx436')

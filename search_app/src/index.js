@@ -2,12 +2,14 @@ import React from 'react'
 import { render } from 'react-dom'
 import getStore from './bundles'
 import cache from './utils/cache'
+import ReactGA from 'react-ga4'
 // import Summary from './components/summary'
 // import Results from './components/results'
 // import SearchBox from './components/searchbox'
 import SearchBar from './components/searchbar'
 import GeneSearchUI from './components/gramene-search-layout'
 import Feedback from './components/Feedback'
+import Institutions from './components/institutions'
 import MDView from "gramene-mdview";
 import "../css/style.css"
 
@@ -17,7 +19,7 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2022-11-30'
+    date='2023-06-01'
     offset={200}
   />
 
@@ -28,7 +30,7 @@ const Guides = () => (
         repo='release-notes'
         path='test'
         heading='Guides'
-        date='2022-11-30'
+        date='2023-06-01'
         offset={200}
     />
 )
@@ -40,6 +42,8 @@ cache.getAll().then(initialData => {
   }
   const store = getStore(initialData);
   console.log('got store');
+  const config = store.selectConfiguration();
+  ReactGA.initialize(config.ga);
   // let element = document.getElementById('search-summary');
   // element && render(Summary(store), element) && console.log('rendered search-summary');
   //
@@ -63,4 +67,7 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sorghumbase-guides');
   element && render(Guides(), element) && console.log('rendered sorghumbase-guides')
+
+  element = document.getElementById('sorghumbase-institutions');
+  element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
 })

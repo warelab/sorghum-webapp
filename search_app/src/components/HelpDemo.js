@@ -1,6 +1,6 @@
 import React from 'react';
 import {connect} from 'redux-bundler-react'
-import {Container, Row, Card, CardDeck} from 'react-bootstrap'
+import {Container, Row, Card, CardGroup} from 'react-bootstrap'
 
 const examples = [
     {
@@ -46,29 +46,29 @@ const examples = [
 const HelpDemo = ({doReplaceGrameneFilters}) => (
     <Container fluid style={{padding: '40px'}}>
         <Row>
-            <CardDeck style={{width: '100%'}}>
-                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3'}}>
+            <CardGroup style={{width: '100%'}}>
+                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3', 'margin': 20}}>
                     <Card.Body>
                         <Card.Title>Suggestions</Card.Title>
                         <Card.Text>Matching terms are provided as you type:</Card.Text>
                         <div className='gene-search-pic-sugg'/>
                     </Card.Body>
                 </Card>
-                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3'}}>
+                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3', 'margin': 20}}>
                     <Card.Body>
                         <Card.Title>Visualization</Card.Title>
                         <Card.Text>See the distribution of results across all genomes:</Card.Text>
                         <div className='gene-search-pic-results'/>
                     </Card.Body>
                 </Card>
-                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3'}}>
+                <Card style={{'backgroundColor': '#f3f6f5', 'borderColor': '#DDE5E3', 'margin': 20}}>
                     <Card.Body>
                         <Card.Title>Gene tree view</Card.Title>
                         <Card.Text>Explore evolutionary history of a gene family:</Card.Text>
                         <div className='gene-search-pic-genetree'/>
                     </Card.Body>
                 </Card>
-            </CardDeck>
+            </CardGroup>
         </Row>
         <Row>
             <h4>For Example</h4>
