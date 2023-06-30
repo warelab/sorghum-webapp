@@ -26,19 +26,21 @@ app_logger = logging.getLogger("sorghumbase")
 
 publications_page = flask.Blueprint("publications_page", __name__)
 
-def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update):
+def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include):
     updatedPapers = []
     while show_all and per_page * (current_page-1) < paper_tally :
-        updatedPapers += getPapers(current_page, per_page, paper_tally, tag_filter, before, after, False, force_update)
+        updatedPapers += getPapers(current_page, per_page, paper_tally, tag_filter, before, after, False, force_update, include)
         current_page = current_page + 1
     if not show_all:
         paper_request = ScientificPaperRequest(api=api)
         if tag_filter:
             paper_request.tags = tag_filter
         if before:
-            paper_count.before= before
+            paper_request.before= before
         if after:
-            paper_count.after= after
+            paper_request.after= after
+        if include:
+            paper_request.include= include
         paper_request.per_page = per_page
         paper_request.page = current_page
         page_of_papers = paper_request.get()
@@ -92,6 +94,7 @@ def publications():
     current_page = valueFromRequest(key="page", request=request, integer=True) or 1
     per_page = valueFromRequest(key="per_page", request=request, integer=True) or 100
     keywords_limit = valueFromRequest(key="max_keywords", request=request, integer=True) or 20
+    include = valueFromRequest(key="include", request=request, aslist=True)
     with api.Session():
         paper_count = ScientificPaperRequest(api=api)
         if tag_filter:
@@ -100,14 +103,16 @@ def publications():
             paper_count.before = before
         if after:
             paper_count.after = after
+        if include:
+            paper_count.include = include
         paper_count.per_page = 1
         paper_count.page = 1
         paper_tally = paper_count.get(count=True)
 
         if force_update:
-            updatedPapers = getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update)
+            updatedPapers = getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include)
         else:
-            updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update)
+            updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update, include)
 
         tag_freq = {}
         selected_tags = {}

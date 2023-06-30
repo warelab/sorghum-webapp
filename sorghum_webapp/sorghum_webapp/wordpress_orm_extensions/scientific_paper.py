@@ -153,7 +153,7 @@ class ScientificPaperRequest(WPRequest):
 
 		# include : Limit result set to specific IDs.
 		if self.include:
-			self.parameters["include"] = self.include
+			self.parameters["include"] = ",".join(self.include)
 
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
