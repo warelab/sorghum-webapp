@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block page_title %}Funded Projects{% endblock %}
-{% block additional_header %}{% endblock %}
+{% block additional_header %}
+<script src="{{request.script_root}}/static/js/FathGrid.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
+<script src="https://unpkg.com/jspdf@latest/dist/jspdf.min.js"></script>
+{% endblock %}
 {% block content %}
 
 <div class="page-titles-img title-space-md parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}' style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
@@ -14,42 +18,44 @@
   </div>
 </div><!--page title end-->
 <div class="container pt90">
-<!--    <div class="row">-->
-<!--      <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">-->
-<!--      &lt;!&ndash;/col&ndash;&gt;-->
-<!--        <div class="theiaStickySidebar"-->
-<!--          style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">-->
-<!--          <div class="pt50 title">Projects in sorghum</div>-->
-<!--          <div class="mb40">-->
-<!--            {% for project in projects %}-->
-<!--            <a data-scroll="" href="#{{project.s.project_title}}" class="nav-link active">{{project.s.project_title | safe}}</a>-->
-<!--            {% endfor %}-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--        <div class="col-lg-10">-->
-          {% for project in projects %}
-            <div class="career-card clearfix">
-
-                {% if project.s.featured_media %}
-                <div class="col-lg-6 col-md-9">
-                  <img src='{{ project.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
-                </div>
-                {% endif %}
-                <div class="clearfix pb20">
-                    <h3 class="mb0">{{project.s.project_title | safe}}</h3>
-                </div>
-                <p>
-                  <b>{{project.s.funding_agency | safe }}</b> Award ID {{project.s.award_id}}
-                </p>
-                <p>
-                    {{project.s.dates | safe }}
-                </p>
-              <br>
-                <a href="/project/{{project.s.slug}}" class="btn btn-sm btn-primary">Read More</a>
-            </div>
-          {% endfor %}
-<!--        </div>-->
-<!--    </div>-->
+    <table id="projects_tbl" class="table table-hover table-bordered">
+        <thead class="thead-light"></thead>
+        <tbody></tbody>
+    </table>
 </div>
+{% endblock %}
+{% block script_below_content %}
+function reformatDate(ymd_str) {
+  const ymd = ymd_str.split('-');
+  return `${ymd[1]}/${ymd[2]}/${ymd[0]}`;
+}
+
+var tableData = [
+{% for project in projects %}
+{ "funding_agency": "{{project.s.funding_agency}}",
+  "funding_link": "{{project.s.funding_link}}",
+  "award_id": "{{project.s.award_id}}",
+  "project_title": "{{project.s.project_title | title}}",
+  "start_date": reformatDate("{{project.s.start_date}}"),
+  "end_date": reformatDate("{{project.s.end_date}}"),
+  "pi": "{{project.s.pi}}",
+  "slug": "{{project.s.slug}}",
+  "id": {{project.s.id}}
+},
+{% endfor %}
+];
+console.log(tableData);
+const myDataTable = FathGrid("projects_tbl",{
+editable:false,
+columns:[
+{name:'funding_agency',header:'Funding Agency',editable:false, filterable:true},
+{name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
+{name:'project_title',editable:false,header:'Project Title', filterable:true},
+{name:'start_date',header:'Start',editable:false,type:'date', filterable:false},
+{name:'end_date',header:'End',type:'date',editable:false, filterable:false},
+{name:'pi',header:'PI(s)',editable:false, filterable:true},
+{name:'slug',editable:false,header:'link',html:function(item){return `<a href="/project/${item.slug}">More Info</a>`}, filterable:false},
+{name:'id',editable:false,header:'CMS',html:function(item){return `<a target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false}
+],
+data:tableData});
 {% endblock %}
