@@ -2,8 +2,6 @@
 {% block page_title %}Funded Projects{% endblock %}
 {% block additional_header %}
 <script src="{{request.script_root}}/static/js/FathGrid.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.8.0/Chart.bundle.min.js"></script>
-<script src="https://unpkg.com/jspdf@latest/dist/jspdf.min.js"></script>
 {% endblock %}
 {% block content %}
 
@@ -18,6 +16,12 @@
   </div>
 </div><!--page title end-->
 <div class="container pt90">
+  <div class="input-group mb-3">
+    <div class="input-group-prepend">
+      <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
+    </div>
+    <input onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
+  </div>
     <table id="projects_tbl" class="table table-hover table-bordered">
         <thead class="thead-light"></thead>
         <tbody></tbody>
@@ -31,31 +35,37 @@ function reformatDate(ymd_str) {
 }
 
 var tableData = [
-{% for project in projects %}
-{ "funding_agency": "{{project.s.funding_agency}}",
-  "funding_link": "{{project.s.funding_link}}",
-  "award_id": "{{project.s.award_id}}",
-  "project_title": "{{project.s.project_title | title}}",
-  "start_date": reformatDate("{{project.s.start_date}}"),
-  "end_date": reformatDate("{{project.s.end_date}}"),
-  "pi": "{{project.s.pi}}",
-  "slug": "{{project.s.slug}}",
-  "id": {{project.s.id}}
+{% for p in projects %}
+{ "funding_agency": "{{p.funding_agency}}",
+  "funding_link": "{{p.funding_link}}",
+  "award_id": "{{p.award_id}}",
+  "project_title": "{{p.project_title | title}}",
+  "start_date": reformatDate("{{p.start_date}}"),
+  "end_date": reformatDate("{{p.end_date}}"),
+  "pi": {{p.pi | safe}}.join(','),
+  "orgs": {{p.organizations | safe}},
+  "orgstr": {{p.organizations | safe}}.map(o=>o.post_title).join(' '),
+  "slug": "{{p.slug}}",
+  "id": {{p.id}}
 },
 {% endfor %}
 ];
 console.log(tableData);
-const myDataTable = FathGrid("projects_tbl",{
-editable:false,
+var agencies = {};
+tableData.forEach(p => {agencies[p.funding_agency]++;});
+var myDataTable = FathGrid("projects_tbl",{
+editable:false,filterable:true,showGrouping:false,
 columns:[
-{name:'funding_agency',header:'Funding Agency',editable:false, filterable:true},
-{name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
-{name:'project_title',editable:false,header:'Project Title', filterable:true},
+{name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
+{name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a class="btn-link btn" target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
+{name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
+html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
+{name:'project_title',editable:false,header:'Project Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/project/${item.slug}">${item.project_title}</a></span>`}},
 {name:'start_date',header:'Start',editable:false,type:'date', filterable:false},
 {name:'end_date',header:'End',type:'date',editable:false, filterable:false},
-{name:'pi',header:'PI(s)',editable:false, filterable:true},
-{name:'slug',editable:false,header:'link',html:function(item){return `<a href="/project/${item.slug}">More Info</a>`}, filterable:false},
-{name:'id',editable:false,header:'CMS',html:function(item){return `<a target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false}
+{name:'pi',header:'PI(s)',editable:false, filterable:false },
+{name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
+{name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
 ],
 data:tableData});
 {% endblock %}

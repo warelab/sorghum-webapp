@@ -80,6 +80,23 @@ def projects():
 
         populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[news_banner_media])
 
-    templateDict['projects'] = projects
+        def getInfo(p):
+            orgs = []
+            if p.s.organizations:
+                orgs = p.s.organizations
+            return {
+            'funding_agency':p.s.funding_agency,
+            'funding_link':p.s.funding_link,
+            'award_id':p.s.award_id,
+            'project_title':p.s.project_title,
+            'start_date': p.s.start_date,
+            'end_date': p.s.end_date,
+            'slug': p.s.slug,
+            'id': p.s.id,
+            'pi': json.dumps(p.s.pi),
+            'organizations': json.dumps(orgs)
+            }
+        iterator = map(getInfo,projects)
+    templateDict['projects'] = list(iterator)
 
     return render_template("projects.html", **templateDict)
