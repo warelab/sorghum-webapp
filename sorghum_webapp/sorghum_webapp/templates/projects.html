@@ -22,7 +22,7 @@
     <div class="input-group-prepend">
       <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
     </div>
-    <input onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
+    <input id="funding_search" onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
   </div>
     <table id="projects_tbl" class="table table-hover table-bordered">
         <thead class="thead-light"></thead>
@@ -53,10 +53,9 @@ var tableData = [
 {% endfor %}
 ];
 console.log(tableData);
-var plusCodeHsh = {};
-tableData.forEach(item => item.orgs.forEach(o => plusCodeHsh[o.plus_code]=o.post_title));
-var plusCodes = Object.keys(plusCodeHsh)
-initMap(plusCodes);
+var places = {};
+tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
+initMap(places);
 var agencies = {};
 tableData.forEach(p => {agencies[p.funding_agency]++;});
 var myDataTable = FathGrid("projects_tbl",{
@@ -77,7 +76,7 @@ data:tableData});
 
 let funding_map;
   // This function initializes the map.
-  async function initMap(plusCodes) {
+  async function initMap(places) {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     // Create a new map centered on a specific location.
@@ -89,26 +88,28 @@ let funding_map;
     const infoWindow = new InfoWindow();
     // Loop through the Plus Codes and create markers for each location.
     var gc = new google.maps.Geocoder;
-    plusCodes.forEach(plusCode => {
+    for(const [plusCode, place] of Object.entries(places)) {
       // Extract latitude and longitude from the Plus Code.
       gc.geocode({address:plusCode}).then(res => {
         var location = res.results[0].geometry.location;
         var marker = new AdvancedMarkerElement({
             position: location,
             map: funding_map,
-            title: plusCodeHsh[plusCode]
+            title: place.post_title
         });
-        // Add a click listener for each marker, and set up the info window.
+        // Add a click listener for each marker, and set up the info window
         marker.addListener("click", ({ domEvent, latLng }) => {
           const { target } = domEvent;
-
+          content = document.createElement("div");
+          content.innerHTML = `
+<h5>${marker.title}</h5><button class="btn-link btn" onclick="document.getElementById('funding_search').value='${marker.title}';myDataTable.search('${marker.title}')">Filter Projects</button>
+`;
           infoWindow.close();
-          infoWindow.setContent(marker.title);
+          infoWindow.setContent(content);
           infoWindow.open(marker.map, marker);
         });
 
       });
-    });
+    }
   }
-
 {% endblock %}
