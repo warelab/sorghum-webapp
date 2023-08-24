@@ -2,6 +2,8 @@
 {% block page_title %}Funded Projects{% endblock %}
 {% block additional_header %}
 <script src="{{request.script_root}}/static/js/FathGrid.js"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A"></script>
+
 {% endblock %}
 {% block content %}
 
@@ -10,12 +12,12 @@
     <div class="row">
       <div class=" col-md-12">
         <h1 class="text-uppercase">Projects</h1>
-
       </div>
     </div>
   </div>
 </div><!--page title end-->
 <div class="container pt90">
+  <div id="funding_map"></div>
   <div class="input-group mb-3">
     <div class="input-group-prepend">
       <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
@@ -51,6 +53,10 @@ var tableData = [
 {% endfor %}
 ];
 console.log(tableData);
+var plusCodeHsh = {};
+tableData.forEach(item => item.orgs.forEach(o => plusCodeHsh[o.plus_code]=o.post_title));
+var plusCodes = Object.keys(plusCodeHsh)
+initMap(plusCodes);
 var agencies = {};
 tableData.forEach(p => {agencies[p.funding_agency]++;});
 var myDataTable = FathGrid("projects_tbl",{
@@ -68,4 +74,41 @@ html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.
 {name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
 ],
 data:tableData});
+
+let funding_map;
+  // This function initializes the map.
+  async function initMap(plusCodes) {
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    // Create a new map centered on a specific location.
+    funding_map = new Map(document.getElementById('funding_map'), {
+      center: { lat: 39.197437, lng:-96.58468840 },
+      zoom: 4, // Adjust the zoom level as needed
+      mapId: "SB_FUNDING_MAP"
+    });
+    const infoWindow = new InfoWindow();
+    // Loop through the Plus Codes and create markers for each location.
+    var gc = new google.maps.Geocoder;
+    plusCodes.forEach(plusCode => {
+      // Extract latitude and longitude from the Plus Code.
+      gc.geocode({address:plusCode}).then(res => {
+        var location = res.results[0].geometry.location;
+        var marker = new AdvancedMarkerElement({
+            position: location,
+            map: funding_map,
+            title: plusCodeHsh[plusCode]
+        });
+        // Add a click listener for each marker, and set up the info window.
+        marker.addListener("click", ({ domEvent, latLng }) => {
+          const { target } = domEvent;
+
+          infoWindow.close();
+          infoWindow.setContent(marker.title);
+          infoWindow.open(marker.map, marker);
+        });
+
+      });
+    });
+  }
+
 {% endblock %}

@@ -15,6 +15,11 @@
 	color: #fff;
 }
 
+#funding_map {
+	height: 600px;
+	width: 100%;
+}
+
 .comma-separated {
 	display: inline;
 	list-style: none;
