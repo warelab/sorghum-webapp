@@ -87,11 +87,11 @@ let funding_map;
     });
     const infoWindow = new InfoWindow();
     // Loop through the Plus Codes and create markers for each location.
-    var gc = new google.maps.Geocoder;
+<!--    var gc = new google.maps.Geocoder;-->
     for(const [plusCode, place] of Object.entries(places)) {
       // Extract latitude and longitude from the Plus Code.
-      gc.geocode({address:plusCode}).then(res => {
-        var location = res.results[0].geometry.location;
+      fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
+        var location = res.geometry.location;
         var marker = new AdvancedMarkerElement({
             position: location,
             map: funding_map,
