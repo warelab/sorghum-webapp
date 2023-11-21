@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block page_title %}SorghumBase - mailing list{% endblock %}
-{% block additional_header %}{% endblock %}
+{% block additional_header %}
+<script src="https://www.google.com/recaptcha/api.js"></script>
+<script>
+  function onSubmit(token) {
+    document.getElementById("widget-subscribe-form").submit();
+  }
+</script>
+
+{% endblock %}
 {% block content %}
 
 <div class="page-titles-img title-space-md parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}'
@@ -54,7 +62,11 @@
                         <input type="email" name="widget-subscribe-form-email" class="form-control required"
                                placeholder="Enter your Email">
                         <span class="input-group-btn">
-                            <button class="btn btn-primary" type="submit">Subscribe</button>
+<!--                            <button class="btn btn-primary" type="submit">Subscribe</button>-->
+                            <button class="btn btn-primary g-recaptcha"
+                                    data-sitekey="6LciEBIpAAAAAGpVE9Wk9IFEPhwKrg3Pj93CWtGO"
+                                    data-callback='onSubmit'
+                                    data-action='submit'>Subscribe</button>
                         </span>
                     </div>
                 </form>

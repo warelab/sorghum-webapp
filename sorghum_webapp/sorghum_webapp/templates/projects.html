@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block page_title %}Funded Projects{% endblock %}
-{% block additional_header %}{% endblock %}
+{% block additional_header %}
+<script src="{{request.script_root}}/static/js/FathGrid.js"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A"></script>
+
+{% endblock %}
 {% block content %}
 
 <div class="page-titles-img title-space-md parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}' style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
@@ -8,48 +12,104 @@
     <div class="row">
       <div class=" col-md-12">
         <h1 class="text-uppercase">Projects</h1>
-
       </div>
     </div>
   </div>
 </div><!--page title end-->
 <div class="container pt90">
-<!--    <div class="row">-->
-<!--      <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">-->
-<!--      &lt;!&ndash;/col&ndash;&gt;-->
-<!--        <div class="theiaStickySidebar"-->
-<!--          style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">-->
-<!--          <div class="pt50 title">Projects in sorghum</div>-->
-<!--          <div class="mb40">-->
-<!--            {% for project in projects %}-->
-<!--            <a data-scroll="" href="#{{project.s.project_title}}" class="nav-link active">{{project.s.project_title | safe}}</a>-->
-<!--            {% endfor %}-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      </div>-->
-<!--        <div class="col-lg-10">-->
-          {% for project in projects %}
-            <div class="career-card clearfix">
-
-                {% if project.s.featured_media %}
-                <div class="col-lg-6 col-md-9">
-                  <img src='{{ project.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
-                </div>
-                {% endif %}
-                <div class="clearfix pb20">
-                    <h3 class="mb0">{{project.s.project_title | safe}}</h3>
-                </div>
-                <p>
-                  <b>{{project.s.funding_agency | safe }}</b> Award ID {{project.s.award_id}}
-                </p>
-                <p>
-                    {{project.s.dates | safe }}
-                </p>
-              <br>
-                <a href="/project/{{project.s.slug}}" class="btn btn-sm btn-primary">Read More</a>
-            </div>
-          {% endfor %}
-<!--        </div>-->
-<!--    </div>-->
+  <div id="funding_map"></div>
+  <div class="input-group mb-3">
+    <div class="input-group-prepend">
+      <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
+    </div>
+    <input id="funding_search" onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
+  </div>
+    <table id="projects_tbl" class="table table-hover table-bordered">
+        <thead class="thead-light"></thead>
+        <tbody></tbody>
+    </table>
 </div>
+{% endblock %}
+{% block script_below_content %}
+function reformatDate(ymd_str) {
+  const ymd = ymd_str.split('-');
+  return `${ymd[1]}/${ymd[2]}/${ymd[0]}`;
+}
+
+var tableData = [
+{% for p in projects %}
+{ "funding_agency": "{{p.funding_agency}}",
+  "funding_link": "{{p.funding_link}}",
+  "award_id": "{{p.award_id}}",
+  "project_title": "{{p.project_title | title}}",
+  "start_date": reformatDate("{{p.start_date}}"),
+  "end_date": reformatDate("{{p.end_date}}"),
+  "pi": {{p.pi | safe}}.join(','),
+  "orgs": {{p.organizations | safe}},
+  "orgstr": {{p.organizations | safe}}.map(o=>o.post_title).join(' '),
+  "slug": "{{p.slug}}",
+  "id": {{p.id}}
+},
+{% endfor %}
+];
+console.log(tableData);
+var places = {};
+tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
+initMap(places);
+var agencies = {};
+tableData.forEach(p => {agencies[p.funding_agency]++;});
+var myDataTable = FathGrid("projects_tbl",{
+editable:false,filterable:true,showGrouping:false,
+columns:[
+{name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
+{name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a class="btn-link btn" target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
+{name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
+html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
+{name:'project_title',editable:false,header:'Project Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/project/${item.slug}">${item.project_title}</a></span>`}},
+{name:'start_date',header:'Start',editable:false,type:'date', filterable:false},
+{name:'end_date',header:'End',type:'date',editable:false, filterable:false},
+{name:'pi',header:'PI(s)',editable:false, filterable:false },
+{name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
+{name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
+],
+data:tableData});
+
+let funding_map;
+  // This function initializes the map.
+  async function initMap(places) {
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    // Create a new map centered on a specific location.
+    funding_map = new Map(document.getElementById('funding_map'), {
+      center: { lat: 39.197437, lng:-96.58468840 },
+      zoom: 4, // Adjust the zoom level as needed
+      mapId: "SB_FUNDING_MAP"
+    });
+    const infoWindow = new InfoWindow();
+    // Loop through the Plus Codes and create markers for each location.
+<!--    var gc = new google.maps.Geocoder;-->
+    for(const [plusCode, place] of Object.entries(places)) {
+      // Extract latitude and longitude from the Plus Code.
+      fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
+        var location = res.geometry.location;
+        var marker = new AdvancedMarkerElement({
+            position: location,
+            map: funding_map,
+            title: place.post_title
+        });
+        // Add a click listener for each marker, and set up the info window
+        marker.addListener("click", ({ domEvent, latLng }) => {
+          const { target } = domEvent;
+          content = document.createElement("div");
+          content.innerHTML = `
+<h5>${marker.title}</h5><button class="btn-link btn" onclick="document.getElementById('funding_search').value='${marker.title}';myDataTable.search('${marker.title}')">Filter Projects</button>
+`;
+          infoWindow.close();
+          infoWindow.setContent(content);
+          infoWindow.open(marker.map, marker);
+        });
+
+      });
+    }
+  }
 {% endblock %}
