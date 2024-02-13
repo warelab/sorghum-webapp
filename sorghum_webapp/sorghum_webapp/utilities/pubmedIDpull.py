@@ -28,7 +28,7 @@ def getMetaData(papersToFind):
 			if root[0].find('Article').find('Journal'):
 				papersToFind[num].s.journal = root[0].find('Article').find('Journal').find('Title').text
 		for pubDate in root[1][0].findall('PubMedPubDate'):
-			if pubDate.get('PubStatus') == 'pubmed':
+			if pubDate.get('PubStatus') == 'accepted':
 				year = pubDate.find('Year').text
 				month = pubDate.find('Month').text
 				day = pubDate.find('Day').text
