@@ -16,7 +16,7 @@ const GrameneSearchLayout = (store) => (
   <Provider store={store}>
     <div className="row no-margin no-padding">
       <div className="col-md-2 no-padding">
-        <div className="gramene-sidebar">
+        <div className="sorghumbase-sidebar">
           <Status/>
           <Filters/>
           {/*<Views/>*/}
