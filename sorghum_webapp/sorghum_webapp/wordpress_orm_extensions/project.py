@@ -39,10 +39,11 @@ class Project(WPEntity):
 		return ["id", "date", "date_gmt", "guid", "modified", "modified_gmt",
 				"slug", "status", "type", "link", "title", "content", "author",
 				"featured_media", "template",
-				"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
+				"project_title", "funding_agency", "funding_program","funding_subcategory",
+				"award_id", "funding_link", "dates", "awardees",
 				"project_description", "project_web_sites", "project_publications",
 				"project_news", "project_logo", "project_events","project_images",
-				"start_date","end_date","pi","organizations"]
+				"start_date","end_date","pi","organizations","award_amount"]
 
 	@property
 	def post_fields(self):
@@ -52,10 +53,11 @@ class Project(WPEntity):
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
 			self._post_fields = ["title", "content", "featured_media",
-			"project_title", "funding_agency","award_id", "funding_link", "dates", "awardees",
-			"project_description", "project_web_sites", "project_publications",
-			"project_news", "project_logo", "project_events", "project_images",
-			"start_date","end_date","pi","organizations"]
+				"project_title", "funding_agency", "funding_program","funding_subcategory",
+				"award_id", "funding_link", "dates", "awardees",
+				"project_description", "project_web_sites", "project_publications",
+				"project_news", "project_logo", "project_events","project_images",
+				"start_date","end_date","pi","organizations","award_amount"]
 		return self._post_fields
 
 	def update(self):

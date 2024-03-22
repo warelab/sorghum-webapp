@@ -32,13 +32,14 @@
 {% endblock %}
 {% block script_below_content %}
 function reformatDate(ymd_str) {
+  return ymd_str;
   const ymd = ymd_str.split('-');
   return `${ymd[1]}/${ymd[2]}/${ymd[0]}`;
 }
 
 var tableData = [
 {% for p in projects %}
-{ "funding_agency": "{{p.funding_agency}}",
+{ "funding_agency": "{{p.funding_agency}}", "funding_program": "{{p.funding_program}}", "funding_subcategory": "{{p.funding_subcategory}}",
   "funding_link": "{{p.funding_link}}",
   "award_id": "{{p.award_id}}",
   "project_title": "{{p.project_title | title}}",
@@ -62,6 +63,8 @@ var myDataTable = FathGrid("projects_tbl",{
 editable:false,filterable:true,showGrouping:false,
 columns:[
 {name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
+{name:'funding_program',header:'Program',editable:false},
+{name:'funding_subcategory',header:'Category',editable:false},
 {name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a class="btn-link btn" target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
 {name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
 html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
