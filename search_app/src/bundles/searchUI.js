@@ -208,8 +208,8 @@ const UIbundle = {
     let loading=0;
     if (state.sorghumPostsSuggestions && state.sorghumPostsSuggestions.data) matches += state.sorghumPostsSuggestions.data.numFound;
     else loading++;
-    // if (state.sorghumProjectsSuggestions && state.sorghumProjectsSuggestions.data) matches += state.sorghumProjectsSuggestions.data.numFound;
-    // else loading++;
+    if (state.sorghumProjectsSuggestions && state.sorghumProjectsSuggestions.data) matches += state.sorghumProjectsSuggestions.data.numFound;
+    else loading++;
     // if (state.sorghumLinksSuggestions && state.sorghumLinksSuggestions.data) matches += state.sorghumLinksSuggestions.data.numFound;
     // else loading++;
     if (state.sorghumEventsSuggestions && state.sorghumEventsSuggestions.data) matches += state.sorghumEventsSuggestions.data.numFound;
