@@ -2,7 +2,14 @@
 {% block page_title %}Funded Projects{% endblock %}
 {% block additional_header %}
 <script src="{{request.script_root}}/static/js/FathGrid.js"></script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A"></script>
+<script>
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+    key: "AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A",
+    v: "weekly",
+    // Use the 'v' parameter to indicate the version to use (weekly, beta, alpha, etc.).
+    // Add other bootstrap parameters as needed, using camel case.
+  });
+</script>
 
 {% endblock %}
 {% block content %}
@@ -32,13 +39,14 @@
 {% endblock %}
 {% block script_below_content %}
 function reformatDate(ymd_str) {
+  return ymd_str;
   const ymd = ymd_str.split('-');
   return `${ymd[1]}/${ymd[2]}/${ymd[0]}`;
 }
 
 var tableData = [
 {% for p in projects %}
-{ "funding_agency": "{{p.funding_agency}}",
+{ "funding_agency": "{{p.funding_agency}}", "funding_program": "{{p.funding_program}}", "funding_subcategory": "{{p.funding_subcategory}}",
   "funding_link": "{{p.funding_link}}",
   "award_id": "{{p.award_id}}",
   "project_title": "{{p.project_title | title}}",
@@ -52,16 +60,19 @@ var tableData = [
 },
 {% endfor %}
 ];
-console.log(tableData);
 var places = {};
 tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
-initMap(places);
+initMap();
 var agencies = {};
-tableData.forEach(p => {agencies[p.funding_agency]++;});
+var programs = {};
+var categories = {};
+tableData.forEach(p => {agencies[p.funding_agency]++; programs[p.funding_program]++; categories[p.funding_subcategory]++;});
 var myDataTable = FathGrid("projects_tbl",{
 editable:false,filterable:true,showGrouping:false,
 columns:[
 {name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
+{name:'funding_program',header:'Program',editable:false, filterable:true, filter:Object.keys(programs).sort((a,b) => programs[b] - programs[b])},
+{name:'funding_subcategory',header:'Category',editable:false, filterable:true, filter:Object.keys(categories).sort((a,b) => categories[b] - categories[b])},
 {name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a class="btn-link btn" target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
 {name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
 html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
@@ -76,40 +87,40 @@ data:tableData});
 
 let funding_map;
   // This function initializes the map.
-  async function initMap(places) {
+  async function initMap() {
     const { Map, InfoWindow } = await google.maps.importLibrary("maps");
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-    // Create a new map centered on a specific location.
-    funding_map = new Map(document.getElementById('funding_map'), {
-      center: { lat: 39.197437, lng:-96.58468840 },
-      zoom: 4, // Adjust the zoom level as needed
-      mapId: "SB_FUNDING_MAP"
-    });
-    const infoWindow = new InfoWindow();
-    // Loop through the Plus Codes and create markers for each location.
+    const mapElement = document.getElementById('funding_map');
+      // Create a new map centered on a specific location.
+      funding_map = new Map(mapElement, {
+        center: { lat: 39.197437, lng:-96.58468840 },
+        zoom: 4, // Adjust the zoom level as needed
+        mapId: "SB_FUNDING_MAP"
+      });
+      const infoWindow = new InfoWindow();
+      // Loop through the Plus Codes and create markers for each location.
 <!--    var gc = new google.maps.Geocoder;-->
-    for(const [plusCode, place] of Object.entries(places)) {
-      // Extract latitude and longitude from the Plus Code.
-      fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
-        var location = res.geometry.location;
-        var marker = new AdvancedMarkerElement({
-            position: location,
-            map: funding_map,
-            title: place.post_title
-        });
-        // Add a click listener for each marker, and set up the info window
-        marker.addListener("click", ({ domEvent, latLng }) => {
-          const { target } = domEvent;
-          content = document.createElement("div");
-          content.innerHTML = `
+      for(const [plusCode, place] of Object.entries(places)) {
+        // Extract latitude and longitude from the Plus Code.
+        fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
+          var location = res.geometry.location;
+          var marker = new AdvancedMarkerElement({
+              position: location,
+              map: funding_map,
+              title: place.post_title
+          });
+          // Add a click listener for each marker, and set up the info window
+          marker.addListener("click", ({ domEvent, latLng }) => {
+            const { target } = domEvent;
+            content = document.createElement("div");
+            content.innerHTML = `
 <h5>${marker.title}</h5><button class="btn-link btn" onclick="document.getElementById('funding_search').value='${marker.title}';myDataTable.search('${marker.title}')">Filter Projects</button>
 `;
-          infoWindow.close();
-          infoWindow.setContent(content);
-          infoWindow.open(marker.map, marker);
+            infoWindow.close();
+            infoWindow.setContent(content);
+            infoWindow.open(marker.map, marker);
+          });
         });
-
-      });
+      }
     }
-  }
 {% endblock %}

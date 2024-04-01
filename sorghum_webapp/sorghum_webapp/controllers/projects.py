@@ -31,7 +31,9 @@ def getProjects(current_page, per_page, project_tally, tag_filter, force_update,
             project_request.tags = tag_filter
         project_request.per_page = per_page
         project_request.page = current_page
+        print("before project_request.get()")
         page_of_projects = project_request.get()
+        print("after project_request.get()")
 
         projectsToUpdate = []
         for p in page_of_projects :
@@ -39,6 +41,7 @@ def getProjects(current_page, per_page, project_tally, tag_filter, force_update,
                projectsToUpdate.append(p)
             else :
                updatedProjects.append(p)
+        print(f"projects to update {len(projectsToUpdate)}")
 
         if len(projectsToUpdate) > 0:
             for project in projectsToUpdate:
@@ -86,8 +89,11 @@ def projects():
                 orgs = p.s.organizations
             return {
             'funding_agency':p.s.funding_agency,
+            'funding_program':p.s.funding_program,
+            'funding_subcategory':p.s.funding_subcategory,
             'funding_link':p.s.funding_link,
             'award_id':p.s.award_id,
+            'award_amount':p.s.award_amount,
             'project_title':p.s.project_title,
             'start_date': p.s.start_date,
             'end_date': p.s.end_date,
@@ -98,5 +104,5 @@ def projects():
             }
         iterator = map(getInfo,projects)
     templateDict['projects'] = list(iterator)
-
     return render_template("projects.html", **templateDict)
+

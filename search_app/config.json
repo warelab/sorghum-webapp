@@ -2,17 +2,17 @@
   "id": 'sorghum',
   "name": 'Sorghumbase',
   "url": 'https://sorghumbase.org',
-  "ensemblURL": 'https://ensembl.sorghumbase.org',
-  "ensemblSite": 'https://ensembl.sorghumbase.org',
+  "ensemblURL": 'https://ensembl-dev.sorghumbase.org',
+  "ensemblSite": 'https://ensembl-dev.sorghumbase.org',
   "ensemblRest": 'https://data.gramene.org/pansite-ensembl-87',
-  "grameneData": 'https://data.sorghumbase.org/sorghum_v6',
-  "targetTaxonId": 4558,
+  "grameneData": 'https://data.sorghumbase.org/sorghum_v7',
+  "targetTaxonId": 4558003,
   "ga": 'G-L5KXDCCZ16',
   "curation": {
     "url": "http://curate.gramene.org/sorghum_v6?since=4479&gene=",
     "taxa": {
       "4558": 1,
-      "4558001": 1
+      "4558003": 1
     }
   },
   "panSite" : {

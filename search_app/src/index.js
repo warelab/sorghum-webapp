@@ -19,7 +19,7 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2023-06-01'
+    date='2024-04-01'
     offset={200}
   />
 
@@ -30,7 +30,7 @@ const Guides = () => (
         repo='release-notes'
         path='test'
         heading='Guides'
-        date='2023-06-01'
+        date='2024-04-01'
         offset={200}
     />
 )

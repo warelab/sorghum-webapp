@@ -191,9 +191,9 @@ img {
 }
 @media (min-width: 1200px) {
 	.logo-sb {
-		height: 69px;
+		height: 64px;
 		width: 300px;
-		background-size: 300px;
+		background-size: 260px;
 		background-repeat: no-repeat;
 		background-image: url("/static/images/Sorghumbase_logo_long_rgb.svg");
 	}
