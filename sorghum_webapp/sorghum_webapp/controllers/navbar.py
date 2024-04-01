@@ -34,7 +34,7 @@ def genomes():
     genomes = make_menu('Data Access')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(genomes, 'Phylogenetic overview','https://ensembl.sorghumbase.org/prot_tree_stats.html')
+    add_link(genomes, 'Phylogenetic overview','https://ensembl.sorghumbase.org/info/genome/compara/prot_tree_stats.html')
     add_link(genomes, 'FTP site','https://ftp.sorghumbase.org')
 
     cpnam = [
