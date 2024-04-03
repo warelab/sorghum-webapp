@@ -45,22 +45,34 @@ def getMetaData(papersToFind):
 				papersToFind[num].s.journal = journal.find('Title').text
 				pubDate = journal.find('JournalIssue').find('PubDate')
 				if pubDate:
-					year = pubDate.find('Year').text
-					month = pubDate.find('Month').text
-					if month in monthLUT:
-						month = monthLUT[month]
-						day = pubDate.find('Day').text
+					yearElem = pubDate.find('Year')
+					monthElem = pubDate.find('Month')
+					dayElem = pubDate.find('Day')
+					if yearElem is not None and monthElem is not None and dayElem is not None:
+						year = yearElem.text
+						month = monthElem.text
+						day = dayElem.text
+						if month in monthLUT:
+							month = monthLUT[month]
 		if day == "not a day":
 			for pubDate in root[1][0].findall('PubMedPubDate'):
 				if pubDate.get('PubStatus') == 'pubmed':
 					year = pubDate.find('Year').text
 					month = pubDate.find('Month').text
-					day = pubDate.find('Day').text
+					dayElem = pubDate.find('Day')
+					if dayElem is not None:
+						day = dayElem.text
+					else:
+						day = '01'
 					break
 				if pubDate.get('PubStatus') == 'accepted':
 					year = pubDate.find('Year').text
 					month = pubDate.find('Month').text
-					day = pubDate.find('Day').text
+					dayElem = pubDate.find('Day')
+					if dayElem is not None:
+						day = dayElem.text
+					else:
+						day = '01'
 					break
 
 		papersToFind[num].s.publication_date = year + "-" + month + "-" + day
