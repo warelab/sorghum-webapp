@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block page_title %}Conference Proceedings{% endblock %}
+{% block additional_header %}
+<script src="{{request.script_root}}/static/js/FathGrid.js"></script>
+<script>
+  (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
+    key: "AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A",
+    v: "weekly",
+    // Use the 'v' parameter to indicate the version to use (weekly, beta, alpha, etc.).
+    // Add other bootstrap parameters as needed, using camel case.
+  });
+</script>
+
+{% endblock %}
+{% block content %}
+
+<div class="page-titles-img title-space-md parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}' style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
+  <div class="container">
+    <div class="row">
+      <div class=" col-md-12">
+        <h1 class="text-uppercase">Conference Abstracts</h1>
+      </div>
+    </div>
+  </div>
+</div><!--page title end-->
+<div class="container pt90">
+  <div id="funding_map"></div>
+  <div class="input-group mb-3">
+    <div class="input-group-prepend">
+      <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
+    </div>
+    <input id="abstracts_search" onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
+  </div>
+    <table id="abstracts_tbl" class="table table-hover table-bordered">
+        <thead class="thead-light"></thead>
+        <tbody></tbody>
+    </table>
+</div>
+{% endblock %}
+{% block script_below_content %}
+
+var tableData = [
+{% for ab in abstracts %}
+{ "conference": "{{ab.conference}} {{ab.year}}",
+  "author": "{{ab.author}}",
+  "title": "{{ab.title | title}}",
+  "orgs": {{ab.organizations | safe}},
+  "orgstr": {{ab.organizations | safe}}.map(o=>o.post_title).join(' '),
+  "slug": "{{ab.slug}}",
+  "id": {{ab.id}}
+},
+{% endfor %}
+];
+var places = {};
+tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
+initMap();
+var myDataTable = FathGrid("abstracts_tbl",{
+editable:false,filterable:true,showGrouping:false,
+columns:[
+{name:'conference',header:'Conference',editable:false, filterable:true},
+{name:'author',header:'Presenting Author',editable:false, filterable:false },
+{name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
+html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
+{name:'title',editable:false,header:'Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/abstract/${item.slug}">${item.title}</a></span>`}},
+{name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
+{name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
+],
+data:tableData});
+
+let funding_map;
+  // This function initializes the map.
+  async function initMap() {
+    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    const mapElement = document.getElementById('funding_map');
+      // Create a new map centered on a specific location.
+      funding_map = new Map(mapElement, {
+        center: { lat: 39.197437, lng:-96.58468840 },
+        zoom: 4, // Adjust the zoom level as needed
+        mapId: "SB_FUNDING_MAP"
+      });
+      const infoWindow = new InfoWindow();
+      // Loop through the Plus Codes and create markers for each location.
+<!--    var gc = new google.maps.Geocoder;-->
+      for(const [plusCode, place] of Object.entries(places)) {
+        // Extract latitude and longitude from the Plus Code.
+        fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
+          var location = res.geometry.location;
+          var marker = new AdvancedMarkerElement({
+              position: location,
+              map: funding_map,
+              title: place.post_title
+          });
+          // Add a click listener for each marker, and set up the info window
+          marker.addListener("click", ({ domEvent, latLng }) => {
+            const { target } = domEvent;
+            content = document.createElement("div");
+            content.innerHTML = `
+<h5>${marker.title}</h5><button class="btn-link btn" onclick="document.getElementById('funding_search').value='${marker.title}';myDataTable.search('${marker.title}')">Filter Abstracts</button>
+`;
+            infoWindow.close();
+            infoWindow.setContent(content);
+            infoWindow.open(marker.map, marker);
+          });
+        });
+      }
+    }
+{% endblock %}
