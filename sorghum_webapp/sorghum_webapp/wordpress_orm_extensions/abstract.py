@@ -36,7 +36,7 @@ class Abstract(WPEntity):
 	@property
 	def schema_fields(self):
 		return ["id", "slug", "title", "content",
-				"featured_media", "template",
+				"featured_media", "template","tags",
 				"presenting_author", "presenting_author_institutions", "conference_name","conference_date",
 				"presentation_type"]
 
@@ -47,7 +47,7 @@ class Abstract(WPEntity):
 		'''
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
-			self._post_fields = ["title", "content", "featured_media",
+			self._post_fields = ["title", "content", "featured_media","tags",
 				"presenting_author", "presenting_author_institutions", "conference_name","conference_date",
 				"presentation_type"]
 		return self._post_fields
@@ -117,6 +117,8 @@ class AbstractRequest(WPRequest):
 		self._status = list()
 		self._category_ids = list()
 		self._slugs = list()
+		self._tags = list()
+
 
 	@property
 	def parameter_names(self):
@@ -148,6 +150,9 @@ class AbstractRequest(WPRequest):
 
 		if self.per_page:
 			self.parameters["per_page"] = self.per_page
+
+		if self.tags:
+			self.parameters["tags"] = ','.join(self.tags)
 
 		# -------------------
 
@@ -306,3 +311,33 @@ class AbstractRequest(WPRequest):
 				self._per_page = int(value)
 			except ValueError:
 				raise ValueError("The 'per_page' parameter must be an integer, was given '{0}'".format(value))
+	@property
+	def tags(self):
+		'''
+		Return only items that have these tags.
+		'''
+		return self._tags
+
+	@tags.setter
+	def tags(self, values):
+		'''
+		List of tag IDs that are required to be attached to items returned from query.
+		'''
+		if values is None:
+			self.parameters.pop("tags", None)
+			self._tags = list()
+			return
+		elif not isinstance(values, list):
+			raise ValueError("Tags must be provided as a list of IDs (or append to the existing list).")
+
+		for tag_id in values:
+			if isinstance(tag_id, int):
+				self.tags.append(str(tag_id))
+			elif isinstance(tag_id, str):
+				try:
+					self.tags.append(str(int(tag_id)))
+				except ValueError:
+					raise ValueError("The given tag was in the form of a string but could not be converted to an integer ('{0}').".format(tag_id))
+			else:
+				raise ValueError("Unexpected type for property list 'tags'; expected str or int, got '{0}'".format(type(s)))
+

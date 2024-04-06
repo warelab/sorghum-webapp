@@ -5,6 +5,7 @@
 import flask
 import logging
 import json
+import requests
 from flask import request, render_template
 from ..wordpress_orm_extensions.abstract import AbstractRequest
 
@@ -17,6 +18,7 @@ from .navbar import navbar_template
 from .footer import populate_footer_template
 
 logger = logging.getLogger("wordpress_orm")
+WP_BASE_URL = app.config["WP_BASE_URL"]
 
 abstracts_list = flask.Blueprint("abstracts_list", __name__)
 
@@ -43,14 +45,22 @@ def abstracts():
     ''' Abstracts page. '''
     templateDict = navbar_template('Resources')
     show_all = valueFromRequest(key="show_all", request=request, boolean=True) or True
-    tag_filter = request.args.getlist("tag")
+    conference = valueFromRequest(key="conference", request=request, integer=False)
     current_page = valueFromRequest(key="page", request=request, integer=True) or 1
     per_page = valueFromRequest(key="per_page", request=request, integer=True) or 100
-
-    with api.Session():
+    with api.Session() as session:
         abstract_count = AbstractRequest(api=api)
         abstract_count.per_page = 1
         abstract_count.page = 1
+        tag_filter = []
+        if conference is not None:
+            # lookup tag_filter by conference
+            url = WP_BASE_URL + 'tags?search=' + conference
+            tags_response = session.get(url=url, verify=False)
+            tags = tags_response.json()
+            tag_filter = [t['id'] for t in tags]
+            abstract_count.tags = tag_filter
+
         abstract_tally = abstract_count.get(count=True)
         abstracts = getAbstracts(current_page, per_page, abstract_tally, tag_filter, show_all)
 
@@ -67,6 +77,7 @@ def abstracts():
             'author':ab.s.presenting_author,
             'title':ab.s.title,
             'content':ab.s.content,
+            'type':ab.s.presentation_type,
             'conference':ab.s.conference_name,
             'year':ab.s.conference_date,
             'slug': ab.s.slug,

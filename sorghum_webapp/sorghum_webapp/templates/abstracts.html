@@ -47,7 +47,8 @@ var tableData = [
   "orgs": {{ab.organizations | safe}},
   "orgstr": {{ab.organizations | safe}}.map(o=>o.post_title).join(' '),
   "slug": "{{ab.slug}}",
-  "id": {{ab.id}}
+  "id": {{ab.id}},
+  "type": "{{ab.type}}"
 },
 {% endfor %}
 ];
@@ -55,13 +56,15 @@ var places = {};
 tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
 initMap();
 var myDataTable = FathGrid("abstracts_tbl",{
-editable:false,filterable:true,showGrouping:false,
+editable:false,filterable:false,showGrouping:false,
+sortBy: [2],
 columns:[
-{name:'conference',header:'Conference',editable:false, filterable:true},
+{name:'conference',header:'Conference',editable:false, filterable:false},
 {name:'author',header:'Presenting Author',editable:false, filterable:false },
 {name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
 html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
 {name:'title',editable:false,header:'Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/abstract/${item.slug}">${item.title}</a></span>`}},
+{name:'type',editable:false,header:'Presentation', filterable:false},
 {name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
 {name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
 ],
