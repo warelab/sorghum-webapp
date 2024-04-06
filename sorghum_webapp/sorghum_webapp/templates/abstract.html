@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block page_title %}SorghumBase - {{ abstract.title }}{% endblock %}
+{% block page_title %}SorghumBase - {{ abstract.s.conference_name }} {{ abstract.s.conference_date}}{% endblock %}
 {% block additional_header %}{% endblock %}
 {% block content %}
 
@@ -27,21 +27,21 @@
         <div class="col-md-9 mb40">
             <article>
 
-              {% if abstract.s.featured_media %}
-              <div class="col-lg-6 col-md-9">
-                <img src='{{ abstract.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
-              </div>
-              {% endif %}
                 <div class="card mb10">
                     <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
+                        <h4 class="mb-0">
                             {{abstract.s.title}}
-                        </h5>
+                        </h4>
                     </div>
                     <div class="card-body">
-                        <h6>{{abstract.s.content | safe}}</h6>
+                        <h5>{{abstract.s.content | safe}}</h5>
                     </div>
                 </div>
+                {% if abstract.s.featured_media %}
+                <div class="col-lg-6 col-md-9">
+                    <img src='{{ abstract.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
+                </div>
+                {% endif %}
 
             </article>
         </div>
