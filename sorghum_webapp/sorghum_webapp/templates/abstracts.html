@@ -43,12 +43,13 @@ var tableData = [
 {% for ab in abstracts %}
 { "conference": "{{ab.conference}} {{ab.year}}",
   "author": "{{ab.author}}",
-  "title": "{{ab.title | title}}",
+  "title": "{{ab.title}}",
   "orgs": {{ab.organizations | safe}},
   "orgstr": {{ab.organizations | safe}}.map(o=>o.post_title).join(' '),
   "slug": "{{ab.slug}}",
   "id": {{ab.id}},
-  "type": "{{ab.type}}"
+  "type": "{{ab.type}}",
+  "content": "{{ab.content | striptags}}"
 },
 {% endfor %}
 ];
@@ -66,7 +67,8 @@ html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.
 {name:'type',editable:false,header:'Presentation', filterable:false},
 {name:'conference',header:'Conference',editable:false, filterable:false},
 {name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
-{name:'orgstr',visible:false,editable:false,filterable:true,header:'idx'}
+{name:'orgstr',visible:false,editable:false,filterable:true,header:'idx'},
+{name:'content',visible:false,editable:false,filterable:true,header:'abstract'}
 ],
 data:tableData});
 
