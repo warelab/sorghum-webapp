@@ -37,7 +37,7 @@ class Abstract(WPEntity):
 	def schema_fields(self):
 		return ["id", "slug", "title", "content",
 				"featured_media", "template","tags",
-				"presenting_author", "presenting_author_institutions", "conference_name","conference_date",
+				"presenting_author", "session",
 				"presentation_type"]
 
 	@property
@@ -48,7 +48,7 @@ class Abstract(WPEntity):
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
 			self._post_fields = ["title", "content", "featured_media","tags",
-				"presenting_author", "presenting_author_institutions", "conference_name","conference_date",
+				"presenting_author", "session",
 				"presentation_type"]
 		return self._post_fields
 

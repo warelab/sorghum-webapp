@@ -70,19 +70,18 @@ def abstracts():
         populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[news_banner_media])
 
         def getInfo(ab):
-            orgs = []
-            if ab.s.presenting_author_institutions:
-                orgs = ab.s.presenting_author_institutions
+            author = ab.s.presenting_author[0]
+            if author.affiliation:
+                # gather organizations from author.affiliation
             return {
-            'author':ab.s.presenting_author,
+            'author': format_author(author),
             'title':ab.s.title,
             'content':ab.s.content,
             'type':ab.s.presentation_type,
-            'conference':ab.s.conference_name,
-            'year':ab.s.conference_date,
+            'session':ab.s.session,
             'slug': ab.s.slug,
             'id': ab.s.id,
-            'organizations': json.dumps(orgs)
+            'organizations': author.affiliation
             }
         iterator = map(getInfo,abstracts)
     templateDict['abstracts'] = list(iterator)
