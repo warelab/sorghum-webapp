@@ -16,9 +16,6 @@ const About = ({conference, imgUrl}) => {
           return <li key={idx}>{bm.post_title} <i>{bm.affiliation[0].post_title}</i></li>
         })}
       </ul>
-      <a href="#" className="btn btn-primary">
-        Learn More
-      </a>
     </div>
   </div>
 }
