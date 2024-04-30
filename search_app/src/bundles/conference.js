@@ -86,6 +86,24 @@ sorghumSessions.reactSorghumSessions = createSelector(
   }
 );
 
+const sorghumAbstracts = createAsyncResourceBundle({
+  name: 'sorghumAbstracts',
+  actionBaseType: 'SORGHUM_ABSTRACTS',
+  persist: false,
+  getPromise: ({store}) => {
+    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_abstract?orderby=date&order=asc`)
+      .then(abstracts => _.groupBy(abstracts,'session'))
+  }
+});
+sorghumAbstracts.reactSorghumAbstracts = createSelector(
+  'selectSorghumAbstractsShouldUpdate',
+  (shouldUpdate) => {
+    if (shouldUpdate) {
+      return { actionCreator: 'doFetchSorghumAbstracts' }
+    }
+  }
+);
+
 const sorghumDocs = {
   name: 'sorghumDocs',
   getReducer: () => {
@@ -161,4 +179,4 @@ const sorghumDocs = {
   selectSorghumMedia: state => state.sorghumDocs.media,
   selectSorghumPeople: state => state.sorghumDocs.people
 }
-export default [sorghumConference,sorghumSessions,sorghumDocs];
+export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumDocs];

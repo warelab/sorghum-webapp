@@ -1,6 +1,6 @@
 import React from 'react'
 import { Provider, connect } from 'redux-bundler-react'
-import Table from 'react-bootstrap/Table'
+import { Table, Accordion } from 'react-bootstrap'
 import './conference.css'
 
 const About = ({conference, imgUrl}) => {
@@ -8,7 +8,7 @@ const About = ({conference, imgUrl}) => {
     <div className="col-md-6 mb30">
       <img src={imgUrl} alt="" className="img-fluid"/>
     </div>
-    <div className="col-md-6 mb30">
+    <div className="col-md-6 mb30"><br/>
       <span className="text-uppercase" style={{'color': '#c74f03'}}>The Adaptable Crop for Diverse Climates, Landscapes and Markets</span>
       <h2 className="mb20">About {conference.title.rendered}</h2>
       <p className="lead" dangerouslySetInnerHTML={{__html: conference.content.rendered}}/>
@@ -122,6 +122,7 @@ function formatChairs(people,lut) {
 }
 const AgendaCmp = props => {
   if (!(props.sorghumSessions && props.sorghumPeople)) return <code>loading Agenda</code>
+  const abstracts = props.sorghumAbstracts;
   const sessions = props.sorghumSessions.filter(s => props.conference.id === s.conference);
   let people = assembleUniqueIds(sessions, 'organizers');
   const peopleToFetch = people.filter(p => !(props.sorghumPeople.hasOwnProperty(p) && props.sorghumPeople[p].id));
@@ -149,6 +150,14 @@ const AgendaCmp = props => {
             <td className="title-column"><b>{session.session_name}</b>
               {session.organizers && <p><i>{session.organizer_label && <span>{session.organizer_label}: </span>}
                 {formatChairs(session.organizers, props.sorghumPeople)}</i></p>}
+              {abstracts && abstracts[session.id] && abstracts[session.id][0].presentation_type === "talk" && <Accordion>
+                {abstracts[session.id].map((ab,idx) => {
+                return <Accordion.Item eventKey={idx} key={idx}>
+                  <Accordion.Header>{ab.title.rendered}</Accordion.Header>
+                  <Accordion.Body dangerouslySetInnerHTML={{__html: ab.content.rendered}}/>
+                </Accordion.Item>
+                })}
+              </Accordion>}
             </td>
             <td className="sponsor-column">{session.sponsors && <a href={session.sponsors[0].resource_url} target="_blank">{session.sponsors[0].post_title}</a>}</td>
             <td className="room-column">{session.room}</td>
@@ -163,6 +172,7 @@ const AgendaCmp = props => {
 const Agenda = connect(
   'selectSorghumSessions',
   'selectSorghumPeople',
+  'selectSorghumAbstracts',
   'doRequestPeople',
   AgendaCmp
 )
