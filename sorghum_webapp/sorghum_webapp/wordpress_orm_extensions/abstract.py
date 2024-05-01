@@ -59,7 +59,7 @@ class Abstract(WPEntity):
 
 		self._data = self.s.__dict__
 
-		url = self.api.base_url + "abstract" + "/{}".format(self.s.id) + "?context=edit"
+		url = self.api.base_url + "conference_abstract" + "/{}".format(self.s.id) + "?context=edit"
 		logger.debug("post data='{}'".format(self._data))
 		try:
 			super().post(url=url, data=self._data)
@@ -128,7 +128,7 @@ class AbstractRequest(WPRequest):
 		'''
 		Returns a list of 'Abstract' objects that match the parameters set in this object.
 		'''
-		self.url = self.api.base_url + "abstract"
+		self.url = self.api.base_url + "conference_abstract"
 
 		if self.id:
 			self.url += "/{}".format(self.id)
