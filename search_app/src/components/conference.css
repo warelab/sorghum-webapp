@@ -10,3 +10,13 @@
 .room-column {
     width: 10%;
 }
+/* Override styles for .accordion-button:not(.collapsed) */
+.accordion-button:not(.collapsed) {
+    /* Add your custom styles here */
+    background-color: #fff!important;
+    color: #333!important;
+}
+a.sicna {
+    color: #c74f03!important;
+    text-decoration: none!important;
+}
