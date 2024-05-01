@@ -137,8 +137,16 @@ function formatChairs(people,lut) {
   let last = formatted.pop();
   return formatted.length > 0 ?`${formatted.join(', ')} & ${last}` : last;
 }
+function formatSpeaker(person) {
+  let names = [person.post_title];
+  person.job_title.forEach(jt => jt && names.push(jt));
+  person.affiliation.forEach(aff => aff && names.push(aff));
+  return <i>{names.join(', ')}</i>
+}
 const AgendaCmp = props => {
-  if (!(props.sorghumSessions && props.sorghumPeople)) return null
+  if (!(props.sorghumSessions && props.sorghumPeople)) return <Accordion.Item eventKey="agenda">
+    <Accordion.Header><h2 className="mb20">Agenda</h2></Accordion.Header>
+  </Accordion.Item>;
   const abstracts = props.sorghumAbstracts;
   const sessions = props.sorghumSessions.filter(s => props.conference.id === s.conference);
   const byDay = groupObjectsByDate(sessions);
@@ -163,14 +171,10 @@ const AgendaCmp = props => {
                 {session.organizers && <p><i>{session.organizer_label && <span>{session.organizer_label}: </span>}
                   {formatChairs(session.organizers, props.sorghumPeople)}</i></p>}
                 {abstracts && abstracts[session.id] && abstracts[session.id][0].presentation_type === "talk" &&
-                  <Accordion>
-                    {abstracts[session.id].map((ab, idx) => {
-                      return <Accordion.Item eventKey={idx} key={idx}>
-                        <Accordion.Header>{ab.title.rendered}</Accordion.Header>
-                        <Accordion.Body dangerouslySetInnerHTML={{__html: ab.content.rendered}}/>
-                      </Accordion.Item>
-                    })}
-                  </Accordion>}
+                  abstracts[session.id].map((ab, idx) => {
+                    return <div key={idx}><b>Session {idx+1}</b> - {ab.title.rendered}<br/>{formatSpeaker(ab.presenting_author[0])}</div>
+                  })
+                }
               </td>
               <td className="sponsor-column">{session.sponsors &&
                 <a className='sicna' href={session.sponsors[0].resource_url} target="_blank">{session.sponsors[0].post_title}</a>}</td>
