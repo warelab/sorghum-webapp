@@ -11,6 +11,8 @@
     "watch": "npm run tidy && parcel watch --dist-dir ../sorghum_webapp/sorghum_webapp/static/search --public-url /static/search src/index.js"
   },
   "dependencies": {
+    "ag-grid-community": "^31.3.1",
+    "ag-grid-react": "^31.3.1",
     "axios": "^0.21.1",
     "formik": "^3.0.0-next.8",
     "gramene-mdview": "^2.0.6",

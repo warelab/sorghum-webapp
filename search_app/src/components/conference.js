@@ -1,6 +1,9 @@
 import React from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { Table, Accordion } from 'react-bootstrap'
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-quartz.css";
 import './conference.css'
 
 const About = ({conference, imgUrl}) => {
@@ -195,16 +198,53 @@ const Agenda = connect(
   AgendaCmp
 )
 
-const Abstracts = props => {
+const linkRenderer = params => {
+  return <a className="sicna" target="_blank" href={`/abstract/${params.value}`}>Read more</a>
+}
+const AbstractsCmp = props => {
+  let tableFields = [
+    {field:'author', headerName:'Presenting Author'},
+    {field:'title',headerName:'Title', flex:1, wrapText:true},
+    // {field:'orgs',headerName:'Institution'},
+    {field:'type',headerName:'Presentation'},
+    {field:'link',headerName:'Abstract', cellRenderer: linkRenderer}
+  ];
+  let abstractTable = [];
+  if (props.sorghumOrganizations && props.sorghumAbstracts && props.sorghumSessions) {
+    for (const [session_id,abList] of Object.entries(props.sorghumAbstracts)) {
+      abList.forEach(ab => {
+        abstractTable.push({
+          // author: ab.presenting_author[0].post_title,
+          title: ab.title.rendered,
+          orgs: ab.presenting_author[0].organization[0],
+          type: ab.presentation_type,
+          conference: 'SICNA 2024',
+          link: ab.slug,
+          author: `${ab.presenting_author[0].last_name}, ${ab.presenting_author[0].first_name}`
+        });
+      })
+    }
+    abstractTable.sort((a,b) => a.author.localeCompare(b.author));
+  }
   return <Accordion.Item eventKey="abstracts">
     <Accordion.Header>
       <h2 className="mb20">Abstracts</h2>
     </Accordion.Header>
     <Accordion.Body>
-      <i>Coming soon...</i>
+      {abstractTable.length > 0 &&
+        <div className="ag-theme-quartz" style={{height: 500}}>
+          <AgGridReact rowData={abstractTable} columnDefs={tableFields}/>
+        </div>
+      }
     </Accordion.Body>
   </Accordion.Item>
 }
+const Abstracts = connect(
+  'selectSorghumSessions',
+  'selectSorghumAbstracts',
+  'selectSorghumOrganizations',
+  AbstractsCmp
+)
 const ConferenceCmp = props => {
   if (!props.sorghumConference) return null;
   if (props.sorghumConference.hasOwnProperty(props.slug)) {
@@ -220,7 +260,7 @@ const ConferenceCmp = props => {
       } else {
         const imgUrl = props.sorghumMedia[conference.featured_media].media_details.sizes.full.source_url;
         return <div>
-          <Accordion defaultActiveKey={['about']} flush alwaysOpen={true}>
+          <Accordion defaultActiveKey={['about','abstracts']} flush alwaysOpen={true}>
             <About conference={conference} imgUrl={imgUrl}/>
             <Sponsors organizers={conference.organizers} sponsors={conference.sponsors} media={props.sorghumMedia}/>
             <Agenda conference={conference}/>
