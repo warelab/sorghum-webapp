@@ -27,8 +27,8 @@ def conference():
 
 		ms_banner_media = api.media(slug="aerial_combines")
 		templateDict["banner_media"] = ms_banner_media
-		templateDict["conference_slug"] = "sicna-2024"
-		templateDict["conference_name"] = "SICNA 2024"
+		templateDict["conference_slug"] = valueFromRequest(key="conference", request=request, default="sicna-2024")
+# 		templateDict["conference_name"] = "SICNA 2024"
 
 		logger.debug(ms_banner_media.json)
 		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[ms_banner_media])

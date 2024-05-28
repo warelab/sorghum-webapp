@@ -39,7 +39,7 @@ const Sponsors = ({organizers, sponsors, media}) => {
     <Accordion.Header>
       <div>
         <h5 className="text-uppercase" style={{'color': '#c74f03'}}>SICNA Support</h5>
-        <h2 className="mb20">2024 Sponsors</h2>
+        <h2 className="mb20">Sponsors</h2>
       </div>
     </Accordion.Header>
     <Accordion.Body>
@@ -210,18 +210,20 @@ const AbstractsCmp = props => {
     {field:'link',headerName:'Abstract', cellRenderer: linkRenderer}
   ];
   let abstractTable = [];
-  if (props.sorghumOrganizations && props.sorghumAbstracts && props.sorghumSessions) {
+  if (props.sorghumOrganizations && props.sorghumAbstracts && props.sorghumSessions && props.sicnaTags) {
     for (const [session_id,abList] of Object.entries(props.sorghumAbstracts)) {
       abList.forEach(ab => {
-        abstractTable.push({
-          // author: ab.presenting_author[0].post_title,
-          title: ab.title.rendered,
-          orgs: ab.presenting_author[0].organization[0],
-          type: ab.presentation_type,
-          conference: 'SICNA 2024',
-          link: ab.slug,
-          author: `${ab.presenting_author[0].last_name}, ${ab.presenting_author[0].first_name}`
-        });
+        if (props.sicnaTags[ab.tags[0]] && props.sicnaTags[ab.tags[0]].slug === props.conference.slug) {
+          abstractTable.push({
+            // author: ab.presenting_author[0].post_title,
+            title: ab.title.rendered,
+            orgs: ab.presenting_author[0].organization[0],
+            type: ab.presentation_type,
+            conference: props.sicnaTags[ab.tags[0]].name,
+            link: ab.slug,
+            author: `${ab.presenting_author[0].last_name}, ${ab.presenting_author[0].first_name}`
+          });
+        }
       })
     }
     abstractTable.sort((a,b) => a.author.localeCompare(b.author));
@@ -243,6 +245,7 @@ const Abstracts = connect(
   'selectSorghumSessions',
   'selectSorghumAbstracts',
   'selectSorghumOrganizations',
+  'selectSicnaTags',
   AbstractsCmp
 )
 const ConferenceCmp = props => {
@@ -264,7 +267,7 @@ const ConferenceCmp = props => {
             <About conference={conference} imgUrl={imgUrl}/>
             <Sponsors organizers={conference.organizers} sponsors={conference.sponsors} media={props.sorghumMedia}/>
             <Agenda conference={conference}/>
-            <Abstracts/>
+            <Abstracts conference={conference}/>
           </Accordion>
         </div>
       }

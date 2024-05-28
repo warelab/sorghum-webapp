@@ -21,7 +21,7 @@ function fetchAll(apiUrl, resultsPerPage = 100) {
       const fetchPages = [];
       for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
         const page_url = new URL(url);
-        page_url.searchParams.set('page_num', pageNum);
+        page_url.searchParams.set('page', pageNum);
         fetchPages.push(fetch(page_url));
       }
 
@@ -140,6 +140,24 @@ sorghumOrganizations.reactSorghumOrganizations = createSelector(
   }
 );
 
+const sicnaTags = createAsyncResourceBundle({
+  name: 'sicnaTags',
+  actionBaseType: 'SICNA_TAGS',
+  persist: false,
+  getPromise: ({store}) => {
+    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags?search=sicna`)
+      .then(tags => _.keyBy(tags,'id'))
+  }
+});
+sicnaTags.reactSicnaTags = createSelector(
+  'selectSicnaTagsShouldUpdate',
+  (shouldUpdate) => {
+    if (shouldUpdate) {
+      return { actionCreator: 'doFetchSicnaTags' }
+    }
+  }
+);
+
 const sorghumDocs = {
   name: 'sorghumDocs',
   getReducer: () => {
@@ -215,4 +233,4 @@ const sorghumDocs = {
   selectSorghumMedia: state => state.sorghumDocs.media,
   // selectSorghumPeople: state => state.sorghumDocs.people
 }
-export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumPeople,sorghumOrganizations,sorghumDocs];
+export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumPeople,sorghumOrganizations,sicnaTags,sorghumDocs];
