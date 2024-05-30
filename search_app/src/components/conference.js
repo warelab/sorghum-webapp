@@ -10,7 +10,7 @@ const About = ({conference, imgUrl}) => {
   return <Accordion.Item eventKey="about">
     <Accordion.Header>
       <div>
-        <h5 className="text-uppercase" style={{'color': '#c74f03'}}>The Adaptable Crop for Diverse Climates, Landscapes and Markets</h5>
+        <h5 className="text-uppercase" style={{'color': '#c74f03'}}>{conference.slogan}</h5>
         <h2 className="mb20">About {conference.title.rendered}</h2>
       </div>
     </Accordion.Header>
@@ -249,8 +249,8 @@ const Abstracts = connect(
   AbstractsCmp
 )
 const ConferenceCmp = props => {
-  if (!props.sorghumConference) return null;
-  if (props.sorghumConference.hasOwnProperty(props.slug)) {
+  // if (!props.sorghumConference) return null;
+  if (props.sorghumConference && props.sorghumConference.hasOwnProperty(props.slug)) {
     const conference = props.sorghumConference[props.slug];
     if (conference.featured_media) {
       let media_ids = [conference.featured_media];

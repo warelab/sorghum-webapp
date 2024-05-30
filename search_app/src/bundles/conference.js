@@ -89,7 +89,7 @@ sorghumSessions.reactSorghumSessions = createSelector(
 const sorghumAbstracts = createAsyncResourceBundle({
   name: 'sorghumAbstracts',
   actionBaseType: 'SORGHUM_ABSTRACTS',
-  persist: false,
+  persist: true,
   getPromise: ({store}) => {
     return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_abstract?orderby=date&order=asc`)
       .then(abstracts => _.groupBy(abstracts,'session'))
