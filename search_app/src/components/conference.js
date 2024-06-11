@@ -2,6 +2,7 @@ import React from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { Table, Accordion } from 'react-bootstrap'
 import { AgGridReact } from "ag-grid-react";
+import he from 'he';
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import './conference.css'
@@ -175,7 +176,8 @@ const AgendaCmp = props => {
                   {formatChairs(session.organizers, props.sorghumPeople)}</i></p>}
                 {abstracts && abstracts[session.id] && abstracts[session.id][0].presentation_type === "talk" &&
                   abstracts[session.id].map((ab, idx) => {
-                    return <div key={idx}><b>Session {idx+1}</b> - {ab.title.rendered}<br/>{formatSpeaker(ab.presenting_author[0])}</div>
+                    const htmlTitle = he.decode(ab.title.rendered);
+                    return <div key={idx}><b>Session {idx+1}</b> - {htmlTitle}<br/>{formatSpeaker(ab.presenting_author[0])}</div>
                   })
                 }
               </td>
@@ -216,7 +218,7 @@ const AbstractsCmp = props => {
         if (props.sicnaTags[ab.tags[0]] && props.sicnaTags[ab.tags[0]].slug === props.conference.slug) {
           abstractTable.push({
             // author: ab.presenting_author[0].post_title,
-            title: ab.title.rendered,
+            title: he.decode(ab.title.rendered),
             orgs: ab.presenting_author[0].organization[0],
             type: ab.presentation_type,
             conference: props.sicnaTags[ab.tags[0]].name,

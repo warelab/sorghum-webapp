@@ -5,7 +5,7 @@
 import flask
 from flask import request, render_template
 
-import pandas as pd
+# import pandas as pd
 
 import wordpress_orm as wp
 from wordpress_orm import wp_session, exc
@@ -135,10 +135,10 @@ def population(slug):
 		gr.tags = [tag_id]
 		tagged_germplasms = gr.get()
 
-		if population[0].s.pop_germplasm:
-			makeup = pd.read_csv(population[0].s.pop_germplasm['guid'])
-			makeup_table = makeup.to_html(classes="table table-bordered")
-			templateDict["germplasm_list"] = makeup_table
+# 		if population[0].s.pop_germplasm:
+# 			makeup = pd.read_csv(population[0].s.pop_germplasm['guid'])
+# 			makeup_table = makeup.to_html(classes="table table-bordered")
+# 			templateDict["germplasm_list"] = makeup_table
 
 		# print(makeup_table)
 
