@@ -15,6 +15,16 @@
       "4558003": 1
     }
   },
+  details: {
+    sequences: true,
+    VEP: true,
+    location: true,
+    expression: true,
+    homology: true,
+    pathways: true,
+    pubs: true,
+    xrefs: true
+  },
   "panSite" : {
     vitis_vinifera : {
       url: "https://vitis.gramene.org?idList=",
