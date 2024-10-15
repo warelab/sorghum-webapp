@@ -4,8 +4,8 @@
   "url": 'https://sorghumbase.org',
   "ensemblURL": 'https://ensembl.sorghumbase.org',
   "ensemblSite": 'https://ensembl.sorghumbase.org',
-  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-87',
-  "grameneData": 'https://data.sorghumbase.org/sorghum_v7',
+  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-108',
+  "grameneData": 'https://data.sorghumbase.org/sorghum_v8',
   "targetTaxonId": 4558003,
   "ga": 'G-L5KXDCCZ16',
   "curation": {
