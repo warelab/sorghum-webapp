@@ -16,6 +16,7 @@ def news():
     menu = make_menu('News')
     add_link(menu, 'News', '/posts?categories=news,research-highlights')
     add_link(menu, 'Release Notes', '/relnotes')
+    add_link(menu, 'Newsletters', 'https://ftp.sorghumbase.org/outreach/newsletters/')
     add_link(menu, 'Meetings & Events', '/events')
     add_link(menu, 'Conference Proceedings', 'none')
     add_link(menu, 'SICNA 2024', '/conferences?conference=sicna-2024')
