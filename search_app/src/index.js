@@ -10,6 +10,7 @@ import SearchBar from './components/searchbar'
 import GeneSearchUI from './components/gramene-search-layout'
 import Feedback from './components/Feedback'
 import Institutions from './components/institutions'
+import ConferencePage from './components/conference'
 import MDView from "gramene-mdview";
 import "../css/style.css"
 
@@ -19,7 +20,7 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2024-04-01'
+    date='2024-09-01'
     offset={200}
   />
 
@@ -30,7 +31,7 @@ const Guides = () => (
         repo='release-notes'
         path='test'
         heading='Guides'
-        date='2024-04-01'
+        date='2024-09-01'
         offset={200}
     />
 )
@@ -70,4 +71,7 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sorghumbase-institutions');
   element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
+
+  element = document.getElementById('sorghumbase-conference');
+  element && render(ConferencePage(store), element) && console.log('rendered sorghumbase-conference div')
 })

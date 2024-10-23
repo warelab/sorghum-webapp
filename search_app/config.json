@@ -4,8 +4,8 @@
   "url": 'https://sorghumbase.org',
   "ensemblURL": 'https://ensembl.sorghumbase.org',
   "ensemblSite": 'https://ensembl.sorghumbase.org',
-  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-87',
-  "grameneData": 'https://data.sorghumbase.org/sorghum_v7',
+  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-108',
+  "grameneData": 'https://data.sorghumbase.org/sorghum_v8',
   "targetTaxonId": 4558003,
   "ga": 'G-L5KXDCCZ16',
   "curation": {
@@ -14,6 +14,16 @@
       "4558": 1,
       "4558003": 1
     }
+  },
+  details: {
+    sequences: true,
+    VEP: true,
+    location: true,
+    expression: true,
+    homology: true,
+    pathways: true,
+    pubs: true,
+    xrefs: true
   },
   "panSite" : {
     vitis_vinifera : {

@@ -1,6 +1,8 @@
 import logging
 app_logger = logging.getLogger("sorghumbase")
 
+ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+
 def make_menu(label, style='simple'):
     return { 'label':label, 'style':style, 'links':[] }
 
@@ -13,10 +15,14 @@ def add_link(menu, label, link, links=[]):
 def news():
     menu = make_menu('News')
     add_link(menu, 'News', '/posts?categories=news,research-highlights')
+    add_link(menu, 'Release Notes', '/relnotes')
+    add_link(menu, 'Newsletters', 'https://ftp.sorghumbase.org/outreach/newsletters/')
     add_link(menu, 'Meetings & Events', '/events')
+    add_link(menu, 'Conference Proceedings', 'none')
+    add_link(menu, 'SICNA 2024', '/conferences?conference=sicna-2024')
+    add_link(menu, 'SICNA 2022', '/conferences?conference=sicna-2022')
 #     add_link(menu, 'Job Postings', '/jobs')
 #     add_link(menu, 'Publications', '/publications')
-    add_link(menu, 'Release Notes', '/relnotes')
     return menu
 
 def engage():
@@ -30,11 +36,10 @@ def engage():
     return menu
 
 def genomes():
-    ensemblURL = 'https://ensembl.sorghumbase.org'
     genomes = make_menu('Data Access')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
-    add_link(genomes, 'Phylogenetic overview','https://ensembl.sorghumbase.org/info/genome/compara/prot_tree_stats.html')
+    add_link(genomes, 'Phylogenetic overview','/'.join([ensemblURL,'info/genome/compara/prot_tree_stats.html']))
     add_link(genomes, 'FTP site','https://ftp.sorghumbase.org')
 
     cpnam = [
@@ -148,8 +153,8 @@ def germplasm():
 def tools():
    menu = make_menu('Tools')
    add_link(menu, 'Gene Search','/genes')
-   add_link(menu, 'Genome Browser','https://ensembl.sorghumbase.org')
-   add_link(menu, 'BLAST','https://ensembl.sorghumbase.org/Tools/Blast')
+   add_link(menu, 'Genome Browser',ensemblURL)
+   add_link(menu, 'BLAST','/'.join([ensemblURL,'Tools/Blast']))
    return menu
 
 def community_resources():

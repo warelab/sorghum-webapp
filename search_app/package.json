@@ -11,10 +11,13 @@
     "watch": "npm run tidy && parcel watch --dist-dir ../sorghum_webapp/sorghum_webapp/static/search --public-url /static/search src/index.js"
   },
   "dependencies": {
+    "ag-grid-community": "^31.3.1",
+    "ag-grid-react": "^31.3.1",
     "axios": "^0.21.1",
     "formik": "^3.0.0-next.8",
     "gramene-mdview": "^2.0.6",
-    "gramene-search": "1.4.2",
+    "gramene-search": "1.6.10",
+    "he": "^1.2.0",
     "is-email": "^1.0.0",
     "lodash": "^4.17.15",
     "money-clip": "^3.0.2",
@@ -30,7 +33,7 @@
     "react-simple-maps": "^3.0.0",
     "redux-bundler": "^21.0.0",
     "redux-bundler-react": "^1.2.0",
-    "sorghum-search": "^1.1.24",
+    "sorghum-search": "^1.1.32",
     "yup": "^0.32.9"
   },
   "prettier": {

@@ -10,7 +10,7 @@ and will be automatically registered.
 from datetime import datetime
 import flask
 import jinja2
-from jinja2 import Markup
+from markupsafe import Markup
 from math import ceil
 
 # If the filter is to return HTML code and you don't want it autmatically
