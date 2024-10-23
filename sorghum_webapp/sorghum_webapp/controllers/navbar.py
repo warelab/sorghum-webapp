@@ -1,7 +1,7 @@
 import logging
 app_logger = logging.getLogger("sorghumbase")
 
-ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+ensemblURL = 'https://ensembl.sorghumbase.org'
 
 def make_menu(label, style='simple'):
     return { 'label':label, 'style':style, 'links':[] }
