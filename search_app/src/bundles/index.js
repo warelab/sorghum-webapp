@@ -3,6 +3,7 @@ import {bundles as sorghumBundles} from 'sorghum-search'
 import {bundles as grameneBundles} from 'gramene-search'
 import UIbundle from './searchUI'
 import conferenceBundles from './conference.js'
+import workingGroupBundles from './workingGroups.js'
 import cache from "../utils/cache"
 import initialState from '../../config.json';
 
@@ -30,6 +31,7 @@ const bundle = composeBundles(
   ...sorghumBundles,
   ...grameneBundles,
   ...conferenceBundles,
+  ...workingGroupBundles,
   UIbundle,
   config,
   createCacheBundle(cache.set)
