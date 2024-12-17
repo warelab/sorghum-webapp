@@ -37,7 +37,7 @@ def engage():
     return menu
 
 def genomes():
-    genomes = make_menu('Data Access')
+    genomes = make_menu('Genomes')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
     add_link(genomes, 'Phylogenetic overview','/'.join([ensemblURL,'info/genome/compara/prot_tree_stats.html']))
@@ -106,6 +106,7 @@ def genomes():
 #         add_link(cpnammenu, page["label"], 'na', linkPair)
         add_link(cpnammenu, page["label"], '/'.join([ensemblURL,page["prod_name"],'Info/Annotation']))
 
+    return genomes
     menu = make_menu('Genomes','mega')
     menu['categories'] = [cpnammenu, ref2, ref1, genomes]
     return menu
