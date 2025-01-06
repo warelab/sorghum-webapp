@@ -36,13 +36,13 @@
                   <h2 class="mb0">{{project.s.project_title | safe}}</h2>
               </div>
               <p>
-                {{project.s.dates | safe }}
+                {{project.s.start_date | safe }} to {{project.s.end_date | safe}}
               </p>
               <br>
                 <div class="card mb10">
                     <div class="card-header" role="tab" id="posts">
                         <h5 class="mb-0">
-                            {{project.s.funding_agency}}
+                            {{project.s.funding_agency}} {{project.s.funding_program}} {{project.s.funding_subcategory}}
                         </h5>
                     </div>
                     <div class="card-body">

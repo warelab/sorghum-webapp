@@ -21,7 +21,7 @@ const Notes = () => (
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2025-01-01'
+    date='2025-01-07'
     offset={200}
   />
 

@@ -1,7 +1,8 @@
 import logging
 app_logger = logging.getLogger("sorghumbase")
 
-ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+# ensemblURL = 'https://ensembl-dev.sorghumbase.org'
+ensemblURL = 'https://ensembl.sorghumbase.org'
 
 def make_menu(label, style='simple'):
     return { 'label':label, 'style':style, 'links':[] }
@@ -28,7 +29,7 @@ def news():
 def engage():
     menu = make_menu('Engage')
 #     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
-    add_link(menu, 'Working Groups', '/workingGroups')
+#     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
     add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
 #     add_link(menu, 'Office Hours', '/office_hours')

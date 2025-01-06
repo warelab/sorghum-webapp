@@ -43,6 +43,11 @@ function reformatDates(ymd_str1,ymd_str2) {
   const ymd2 = ymd_str2.split('-');
   return `${ymd1[1]}/${ymd1[0]} to ${ymd2[1]}/${ymd2[0]}`;
 }
+function dateSorter(date1, date2) {
+  const d1 = new Date(date1);
+  const d2 = new Date(date2);
+  return d1 - d2; // For ascending order; use d2 - d1 for descending
+}
 
 var tableData = [
 {% for p in projects %}
@@ -51,6 +56,8 @@ var tableData = [
   "award_id": "{{p.award_id}}",
   "project_title": "{{p.project_title | title}}",
   "dates": reformatDates("{{p.start_date}}","{{p.end_date}}"),
+  "start_date": "{{p.start_date | safe}}",
+  "end_date": "{{p.end_date | safe}}",
   "pi": {{p.pi | safe}}.join(','),
   "orgs": {{p.organizations | safe}},
   "orgstr": {{p.organizations | safe}}.map(o=>o.post_title).join(' '),
@@ -69,13 +76,14 @@ tableData.forEach(p => {agencies[p.funding_agency]++; programs[p.funding_program
 var myDataTable = FathGrid("projects_tbl",{
 editable:false,filterable:true,showGrouping:false,
 columns:[
-{name:'project_title',editable:false, width:'550px', header:'Project Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/project/${item.slug}">${item.project_title}</a></span>`}},
 {name:'pi',header:'PI(s)',editable:false, filterable:false },
-{name:'dates',header:'Dates',editable:false,type:'date', filterable:false},
-// {name:'end_date',header:'End',type:'date',editable:false, filterable:false},
 {name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' ')
 // ,html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}
 },
+{name:'project_title',editable:false, width:'550px', header:'Project Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/project/${item.slug}">${item.project_title}</a></span>`}},
+// {name:'dates',header:'Dates',editable:false,type:'date', filterable:false},
+{name:'start_date',header:'Start Date',type:'date',editable:false, filterable:false, sort: dateSorter },
+// {name:'end_date',header:'End',type:'date',editable:false, filterable:false, sort: dateSorter },
 {name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
 {name:'funding_program',header:'Program',editable:false, filterable:true, filter:Object.keys(programs).sort((a,b) => programs[b] - programs[b])},
 {name:'funding_subcategory',visible:false,header:'Category',editable:false, filterable:true, filter:Object.keys(categories).sort((a,b) => categories[b] - categories[b])},
