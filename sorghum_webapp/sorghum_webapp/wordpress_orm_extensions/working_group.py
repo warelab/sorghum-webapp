@@ -34,10 +34,8 @@ class WorkingGroup(WPEntity):
 
 	@property
 	def schema_fields(self):
-		return ["id", "date", "date_gmt", "guid", "modified", "modified_gmt",
-				"slug", "status", "type", "link", "title", "content",
-				"featured_media", "template",
-				"members",'chairperson','group_news']
+		return ["id", "title", "content","mission",
+				"members",'contact','news','events','logo','images','links']
 
 	@property
 	def post_fields(self):
@@ -46,8 +44,8 @@ class WorkingGroup(WPEntity):
 		'''
 		if self._post_fields is None:
 			# Note that 'date' is excluded in favor of exclusive use of 'date_gmt'.
-			self._post_fields = ["title", "content", "featured_media",
-			"members","chairperson","group_news"]
+			self._post_fields = ["title", "content", "logo",
+			"members","contact","news","events","images","links"]
 		return self._post_fields
 
 	@property
