@@ -7,6 +7,7 @@ import logging
 import json
 from flask import request, render_template
 from ..wordpress_orm_extensions.project import ProjectRequest
+from datetime import datetime
 
 from wordpress_orm import wp_session
 
@@ -102,7 +103,20 @@ def projects():
             'pi': json.dumps(p.s.pi),
             'organizations': json.dumps(orgs)
             }
-        iterator = map(getInfo,projects)
-    templateDict['projects'] = list(iterator)
+
+        # Convert the projects into a list of dictionaries
+        iterator = map(getInfo, projects)
+        project_list = list(iterator)
+
+        # Sort the projects by 'start_date' (most recent to oldest)
+        sorted_projects = sorted(
+            project_list,
+            key=lambda x: datetime.strptime(x['start_date'], '%Y-%m-%d'),
+            reverse=True  # Sort in descending order (most recent first)
+        )
+
+        # Assign the sorted list to the templateDict
+        templateDict['projects'] = sorted_projects
+
     return render_template("projects.html", **templateDict)
 

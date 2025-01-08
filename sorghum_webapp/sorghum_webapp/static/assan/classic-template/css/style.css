@@ -559,7 +559,7 @@ Buttons
   font-size: 0.75rem !important;
   font-family: "Open Sans", sans-serif;
   padding: 14px 30px 14px !important;
-  text-transform: uppercase;
+  /*text-transform: uppercase;*/
   vertical-align: middle;
   letter-spacing: 0.05em; }
   .btn i {

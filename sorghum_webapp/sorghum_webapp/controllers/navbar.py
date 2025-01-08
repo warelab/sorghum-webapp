@@ -1,6 +1,7 @@
 import logging
 app_logger = logging.getLogger("sorghumbase")
 
+# ensemblURL = 'https://ensembl-dev.sorghumbase.org'
 ensemblURL = 'https://ensembl.sorghumbase.org'
 
 def make_menu(label, style='simple'):
@@ -28,15 +29,16 @@ def news():
 def engage():
     menu = make_menu('Engage')
 #     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
+#     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
-#     add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
+    add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
 #     add_link(menu, 'Office Hours', '/office_hours')
     add_link(menu, 'Mailing List', '/mailing_list')
     add_link(menu, 'Contact Us', '/contact')
     return menu
 
 def genomes():
-    genomes = make_menu('Data Access')
+    genomes = make_menu('Genomes')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
     add_link(genomes, 'Phylogenetic overview','/'.join([ensemblURL,'info/genome/compara/prot_tree_stats.html']))
@@ -105,6 +107,7 @@ def genomes():
 #         add_link(cpnammenu, page["label"], 'na', linkPair)
         add_link(cpnammenu, page["label"], '/'.join([ensemblURL,page["prod_name"],'Info/Annotation']))
 
+    return genomes
     menu = make_menu('Genomes','mega')
     menu['categories'] = [cpnammenu, ref2, ref1, genomes]
     return menu
