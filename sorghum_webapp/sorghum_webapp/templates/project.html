@@ -27,13 +27,13 @@
         <div class="col-md-9 mb40">
             <article>
 
-              {% if project.s.featured_media %}
-              <div class="col-lg-6 col-md-9">
-                <img src='{{ project.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
-              </div>
-              {% endif %}
               <div class="clearfix pb20">
-                  <h2 class="mb0">{{project.s.project_title | safe}}</h2>
+                  <h2 class="mb0">
+                      {% if project.s.project_logo %}
+                          <img src='{{ project.s.project_logo.guid }}' style="max-height:80px;">
+                      {% endif %}
+                      {{project.s.project_title | safe}}
+                  </h2>
               </div>
               <p>
                 {{project.s.dates | safe }}
