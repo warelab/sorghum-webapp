@@ -13,7 +13,19 @@ import Institutions from './components/institutions'
 import ConferencePage from './components/conference'
 import WorkingGroups from './components/workingGroups'
 import MDView from "gramene-mdview";
+import Alerts from 'gramene-alerts';
 import "../css/style.css"
+
+const Alerter = () => (
+  <div className={"col-md-12 no-padding"}>
+    <Alerts
+      org='warelab'
+      repo='release-notes'
+      path='alerts'
+      site='sorghum'
+    />
+  </div>
+);
 
 const Notes = () => (
   <MDView
@@ -78,4 +90,7 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sorghumbase-working-groups');
   element && render(WorkingGroups(store), element) && console.log('rendered sorghumbase-working-groups')
+
+  element = document.getElementById('sorghumbase-alerts');
+  element && render(Alerter(), element) && console.log('rendered alerter')
 })
