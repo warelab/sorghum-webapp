@@ -21,7 +21,7 @@ from .. import app
 from .. import wordpress_api as api
 from .navbar import navbar_template
 from .footer import populate_footer_template
-from ..wordpress_orm_extensions.user import SBUser
+# from ..wordpress_orm_extensions.user import SBUser
 
 #
 # Note on WordPress queries. Not all information needed is returned by
@@ -130,36 +130,36 @@ def index():
 
 		photos_to_credit = [big_banner_1, big_banner_3, small_banner]
 
-		user_request = api.UserRequest()
-		user_request.context = "edit"
-		user_request.per_page = 50
-		user_request.roles = ["team_member","former_team_member","editor"]
-		users = user_request.get(class_object=SBUser)
-
-		teamDict = {}
-		for i in users:
-			teamDict[i.s.name] = 'SorghumBase Team'
+# 		user_request = api.UserRequest()
+# 		user_request.context = "edit"
+# 		user_request.per_page = 50
+# 		user_request.roles = ["team_member","former_team_member","editor"]
+# 		users = user_request.get(class_object=SBUser)
+#
+# 		teamDict = {}
+# 		for i in users:
+# 			teamDict[i.s.name] = 'SorghumBase Team'
 
 		# Way to check if WP access is authenticated - all users would be returned in that case,
 		# not just the ones who have posted.
 		#for u in users:
 		#	wp_logger.debug("User: {0}".format(u.s.name))
 
-		tool_request = api.PostRequest()
-		tool_request.categories = ["tools"]	# search by slug
-		tools = tool_request.get()
+# 		tool_request = api.PostRequest()
+# 		tool_request.categories = ["tools"]	# search by slug
+# 		tools = tool_request.get()
 
 		someUsers = []
 		someTools = []
 
-		for x in range(3):
-			index = randint(0, len(users)-1)
-			someUsers.append(users.pop(index))
-
-		for x in range(min(3, len(tools))):
-			index = randint(0, len(tools)-1)
-			someTools.append(tools.pop(index))
-
+# 		for x in range(3):
+# 			index = randint(0, len(users)-1)
+# 			someUsers.append(users.pop(index))
+#
+# 		for x in range(min(3, len(tools))):
+# 			index = randint(0, len(tools)-1)
+# 			someTools.append(tools.pop(index))
+#
 		if len(posts) == 0:
 			# Try to do some troubleshooting.
 
@@ -176,16 +176,16 @@ def index():
 		# fetch linked objects we know we'll need while we have this open connection
 		for post in posts:
 			photos_to_credit.append(post.featured_media)
-			if post.author.s.name not in teamDict:
-				teamDict[post.author.s.name] = post.author.s.name
+# 			if post.author.s.name not in teamDict:
+# 				teamDict[post.author.s.name] = post.author.s.name
 
 		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=photos_to_credit)
 
 	#for post in posts:
 	#	print(post.featured_media.s.link, post.featured_media.s.source_url)
-	templateDict["team"] = someUsers
-	templateDict['authors'] = teamDict
-	templateDict["tools"] = someTools
+# 	templateDict["team"] = someUsers
+# 	templateDict['authors'] = teamDict
+# 	templateDict["tools"] = someTools
 	templateDict["toolicons"] = ["icon-layers", "icon-telescope", "icon-globe"]
 	templateDict["posts"] = posts
 	templateDict["highlights"] = highlights
