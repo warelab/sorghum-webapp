@@ -4,6 +4,7 @@ import {bundles as grameneBundles} from 'gramene-search'
 import UIbundle from './searchUI'
 import conferenceBundles from './conference.js'
 import workingGroupBundles from './workingGroups.js'
+import fundedProjectsBundles from './fundedProjects.js'
 import cache from "../utils/cache"
 import initialState from '../../config.json';
 
@@ -32,6 +33,7 @@ const bundle = composeBundles(
   ...grameneBundles,
   ...conferenceBundles,
   ...workingGroupBundles,
+  ...fundedProjectsBundles,
   UIbundle,
   config,
   createCacheBundle(cache.set)
