@@ -32,6 +32,7 @@ def engage():
 #     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
     add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
+    add_link(menu, 'Special Topics', '/posts?categories=topics')
 #     add_link(menu, 'Office Hours', '/office_hours')
     add_link(menu, 'Mailing List', '/mailing_list')
     add_link(menu, 'Contact Us', '/contact')

@@ -91,6 +91,8 @@ def posts():
 	templateDict['post_tally'] = post_tally
 	if categories:
 		templateDict['categories'] = spacer.join(categories)
+		if categories[0] == "topics":
+			templateDict['categories'] = "Special Topics"
 	else:
 		templateDict['categories'] = 'posts'
 	templateDict['current_page'] = current_page
