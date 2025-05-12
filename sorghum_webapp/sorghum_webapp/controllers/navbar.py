@@ -32,7 +32,6 @@ def engage():
 #     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
     add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
-    add_link(menu, 'Special Topics', '/posts?categories=topics')
 #     add_link(menu, 'Office Hours', '/office_hours')
     add_link(menu, 'Mailing List', '/mailing_list')
     add_link(menu, 'Contact Us', '/contact')
@@ -195,6 +194,7 @@ def research():
     menu = make_menu('Research')
     add_link(menu, 'Publications', '/publications')
     add_link(menu, 'Highlighted Papers', '/posts?categories=research-highlights')
+    add_link(menu, 'Special Topics', '/posts?categories=topics')
     add_link(menu, "Funded Projects", '/projects')
     return menu
 

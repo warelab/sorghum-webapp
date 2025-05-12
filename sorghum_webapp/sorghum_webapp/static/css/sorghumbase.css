@@ -14,7 +14,12 @@
 .bg-dark a {
 	color: #fff;
 }
-
+.sb-icon-link div {
+	-webkit-text-fill-color: darkred;
+}
+.sb-icon-link a {
+	text-decoration: none;
+}
 #funding_map {
 	height: 600px;
 	width: 100%;
