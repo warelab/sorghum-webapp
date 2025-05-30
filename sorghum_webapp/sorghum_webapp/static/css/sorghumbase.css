@@ -53,7 +53,9 @@
 	border-radius: 5px;
 }
 /* $add_circle_color = rgb(222, 222, 220); */
-
+.wp-caption {
+	height:100%;
+}
 .wp-caption-text {
 	font-size: smaller;
 	padding-left: 1em;
