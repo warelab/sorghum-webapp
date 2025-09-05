@@ -24,3 +24,14 @@ def guidesPage():
     logger.debug(ms_banner_media.json)
     populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[ms_banner_media])
     return render_template("quick_guides.html", **templateDict)
+
+videos_page = flask.Blueprint("videos_page", __name__)
+@videos_page.route('/videos', methods=['GET'])
+def videosPage():
+    templateDict = navbar_template('Engage')
+    ms_banner_media = api.media(slug="aerial_combines")
+    templateDict["banner_media"] = ms_banner_media
+
+    logger.debug(ms_banner_media.json)
+    populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[ms_banner_media])
+    return render_template("videos.html", **templateDict)

@@ -34,6 +34,7 @@ def register_blueprints(app=None):
 	from .controllers.feedback import feedback_page
 	from .controllers.relnotes import relnotes_page
 	from .controllers.guides import guides_page
+	from .controllers.guides import videos_page
 	from .controllers.resource_links import resource_links_page
 	from .controllers.contact import contact_page
 	from .controllers.people import people_page
@@ -77,6 +78,7 @@ def register_blueprints(app=None):
 	app.register_blueprint(feedback_page)
 	app.register_blueprint(relnotes_page)
 	app.register_blueprint(guides_page)
+	app.register_blueprint(videos_page)
 	app.register_blueprint(resource_links_page)
 	app.register_blueprint(contact_page)
 	app.register_blueprint(people_page)

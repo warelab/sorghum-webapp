@@ -18,6 +18,7 @@
     "gramene-alerts": "^1.0.2",
     "gramene-mdview": "^2.0.6",
     "gramene-search": "1.6.35",
+    "gramene-videos": "^1.0.5",
     "he": "^1.2.0",
     "is-email": "^1.0.0",
     "lodash": "^4.17.15",

@@ -15,6 +15,7 @@ import WorkingGroups from './components/workingGroups'
 import FundedProjects from './components/fundedProjects'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
+import VideoGallery from 'gramene-videos';
 import "../css/style.css"
 
 const Alerter = () => (
@@ -49,6 +50,11 @@ const Guides = () => (
         offset={200}
     />
 )
+const Videos = (ids) => (
+  <VideoGallery
+    playlistIds={ids}
+  />
+)
 
 cache.getAll().then(initialData => {
   if (initialData) {
@@ -82,6 +88,9 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sorghumbase-guides');
   element && render(Guides(), element) && console.log('rendered sorghumbase-guides')
+
+  element = document.getElementById('sorghumbase-videos');
+  element && config.playlistIds && render(Videos(config.playlistIds), element) && console.log('rendered sorghumbase-videos')
 
   element = document.getElementById('sorghumbase-institutions');
   element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')

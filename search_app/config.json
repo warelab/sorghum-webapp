@@ -8,6 +8,9 @@
   "grameneData": 'https://data.sorghumbase.org/sorghum_v9',
   "targetTaxonId": 4558003,
   "ga": 'G-L5KXDCCZ16',
+  "playlistIds": [
+    'PLqQHG-yuRY19bQtXH61sw7AAmsUrT-G_K'  // SB new list
+  ],
   "curation": {
     "url": "http://curate.gramene.org/sorghum_v6?since=4479&gene=",
     "taxa": {
