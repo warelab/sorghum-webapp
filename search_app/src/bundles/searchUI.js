@@ -176,7 +176,7 @@ const UIbundle = {
         suggestion.name = suggestion.display_name;
       }
       url.pathname = '/genes';
-      url.search = `suggestion=${JSON.stringify(suggestion)}`;
+      url.search = `sugg=${JSON.stringify(suggestion)}`;
       window.location = url;
     }
     else {
