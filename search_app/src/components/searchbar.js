@@ -1,4 +1,4 @@
-import React from 'react'
+import { useEffect, useRef } from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { DebounceInput } from 'react-debounce-input'
 import { Nav, Tab, Row, Col, Button } from 'react-bootstrap'
@@ -22,20 +22,35 @@ const handleKey = (e, props) => {
   }
 };
 
-const SearchBarCmp = props =>
-    <DebounceInput
-        minLength={0}
-        debounceTimeout={300}
-        onChange={e => props.doChangeSuggestionsQuery(e.target.value)}
-        onKeyDown={e => handleKey(e, props)}
-        // onKeyUp={e => handleKey(e.key,props)}
-        className="form-control"
-        value={props.suggestionsQuery || ''}
-        placeholder="Search for genes, species, pathways, domains, ontology terms..."
-        id="sorghumbase-search-input"
-        autoComplete="off"
-        spellCheck="false"
-    />;
+const SearchBarCmp = props => {
+  const prevNonEmpty = useRef(false);
+
+  useEffect(() => {
+    const isNonEmpty = !!(props.suggestionsQuery && props.suggestionsQuery.trim().length > 0);
+
+    if (!prevNonEmpty.current && isNonEmpty) {
+      const el = document.getElementById('sorghumbase-searchbar-parent');
+      if (el && !el.classList.contains('search-visible')) {
+        el.classList.add('search-visible');
+      }
+    }
+
+    prevNonEmpty.current = isNonEmpty;
+  }, [props.suggestionsQuery]);
+  return <DebounceInput
+    minLength={0}
+    debounceTimeout={300}
+    onChange={e => props.doChangeSuggestionsQuery(e.target.value)}
+    onKeyDown={e => handleKey(e, props)}
+    // onKeyUp={e => handleKey(e.key,props)}
+    className="form-control"
+    value={props.suggestionsQuery || ''}
+    placeholder="Search for genes, species, pathways, domains, ontology terms..."
+    id="sorghumbase-search-input"
+    autoComplete="off"
+    spellCheck="false"
+  />;
+}
 
 const SearchBar = connect(
   'selectSuggestionsQuery',

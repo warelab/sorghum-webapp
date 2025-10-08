@@ -9,7 +9,7 @@ import ReactGA from 'react-ga4'
 import SearchBar from './components/searchbar'
 import GeneSearchUI from './components/gramene-search-layout'
 import Feedback from './components/Feedback'
-import Institutions from './components/institutions'
+// import Institutions from './components/institutions'
 import ConferencePage from './components/conference'
 import WorkingGroups from './components/workingGroups'
 import FundedProjects from './components/fundedProjects'
@@ -62,17 +62,9 @@ cache.getAll().then(initialData => {
     console.log('starting with locally cached data:', initialData)
   }
   const store = getStore(initialData);
-  console.log('got store');
+
   const config = store.selectConfiguration();
   ReactGA.initialize(config.ga);
-  // let element = document.getElementById('search-summary');
-  // element && render(Summary(store), element) && console.log('rendered search-summary');
-  //
-  // element = document.getElementById('search-results');
-  // element && render(Results(store), element) && console.log('rendered search-results');
-  //
-  // element = document.getElementById('search-box');
-  // element && render(SearchBox(store), element) && console.log('rendered search-box');
 
   let element = document.getElementById('sorghumbase-searchbar');
   element && render(SearchBar(store), element) && console.log('rendered sorghumbase-searchbar');
@@ -92,8 +84,8 @@ cache.getAll().then(initialData => {
   element = document.getElementById('sorghumbase-videos');
   element && config.playlistIds && render(Videos(config.playlistIds), element) && console.log('rendered sorghumbase-videos')
 
-  element = document.getElementById('sorghumbase-institutions');
-  element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
+  // element = document.getElementById('sorghumbase-institutions');
+  // element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
 
   element = document.getElementById('sorghumbase-conference');
   element && render(ConferencePage(store), element) && console.log('rendered sorghumbase-conference div')

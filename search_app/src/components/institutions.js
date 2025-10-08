@@ -7,6 +7,7 @@ import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "re
 const geoUrl = "https://raw.githubusercontent.com/deldersveld/topojson/master/world-countries.json";
 
 const Institutions = (store) => {
+
   const markers = [
     {
       markerOffset: -15,
