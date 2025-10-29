@@ -33,7 +33,7 @@ def events():
 
 	with api.Session():
 		event_request = EventRequest(api=api)
-		event_request.per_page = 50
+		event_request.per_page = 100
 		events = event_request.get()
 		pastEvents = []
 		futureEvents = []
