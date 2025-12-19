@@ -46,12 +46,61 @@
 .post-content a {
 	color: #7c1212!important;
 }
+/*.post-content blockquote {*/
+/*	border-width: 15px;*/
+/*	padding: 12px;*/
+/*	border-color: burlywood;*/
+/*	border-radius: 5px;*/
+/*}*/
+/* 1) Make the quote box size to its contents */
 .post-content blockquote {
-	border-width: 15px;
-	padding: 12px;
-	border-color: burlywood;
+	border: 15px solid burlywood;
 	border-radius: 5px;
+	padding: 12px;
+	margin: 0 0 1rem;
 }
+
+/* 2) Turn the inner <p> into a flex row so image + text flow correctly */
+.post-content blockquote > p {
+	margin: 0;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	flex-wrap: wrap;      /* allows wrapping/stacking on narrow screens */
+}
+
+/* 3) Image: don’t rely on alignleft float; let flex handle it */
+.post-content blockquote img.alignleft,
+.post-content blockquote img.wp-image-26147,
+.post-content blockquote img {
+	float: none !important;
+	margin: 0 !important;
+	padding-right: 0 !important;
+
+	width: min(175px, 40vw);
+	height: auto;
+	flex: 0 0 auto;
+}
+
+/* 4) Text: kill the absolute positioning so it stays inside the border */
+.post-content blockquote span {
+	position: static !important;
+	padding-right: 0 !important;
+
+	flex: 1 1 260px;   /* text takes remaining space, but can wrap */
+	min-width: 0;      /* prevents flex overflow in some browsers */
+}
+
+/* Optional: on very narrow screens, stack image above text */
+@media (max-width: 520px) {
+	.post-content blockquote > p {
+		flex-direction: column;
+	}
+	.post-content blockquote img {
+		width: min(220px, 100%);
+	}
+}
+
 /* $add_circle_color = rgb(222, 222, 220); */
 .wp-caption {
 	height:100%;

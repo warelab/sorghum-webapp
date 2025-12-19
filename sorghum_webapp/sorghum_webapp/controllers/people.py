@@ -18,8 +18,6 @@ from . import valueFromRequest
 from .navbar import navbar_template
 from .footer import populate_footer_template
 
-logger = logging.getLogger("wordpress_orm")
-
 people_page = flask.Blueprint("people_page", __name__)
 
 def chooseFace(wpapi,users):
@@ -81,5 +79,4 @@ def people():
     templateDict['sac'] = sac
     templateDict['escapees'] = escapees
     templateDict['wg'] = wg
-
     return render_template("people.html", **templateDict)

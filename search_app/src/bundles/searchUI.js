@@ -195,7 +195,7 @@ const UIbundle = {
         type: 'SUGGESTIONS_TAB_CHANGED', payload: {key: key}
       })
     }
-  },
+  },Ï
   selectSearchUI: state => state.searchUI,
   selectSearchUpdated: state => state.searchUI.updates,
   selectRows: state => state.searchUI.rows,
