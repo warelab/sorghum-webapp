@@ -18,6 +18,7 @@
       "4558001": 1
     }
   },
+  "partialCompara": true,
   details: {
     sequences: true,
     VEP: true,

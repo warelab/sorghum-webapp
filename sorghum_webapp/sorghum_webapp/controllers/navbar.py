@@ -212,7 +212,7 @@ def about():
 #     add_link(menu, 'Mission Statement', '/mission-statement')
     add_link(menu, 'Team', '/people')
     add_link(menu, 'Contact Us', '/contact')
-    add_link(menu, 'Cite SorghumBase', 'paper/10-1007-s00425-022-03821-6')
+    add_link(menu, 'Cite SorghumBase', '/paper/27292')
 #     add_link(menu, 'FAQ', '/faq')
 #     add_link(menu, 'Feedback', '/feedback')
     return menu
