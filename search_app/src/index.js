@@ -8,7 +8,7 @@ import ReactGA from 'react-ga4'
 // import SearchBox from './components/searchbox'
 import SearchBar from './components/searchbar'
 import GeneSearchUI from './components/gramene-search-layout'
-import Feedback from './components/Feedback'
+// import Feedback from './components/Feedback'
 // import Institutions from './components/institutions'
 import ConferencePage from './components/conference'
 import WorkingGroups from './components/workingGroups'
@@ -88,9 +88,9 @@ cache.getAll().then(initialData => {
   element = document.getElementById('gene-search-ui');
   element && render(GeneSearchUI(store), element) && console.log('rendered gene-search-ui');
 
-  element = document.getElementById('sorghumbase-feedback');
-  element && render(Feedback(), element) && console.log('rendered sorghumbase-feedback')
-
+  // element = document.getElementById('sorghumbase-feedback');
+  // element && render(Feedback(), element) && console.log('rendered sorghumbase-feedback')
+  //
   element = document.getElementById('sorghumbase-relnotes');
   element && render(Notes(), element) && console.log('rendered sorghumbase-relnotes')
 
