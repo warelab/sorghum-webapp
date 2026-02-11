@@ -14,8 +14,6 @@
   "curation": {
     "url": "http://curate.gramene.org/sorghum_v10?since=4479&gene=",
     "taxa": {
-      "4558": 0,
-      "4558001": 0
     }
   },
   "partialCompara": true,
