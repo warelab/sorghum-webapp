@@ -13,8 +13,9 @@ const sorghumConference = createAsyncResourceBundle({
 });
 sorghumConference.reactSorghumConference = createSelector(
   'selectSorghumConferenceShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSorghumConference' }
     }
   }
@@ -37,8 +38,9 @@ const sorghumSessions = createAsyncResourceBundle({
 });
 sorghumSessions.reactSorghumSessions = createSelector(
   'selectSorghumSessionsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSorghumSessions' }
     }
   }
@@ -55,8 +57,9 @@ const sorghumAbstracts = createAsyncResourceBundle({
 });
 sorghumAbstracts.reactSorghumAbstracts = createSelector(
   'selectSorghumAbstractsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSorghumAbstracts' }
     }
   }
@@ -73,8 +76,9 @@ const sorghumPeople = createAsyncResourceBundle({
 });
 sorghumPeople.reactSorghumPeople = createSelector(
   'selectSorghumPeopleShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSorghumPeople' }
     }
   }
@@ -91,8 +95,9 @@ const sorghumOrganizations = createAsyncResourceBundle({
 });
 sorghumOrganizations.reactSorghumOrganizations = createSelector(
   'selectSorghumOrganizationsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSorghumOrganizations' }
     }
   }
@@ -109,8 +114,9 @@ const sicnaTags = createAsyncResourceBundle({
 });
 sicnaTags.reactSicnaTags = createSelector(
   'selectSicnaTagsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/conferences') {
       return { actionCreator: 'doFetchSicnaTags' }
     }
   }

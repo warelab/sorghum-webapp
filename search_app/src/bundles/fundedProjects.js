@@ -12,8 +12,9 @@ const sorghumFundedProjects = createAsyncResourceBundle({
 });
 sorghumFundedProjects.reactSorghumFundedProjects = createSelector(
   'selectSorghumFundedProjectsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate, pathname) => {
+    if (shouldUpdate && pathname === '/projects') {
       return { actionCreator: 'doFetchSorghumFundedProjects' }
     }
   }

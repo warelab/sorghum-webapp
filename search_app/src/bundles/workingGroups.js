@@ -12,8 +12,9 @@ const sorghumWorkingGroups = createAsyncResourceBundle({
 });
 sorghumWorkingGroups.reactSorghumWorkingGroups = createSelector(
   'selectSorghumWorkingGroupsShouldUpdate',
-  (shouldUpdate) => {
-    if (shouldUpdate) {
+  'selectPathname',
+  (shouldUpdate,pathname) => {
+    if (shouldUpdate && pathname === '/workingGroups') {
       return { actionCreator: 'doFetchSorghumWorkingGroups' }
     }
   }
