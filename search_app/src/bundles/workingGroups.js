@@ -1,5 +1,5 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
-import fetchAll from '../utils/wp_fetch'
+import { fetchAll } from '../utils/wp_fetch'
 
 const sorghumWorkingGroups = createAsyncResourceBundle({
   name: 'sorghumWorkingGroups',

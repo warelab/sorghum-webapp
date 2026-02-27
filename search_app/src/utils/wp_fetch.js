@@ -1,4 +1,18 @@
-export default function fetchAll(apiUrl, resultsPerPage = 100) {
+export function count(apiUrl) {
+  const url = new URL(apiUrl);
+  url.searchParams.set('per_page', '1');
+  return fetch(url)
+    .then(response => {
+      const xWpTotal = response.headers.get('X-Wp-Total');
+      return +xWpTotal;
+    })
+    .catch(error => {
+      console.error('Error fetching data:', error);
+      // Propagate the error
+      throw error;
+    });
+}
+export function fetchAll(apiUrl, resultsPerPage = 100) {
   let totalPages;
   let allResults = [];
   const url = new URL(apiUrl);

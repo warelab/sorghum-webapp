@@ -42,6 +42,7 @@ def register_blueprints(app=None):
 	from .controllers.search import search_page
 	from .controllers.search_api import search_api
 	from .controllers.publications import publications_page
+	from .controllers.update_publications import update_publications_page
 	from .controllers.paper import paper_page
 	from .controllers.jobs import jobs_page
 	from .controllers.mailing_list import mailing_list_page
@@ -85,6 +86,7 @@ def register_blueprints(app=None):
 	app.register_blueprint(faq_page)
 	app.register_blueprint(search_page)
 	app.register_blueprint(publications_page)
+	app.register_blueprint(update_publications_page)
 	app.register_blueprint(paper_page)
 	app.register_blueprint(jobs_page)
 	app.register_blueprint(mailing_list_page)

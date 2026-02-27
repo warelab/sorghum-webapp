@@ -1,6 +1,6 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
 import _ from 'lodash'
-import fetchAll from '../utils/wp_fetch'
+import { fetchAll } from '../utils/wp_fetch'
 
 const sorghumConference = createAsyncResourceBundle({
   name: 'sorghumConference',

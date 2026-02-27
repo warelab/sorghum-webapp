@@ -5,6 +5,7 @@ import UIbundle from './searchUI'
 import conferenceBundles from './conference.js'
 import workingGroupBundles from './workingGroups.js'
 import fundedProjectsBundles from './fundedProjects.js'
+import publicationsBundles from './publications.js'
 import cache from "../utils/cache"
 import initialState from '../../config.json';
 
@@ -34,6 +35,7 @@ const bundle = composeBundles(
   ...conferenceBundles,
   ...workingGroupBundles,
   ...fundedProjectsBundles,
+  ...publicationsBundles,
   UIbundle,
   config,
   createCacheBundle(cache.set)

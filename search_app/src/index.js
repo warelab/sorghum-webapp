@@ -13,6 +13,7 @@ import GeneSearchUI from './components/gramene-search-layout'
 import ConferencePage from './components/conference'
 import WorkingGroups from './components/workingGroups'
 import FundedProjects from './components/fundedProjects'
+import Publications from './components/publications'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -102,6 +103,9 @@ cache.getAll().then(initialData => {
 
   // element = document.getElementById('sorghumbase-institutions');
   // element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
+
+  element = document.getElementById('sorghumbase-publications');
+  element && render(Publications(store), element) && console.log('rendered sorghumbase-publications div')
 
   element = document.getElementById('sorghumbase-conference');
   element && render(ConferencePage(store), element) && console.log('rendered sorghumbase-conference div')
