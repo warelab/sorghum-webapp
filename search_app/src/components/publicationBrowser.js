@@ -99,13 +99,6 @@ export default function PublicationBrowser({
       day: "numeric",
     });
   };
-  const old_fmtDate = (d) => {
-    if (!d) return "";
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
 
   const getTagLabel = (tagId) => {
     const key = String(tagId);
@@ -168,13 +161,35 @@ export default function PublicationBrowser({
   }, [publications, q, dateFrom, dateTo]);
 
   // ---------------------------
-  // Tag tally (based on preTagFiltered)
+  // Apply tag filter first
+  // ---------------------------
+  const tagFiltered = useMemo(() => {
+    const selected = selectedTags;
+    let rows = preTagFiltered;
+
+    if (selected.size > 0) {
+      // AND semantics: must include all selected tags
+      rows = rows.filter((p) => {
+        const tags = getTagIds(p);
+        for (const s of selected) {
+          if (!tags.includes(String(s))) return false;
+        }
+        return true;
+      });
+    }
+
+    return rows;
+  }, [preTagFiltered, selectedTags]);
+
+  // ---------------------------
+  // Tag tally based on CURRENT paper set
   //  - only tags with count >= 1
   //  - selected tags float to top
   // ---------------------------
   const tagCounts = useMemo(() => {
-    const counts = new Map(); // tagId -> count
-    for (const p of preTagFiltered) {
+    const counts = new Map();
+
+    for (const p of tagFiltered) {
       for (const tid of getTagIds(p)) {
         counts.set(tid, (counts.get(tid) || 0) + 1);
       }
@@ -192,16 +207,13 @@ export default function PublicationBrowser({
       const aSel = selectedTags.has(String(a.tagId)) ? 1 : 0;
       const bSel = selectedTags.has(String(b.tagId)) ? 1 : 0;
 
-      // selected first
       if (aSel !== bSel) return bSel - aSel;
-      // then by descending frequency
       if (a.count !== b.count) return b.count - a.count;
-      // then label
       return a.label.localeCompare(b.label);
     });
 
     return items;
-  }, [preTagFiltered, tagLabels, selectedTags]);
+  }, [tagFiltered, tagLabels, selectedTags]);
 
   const visibleTagItems = useMemo(() => {
     if (tagsExpanded) return tagCounts;
@@ -209,23 +221,10 @@ export default function PublicationBrowser({
   }, [tagCounts, tagsExpanded]);
 
   // ---------------------------
-  // Apply tag filter + multi-sort
+  // Apply sorting after filtering
   // ---------------------------
   const filteredAndSorted = useMemo(() => {
-    const selected = selectedTags;
-    let rows = preTagFiltered;
-
-    if (selected.size > 0) {
-      // AND semantics: must include all selected tags
-      rows = rows.filter((p) => {
-        const tags = getTagIds(p);
-        for (const s of selected) {
-          if (!tags.includes(String(s))) return false;
-        }
-        return true;
-      });
-    }
-
+    const rows = tagFiltered;
     const sortSpec = Array.isArray(sorts) && sorts.length ? sorts : [];
     if (!sortSpec.length) return rows;
 
@@ -255,11 +254,11 @@ export default function PublicationBrowser({
 
         if (diff !== 0) return diff * dir;
       }
-      return A.idx - B.idx; // stable
+      return A.idx - B.idx;
     });
 
     return withIndex.map((x) => x.p);
-  }, [preTagFiltered, selectedTags, sorts]);
+  }, [tagFiltered, sorts]);
 
   // Collapse abstracts when any filters/sorts change (optional UX)
   useEffect(() => {
@@ -355,8 +354,8 @@ export default function PublicationBrowser({
 
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Publication date</div>
-            <div style={{display: "flex", gap: 8}}>
-              <div style={{flex: 1}}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1 }}>
                 <div style={styles.label}>From</div>
                 <input
                   style={styles.dateInput}
@@ -365,7 +364,7 @@ export default function PublicationBrowser({
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
               </div>
-              <div style={{flex: 1}}>
+              <div style={{ flex: 1 }}>
                 <div style={styles.label}>To</div>
                 <input
                   style={styles.dateInput}
@@ -425,7 +424,7 @@ export default function PublicationBrowser({
                 {selectedTags.size > 0 && (
                   <button
                     type="button"
-                    style={{...styles.linkBtn, marginTop: 8}}
+                    style={{ ...styles.linkBtn, marginTop: 8 }}
                     onClick={() => setSelectedTags(new Set())}
                   >
                     Clear tag filters ({selectedTags.size})
@@ -438,7 +437,7 @@ export default function PublicationBrowser({
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Sort</div>
 
-            <div style={{display: "flex", gap: 8, flexWrap: "wrap"}}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {["date", "title", "journal", "authors"].map((k) => (
                 <button
                   key={k}
@@ -453,17 +452,17 @@ export default function PublicationBrowser({
               ))}
             </div>
 
-            <div style={{marginTop: 10}}>
+            <div style={{ marginTop: 10 }}>
               {sorts.length === 0 ? (
                 <div style={styles.muted}>No sorts applied.</div>
               ) : (
-                <div style={{display: "flex", flexDirection: "column", gap: 8}}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {sorts.map((s, idx) => (
                     <div key={s.key} style={styles.sortRow}>
-                      <div style={{fontWeight: 600}}>
+                      <div style={{ fontWeight: 600 }}>
                         {idx + 1}. {s.key}
                       </div>
-                      <div style={{display: "flex", gap: 8}}>
+                      <div style={{ display: "flex", gap: 8 }}>
                         <button
                           type="button"
                           style={styles.smallBtn}
@@ -499,7 +498,7 @@ export default function PublicationBrowser({
         {/* Right: results */}
         <main style={styles.main}>
           <div style={styles.pagerTop}>
-            <Pager page={safePage} totalPages={totalPages} onPage={setPage}/>
+            <Pager page={safePage} totalPages={totalPages} onPage={setPage} />
           </div>
 
           <div style={styles.results}>
@@ -524,18 +523,35 @@ export default function PublicationBrowser({
                   {authors ? <div style={styles.authors}>{authors}</div> : null}
 
                   <div style={styles.metaRow}>
-                    {d ? <span style={styles.date}><b>Published:</b>&nbsp;{fmtDate(d)} in</span> : null}
+                    {d ? (
+                      <span style={styles.date}>
+                        <b>Published:</b>&nbsp;{fmtDate(d)} in
+                      </span>
+                    ) : null}
                     {j ? <em>{j}</em> : null}
-                    {doi ? <span style={styles.metaPill}>
-                      DOI: <a href={`https://doi.org/${doi}`} target="_blank" rel="noreferrer" style={styles.a}>
-                      {doi}
-                    </a>
-                      </span> : null}
-                    {url && <span style={styles.metaPill}><a href={url} target="_blank" rel="noreferrer"
-                                                             style={styles.a}>PubMed</a></span>}
+                    {doi ? (
+                      <span style={styles.metaPill}>
+                        DOI:{" "}
+                        <a
+                          href={`https://doi.org/${doi}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={styles.a}
+                        >
+                          {doi}
+                        </a>
+                      </span>
+                    ) : null}
+                    {url && (
+                      <span style={styles.metaPill}>
+                        <a href={url} target="_blank" rel="noreferrer" style={styles.a}>
+                          PubMed
+                        </a>
+                      </span>
+                    )}
                   </div>
 
-                    {tags.length > 0 ? (
+                  {tags.length > 0 ? (
                     <div style={styles.inlineTags}>
                       {tags.slice(0, 12).map((tid) => (
                         <button
@@ -588,7 +604,21 @@ export default function PublicationBrowser({
                         </div>
 
                         <div style={styles.abstractHeaderRight}>
-                          {!isOpen && <span style={styles.mutedSmall}>Click to expand</span>}
+                          {isOpen ? (
+                            <button
+                              type="button"
+                              style={styles.copyBtn}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyText(p.id, abstractText);
+                              }}
+                              title="Copy abstract to clipboard"
+                            >
+                              {copied ? "Copied!" : "Copy"}
+                            </button>
+                          ) : (
+                            <span style={styles.mutedSmall}>Click to expand</span>
+                          )}
                         </div>
                       </div>
 
@@ -672,7 +702,7 @@ const styles = {
     fontFamily:
       'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
     color: "#111",
-    marginTop: 10
+    marginTop: 10,
   },
   header: {
     display: "flex",
