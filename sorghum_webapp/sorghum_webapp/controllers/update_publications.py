@@ -43,6 +43,7 @@ def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, sh
             paper_request.include= include
         paper_request.per_page = per_page
         paper_request.page = current_page
+        paper_request.status = "draft"
         page_of_papers = paper_request.get()
 
         queryPubmed = []
@@ -107,6 +108,7 @@ def update_publications():
             paper_count.include = include
         paper_count.per_page = 1
         paper_count.page = 1
+        paper_count.status = "draft"
         paper_tally = paper_count.get(count=True)
 
         if force_update:

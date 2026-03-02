@@ -164,6 +164,9 @@ class ScientificPaperRequest(WPRequest):
 		if self.tags:
 			self.parameters["tags"] = ','.join(self.tags)
 
+		if self.status:
+			self.parameters["status"] = self.status
+
 		if self.tags_exclude:
 			self.parameters["tags_exclude"] = self.tags_exclude
 
