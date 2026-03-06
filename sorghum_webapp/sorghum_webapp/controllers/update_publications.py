@@ -27,6 +27,7 @@ app_logger = logging.getLogger("sorghumbase")
 update_publications_page = flask.Blueprint("update_publications_page", __name__)
 
 def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include):
+    print("getPapers",current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include)
     updatedPapers = []
     while show_all and per_page * (current_page-1) < paper_tally :
         updatedPapers += getPapers(current_page, per_page, paper_tally, tag_filter, before, after, False, force_update, include)
@@ -45,7 +46,6 @@ def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, sh
         paper_request.page = current_page
         paper_request.status = "draft"
         page_of_papers = paper_request.get()
-
         queryPubmed = []
         for p in page_of_papers :
             if len(p.s.pubmed_id) > 0 and (force_update or len(p.s.content) == 0) :
@@ -73,7 +73,7 @@ def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, sh
                     paper.s.content += "\n" + paper.s.pubmed_id
                     if paper.s.doi:
                         paper.s.content += "\n" + paper.s.doi
-                    print("calling paper.update()", paper.s.date)
+                    print("calling paper.update()")
                     paper.update()
                     print("updated paper", paper.s.pubmed_id, paper.s.title)
                     updatedPapers.append(paper)
@@ -106,11 +106,11 @@ def update_publications():
             paper_count.after = after
         if include:
             paper_count.include = include
-        paper_count.per_page = 1
+        paper_count.per_page = 10
         paper_count.page = 1
         paper_count.status = "draft"
         paper_tally = paper_count.get(count=True)
-
+        print("paper_tally",paper_tally)
         if force_update:
             updatedPapers = getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include)
         else:

@@ -3,6 +3,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 /**
  * PublicationBrowser
  *
+ * URL params used:
+ *  - q=search text
+ *  - tags=tag1,tag2,tag3
+ *  - from=YYYY-MM-DD
+ *  - to=YYYY-MM-DD
+ *  - highlighted=1
+ *  - sort=key:dir,key:dir
+ *  - page=2
+ *
  * Props:
  *  - publications: Array<Publication>
  *  - tagLabels: Record<string|number, string>   // tagId -> label
@@ -20,42 +29,191 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
  *  - source_url (string)
  *  - link (string)
  *  - tags (number[] | string[])
+ *  - posts (string[])
  */
 export default function PublicationBrowser({
                                              publications = [],
                                              tagLabels = {},
                                              pageSize = 25,
                                            }) {
+  const DEFAULT_SORTS = [{ key: "date", dir: "desc" }];
+  const ALLOWED_SORT_KEYS = new Set(["date", "title", "journal", "authors"]);
+  const ALLOWED_SORT_DIRS = new Set(["asc", "desc"]);
+
+  const parseUrlState = () => {
+    if (typeof window === "undefined") {
+      return {
+        q: "",
+        selectedTags: new Set(),
+        dateFrom: "",
+        dateTo: "",
+        onlyHighlighted: false,
+        sorts: DEFAULT_SORTS,
+        page: 1,
+      };
+    }
+
+    const params = new URLSearchParams(window.location.search);
+
+    const q = params.get("q") || "";
+    const dateFrom = params.get("from") || "";
+    const dateTo = params.get("to") || "";
+    const onlyHighlighted = params.get("highlighted") === "1";
+
+    const selectedTags = new Set(
+      (params.get("tags") || "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean)
+    );
+
+    const rawSorts = (params.get("sort") || "")
+      .split(",")
+      .map((part) => {
+        const [key, dir] = part.split(":");
+        if (!ALLOWED_SORT_KEYS.has(key)) return null;
+        if (!ALLOWED_SORT_DIRS.has(dir)) return null;
+        return { key, dir };
+      })
+      .filter(Boolean);
+
+    const sorts = rawSorts.length ? rawSorts : DEFAULT_SORTS;
+
+    const parsedPage = parseInt(params.get("page") || "1", 10);
+    const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+
+    return {
+      q,
+      selectedTags,
+      dateFrom,
+      dateTo,
+      onlyHighlighted,
+      sorts,
+      page,
+    };
+  };
+
+  const buildSearchFromState = ({
+                                  q,
+                                  selectedTags,
+                                  dateFrom,
+                                  dateTo,
+                                  onlyHighlighted,
+                                  sorts,
+                                  page,
+                                }) => {
+    const params = new URLSearchParams();
+
+    if (q) params.set("q", q);
+
+    const tagList = Array.from(selectedTags);
+    if (tagList.length) params.set("tags", tagList.join(","));
+
+    if (dateFrom) params.set("from", dateFrom);
+    if (dateTo) params.set("to", dateTo);
+    if (onlyHighlighted) params.set("highlighted", "1");
+
+    if (Array.isArray(sorts) && sorts.length) {
+      const sortValue = sorts
+        .filter(
+          (s) =>
+            s &&
+            ALLOWED_SORT_KEYS.has(s.key) &&
+            ALLOWED_SORT_DIRS.has(s.dir)
+        )
+        .map((s) => `${s.key}:${s.dir}`)
+        .join(",");
+      if (sortValue) params.set("sort", sortValue);
+    }
+
+    if (page > 1) params.set("page", String(page));
+
+    const qs = params.toString();
+    return qs ? `?${qs}` : "";
+  };
+
+  const initialUrlState = useMemo(() => parseUrlState(), []);
+
   // ---------------------------
   // UI state
   // ---------------------------
-  const [q, setQ] = useState("");
-  const [selectedTags, setSelectedTags] = useState(() => new Set());
-  const [dateFrom, setDateFrom] = useState(""); // yyyy-mm-dd
-  const [dateTo, setDateTo] = useState(""); // yyyy-mm-dd
+  const [q, setQ] = useState(initialUrlState.q);
+  const [selectedTags, setSelectedTags] = useState(initialUrlState.selectedTags);
+  const [dateFrom, setDateFrom] = useState(initialUrlState.dateFrom);
+  const [dateTo, setDateTo] = useState(initialUrlState.dateTo);
+  const [onlyHighlighted, setOnlyHighlighted] = useState(
+    initialUrlState.onlyHighlighted
+  );
 
   // Multi-sort: array of { key, dir }
-  // keys: "date" | "title" | "journal" | "authors"
-  const [sorts, setSorts] = useState([{ key: "date", dir: "desc" }]);
+  const [sorts, setSorts] = useState(initialUrlState.sorts);
 
   const [tagsExpanded, setTagsExpanded] = useState(false);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialUrlState.page);
 
   // Per-paper abstract expansion state (collapsed by default)
   const [expandedAbstracts, setExpandedAbstracts] = useState(() => new Set());
   const [copiedForId, setCopiedForId] = useState(null);
   const copiedTimerRef = useRef(null);
+  const didMountRef = useRef(false);
 
   // Reset to page 1 when filters change
   useEffect(() => {
+    if (!didMountRef.current) return;
     setPage(1);
-  }, [q, dateFrom, dateTo, sorts, selectedTags.size]);
+  }, [q, dateFrom, dateTo, sorts, selectedTags.size, onlyHighlighted]);
 
   // Cleanup copy timer
   useEffect(() => {
     return () => {
       if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
     };
+  }, []);
+
+  // Mark mounted
+  useEffect(() => {
+    didMountRef.current = true;
+  }, []);
+
+  // Sync state -> URL
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const nextSearch = buildSearchFromState({
+      q,
+      selectedTags,
+      dateFrom,
+      dateTo,
+      onlyHighlighted,
+      sorts,
+      page,
+    });
+
+    const currentSearch = window.location.search || "";
+    if (nextSearch === currentSearch) return;
+
+    const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash || ""}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, [q, selectedTags, dateFrom, dateTo, onlyHighlighted, sorts, page]);
+
+  // Respond to browser back/forward if the URL changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onPopState = () => {
+      const next = parseUrlState();
+      setQ(next.q);
+      setSelectedTags(next.selectedTags);
+      setDateFrom(next.dateFrom);
+      setDateTo(next.dateTo);
+      setOnlyHighlighted(next.onlyHighlighted);
+      setSorts(next.sorts);
+      setPage(next.page);
+      collapseAllAbstracts();
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   // ---------------------------
@@ -83,6 +241,34 @@ export default function PublicationBrowser({
 
   const getTagIds = (p) =>
     Array.isArray(p?.tags) ? p.tags.map((t) => String(t)) : [];
+
+  const getPosts = (p) =>
+    Array.isArray(p?.posts)
+      ? p.posts
+        .map((post) => (post == null ? "" : String(post).trim()))
+        .filter(Boolean)
+      : [];
+
+  const slugifyPostName = (postName) => {
+    return String(postName ?? "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, " and ")
+      .replace(/['’"]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-+/g, "-");
+  };
+
+  const getPostLinks = (p) =>
+    getPosts(p).map((postName) => ({
+      label: "Research Highlight",
+      href: `/post/${slugifyPostName(postName)}`,
+    }));
+
+  const hasHighlightedPost = (p) => getPosts(p).length > 0;
 
   const parsePubDate = (p) => {
     const raw = p?.publication_date || p?.date || p?.date_gmt || "";
@@ -129,8 +315,25 @@ export default function PublicationBrowser({
     }
   };
 
+  const escapeTsvCell = (value) => {
+    const text = value == null ? "" : String(value);
+    return text.replace(/\r?\n/g, " ").replace(/\t/g, " ").trim();
+  };
+
+  const downloadTextFile = (filename, text) => {
+    const blob = new Blob([text], { type: "text/tab-separated-values;charset=utf-8;" });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  };
+
   // ---------------------------
-  // Preprocess: apply search + date filters (NO journal/author filters)
+  // Preprocess: apply search + date filters
   // ---------------------------
   const preTagFiltered = useMemo(() => {
     const qn = norm(q).trim();
@@ -141,6 +344,7 @@ export default function PublicationBrowser({
       const d = parsePubDate(p);
       if (fromD && (!d || d < fromD)) return false;
       if (toD && (!d || d > toD)) return false;
+      if (onlyHighlighted && !hasHighlightedPost(p)) return false;
 
       if (qn) {
         const blob = [
@@ -150,15 +354,17 @@ export default function PublicationBrowser({
           getDoi(p),
           getKeywords(p),
           getAbstract(p),
+          getPosts(p).join(" "),
         ]
           .join(" ")
           .toLowerCase();
+
         if (!blob.includes(qn)) return false;
       }
 
       return true;
     });
-  }, [publications, q, dateFrom, dateTo]);
+  }, [publications, q, dateFrom, dateTo, onlyHighlighted]);
 
   // ---------------------------
   // Apply tag filter first
@@ -168,7 +374,6 @@ export default function PublicationBrowser({
     let rows = preTagFiltered;
 
     if (selected.size > 0) {
-      // AND semantics: must include all selected tags
       rows = rows.filter((p) => {
         const tags = getTagIds(p);
         for (const s of selected) {
@@ -183,8 +388,6 @@ export default function PublicationBrowser({
 
   // ---------------------------
   // Tag tally based on CURRENT paper set
-  //  - only tags with count >= 1
-  //  - selected tags float to top
   // ---------------------------
   const tagCounts = useMemo(() => {
     const counts = new Map();
@@ -260,11 +463,11 @@ export default function PublicationBrowser({
     return withIndex.map((x) => x.p);
   }, [tagFiltered, sorts]);
 
-  // Collapse abstracts when any filters/sorts change (optional UX)
+  // Collapse abstracts when any filters/sorts change
   useEffect(() => {
     collapseAllAbstracts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, dateFrom, dateTo, sorts, selectedTags.size]);
+  }, [q, dateFrom, dateTo, sorts, selectedTags.size, onlyHighlighted]);
 
   // ---------------------------
   // Pagination
@@ -277,6 +480,11 @@ export default function PublicationBrowser({
     const start = (safePage - 1) * pageSize;
     return filteredAndSorted.slice(start, start + pageSize);
   }, [filteredAndSorted, safePage, pageSize]);
+
+  // Clamp page if URL asks for a page beyond available results
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
 
   // ---------------------------
   // Actions
@@ -296,7 +504,8 @@ export default function PublicationBrowser({
     setSelectedTags(new Set());
     setDateFrom("");
     setDateTo("");
-    setSorts([{ key: "date", dir: "desc" }]);
+    setOnlyHighlighted(false);
+    setSorts(DEFAULT_SORTS);
     setTagsExpanded(false);
     setPage(1);
     collapseAllAbstracts();
@@ -321,20 +530,50 @@ export default function PublicationBrowser({
     setSorts((prev) => prev.filter((s) => s.key !== key));
   };
 
+  const handleDownloadTsv = () => {
+    const headers = [
+      "title",
+      "authors",
+      "journal",
+      "publication_date",
+      "doi",
+      "pubmed_url",
+      "keywords"
+    ];
+
+    const rows = filteredAndSorted.map((p) => {
+      const pubDate = parsePubDate(p);
+      return [
+        escapeTsvCell(getTitle(p)),
+        escapeTsvCell(getAuthors(p)),
+        escapeTsvCell(getJournal(p)),
+        escapeTsvCell(pubDate ? fmtDate(pubDate) : ""),
+        escapeTsvCell(getDoi(p)),
+        escapeTsvCell(getUrl(p)),
+        escapeTsvCell(getKeywords(p))
+      ];
+    });
+
+    const tsv = [headers.join("\t"), ...rows.map((r) => r.join("\t"))].join("\n");
+
+    const today = new Date();
+    const stamp = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    downloadTextFile(`papers-${stamp}.txt`, tsv);
+  };
+
   // ---------------------------
   // Render
   // ---------------------------
   return (
     <div style={styles.wrap}>
-      {/*<div style={styles.header}>*/}
-
-      {/*</div>*/}
-
       <div style={styles.grid}>
-        {/* Left: filters */}
         <aside style={styles.sidebar}>
           <div style={styles.titleBlock}>
-            {/*<div style={styles.h1}>Publications</div>*/}
             <div style={styles.sub}>
               &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
               <button style={styles.clearBtn} onClick={clearAll} type="button">
@@ -342,6 +581,7 @@ export default function PublicationBrowser({
               </button>
             </div>
           </div>
+
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Search</div>
             <input
@@ -374,6 +614,18 @@ export default function PublicationBrowser({
                 />
               </div>
             </div>
+          </div>
+
+          <div style={styles.panel}>
+            <div style={styles.panelTitle}>SorghumBase links</div>
+            <label style={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={onlyHighlighted}
+                onChange={(e) => setOnlyHighlighted(e.target.checked)}
+              />
+              <span>Research Highlights</span>
+            </label>
           </div>
 
           <div style={styles.panel}>
@@ -495,10 +747,22 @@ export default function PublicationBrowser({
           </div>
         </aside>
 
-        {/* Right: results */}
         <main style={styles.main}>
-          <div style={styles.pagerTop}>
-            <Pager page={safePage} totalPages={totalPages} onPage={setPage} />
+          <div style={styles.topBar}>
+            <div style={styles.topBarSpacer} />
+            <div style={styles.topBarCenter}>
+              <Pager page={safePage} totalPages={totalPages} onPage={setPage} />
+            </div>
+            <div style={styles.topBarRight}>
+              <button
+                type="button"
+                style={styles.downloadBtn}
+                onClick={handleDownloadTsv}
+                title="Download current filtered papers as tab-delimited text"
+              >
+                ⤓
+              </button>
+            </div>
           </div>
 
           <div style={styles.results}>
@@ -510,6 +774,7 @@ export default function PublicationBrowser({
               const doi = getDoi(p);
               const url = getUrl(p);
               const tags = getTagIds(p);
+              const postLinks = getPostLinks(p);
 
               const abstractText = stripHtml(getAbstract(p));
               const hasAbstract = Boolean(abstractText && abstractText.trim().length);
@@ -518,37 +783,56 @@ export default function PublicationBrowser({
 
               return (
                 <article key={String(p.id)} style={styles.card}>
-                  <div style={styles.cardTitle}>{title}</div>
+                  <div style={styles.cardHeader}>
+                    <div style={styles.cardHeaderMain}>
+                      <div style={styles.cardTitle}>{title}</div>
 
-                  {authors ? <div style={styles.authors}>{authors}</div> : null}
+                      {authors ? <div style={styles.authors}>{authors}</div> : null}
 
-                  <div style={styles.metaRow}>
-                    {d ? (
-                      <span style={styles.date}>
-                        <b>Published:</b>&nbsp;{fmtDate(d)} in
-                      </span>
+                      <div style={styles.metaRow}>
+                        {d ? (
+                          <span style={styles.date}>
+                            <b>Published:</b>&nbsp;{fmtDate(d)} in
+                          </span>
+                        ) : null}
+                        {j ? <em>{j}</em> : null}
+                        {doi ? (
+                          <span style={styles.metaPill}>
+                            DOI:{" "}
+                            <a
+                              href={`https://doi.org/${doi}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={styles.a}
+                            >
+                              {doi}
+                            </a>
+                          </span>
+                        ) : null}
+                        {url && (
+                          <span style={styles.metaPill}>
+                            <a href={url} target="_blank" rel="noreferrer" style={styles.a}>
+                              PubMed
+                            </a>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {postLinks.length > 0 ? (
+                      <div style={styles.postLinksBox}>
+                        {postLinks.map((post) => (
+                          <a
+                            key={post.href}
+                            href={post.href}
+                            style={styles.postBtn}
+                            title={`Open blog post: ${post.label}`}
+                          >
+                            {post.label}
+                          </a>
+                        ))}
+                      </div>
                     ) : null}
-                    {j ? <em>{j}</em> : null}
-                    {doi ? (
-                      <span style={styles.metaPill}>
-                        DOI:{" "}
-                        <a
-                          href={`https://doi.org/${doi}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={styles.a}
-                        >
-                          {doi}
-                        </a>
-                      </span>
-                    ) : null}
-                    {url && (
-                      <span style={styles.metaPill}>
-                        <a href={url} target="_blank" rel="noreferrer" style={styles.a}>
-                          PubMed
-                        </a>
-                      </span>
-                    )}
                   </div>
 
                   {tags.length > 0 ? (
@@ -696,7 +980,6 @@ function Pager({ page, totalPages, onPage }) {
   );
 }
 
-// Minimal inline styles (swap for CSS modules/Tailwind if desired)
 const styles = {
   wrap: {
     fontFamily:
@@ -704,15 +987,7 @@ const styles = {
     color: "#111",
     marginTop: 10,
   },
-  header: {
-    display: "flex",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
-  },
   titleBlock: { display: "flex", flexDirection: "column", gap: 4 },
-  h1: { fontSize: 22, fontWeight: 800 },
   sub: { color: "#444" },
 
   grid: {
@@ -752,6 +1027,12 @@ const styles = {
     padding: "5px 5px",
     outline: "none",
   },
+  checkboxRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 14,
+  },
 
   tagList: { display: "flex", flexWrap: "wrap", gap: 8 },
   tagChip: {
@@ -779,8 +1060,23 @@ const styles = {
   tagCountActive: { background: "rgba(255,255,255,0.22)" },
 
   main: { minWidth: 0 },
-  pagerTop: { display: "flex", justifyContent: "flex-end", marginBottom: 10 },
-  pagerBottom: { display: "flex", justifyContent: "flex-end", marginTop: 10 },
+  topBar: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto 1fr",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 10,
+  },
+  topBarSpacer: {},
+  topBarCenter: {
+    display: "flex",
+    justifyContent: "center",
+  },
+  topBarRight: {
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  pagerBottom: { display: "flex", justifyContent: "center", marginTop: 10 },
   results: { display: "flex", flexDirection: "column", gap: 10 },
   card: {
     border: "1px solid #e6e6e6",
@@ -788,6 +1084,16 @@ const styles = {
     padding: 12,
     background: "#fff",
     boxShadow: "0 1px 10px rgba(0,0,0,0.04)",
+  },
+  cardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 16,
+  },
+  cardHeaderMain: {
+    minWidth: 0,
+    flex: 1,
   },
   cardTitle: { fontWeight: 900, fontSize: 16, marginBottom: 8 },
   a: { color: "#111", textDecoration: "none" },
@@ -800,6 +1106,29 @@ const styles = {
     background: "#fafafa",
   },
   authors: { color: "#333", marginBottom: 10, fontStyle: "italic" },
+
+  postLinksBox: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    alignItems: "flex-end",
+    flexShrink: 0,
+    minWidth: 170,
+  },
+  postBtn: {
+    display: "inline-block",
+    border: "1px solid #ddd",
+    borderRadius: 10,
+    padding: "8px 12px",
+    background: "#fcbc1b",
+    color: "#111",
+    textDecoration: "none",
+    fontSize: 13,
+    fontWeight: 600,
+    textAlign: "center",
+    maxWidth: 220,
+  },
+
   inlineTags: { display: "flex", gap: 8, flexWrap: "wrap" },
   inlineTagChip: {
     border: "1px solid #ddd",
@@ -826,7 +1155,6 @@ const styles = {
     background: "#fafafa",
   },
 
-  // Abstract UX polish styles
   abstractWrap: { marginTop: 10 },
   abstractHeaderRow: {
     display: "flex",
@@ -921,6 +1249,22 @@ const styles = {
     background: "#fff",
     cursor: "pointer",
     marginLeft: "10px",
+  },
+  downloadBtn: {
+    border: "1px solid #111",
+    borderRadius: 10,
+    padding: "9px 12px",
+    background: "#111",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    whiteSpace: "nowrap",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 42,
+    fontSize: 18,
+    lineHeight: 1,
   },
   muted: { color: "#666", fontSize: 13 },
 };

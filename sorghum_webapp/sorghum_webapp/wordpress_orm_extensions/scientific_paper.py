@@ -170,6 +170,8 @@ class ScientificPaperRequest(WPRequest):
 		if self.tags_exclude:
 			self.parameters["tags_exclude"] = self.tags_exclude
 
+		self.parameters["skip_cache"] = 1
+
 		# -------------------
 
 		try:

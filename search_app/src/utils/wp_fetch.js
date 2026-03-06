@@ -1,6 +1,7 @@
 export function count(apiUrl) {
   const url = new URL(apiUrl);
   url.searchParams.set('per_page', '1');
+  url.searchParams.set('skip_cache', '1')
   return fetch(url)
     .then(response => {
       const xWpTotal = response.headers.get('X-Wp-Total');
@@ -17,6 +18,7 @@ export function fetchAll(apiUrl, resultsPerPage = 100) {
   let allResults = [];
   const url = new URL(apiUrl);
   url.searchParams.set('per_page', resultsPerPage);
+  url.searchParams.set('skip_cache', '1')
 
   // Fetch the first page to get the total number of pages
   return fetch(url)
