@@ -716,6 +716,25 @@ html .container {
 /* Gene result cards: constrain hardcoded widths from gramene-search bundle */
 .gene-detail-tabs {
 	width: 100% !important;
+	flex-wrap: wrap !important;
+}
+
+/* Gene detail tabs (Germplasm / Sequences / Location / Expression / Homology /
+   Pathways / Papers / Xrefs) — wrap into 2 rows of 4 when the tab container
+   is too narrow to show all 8 without overlapping. Use a container query so
+   the breakpoint is based on the result card width, not the viewport. */
+.gene-detail-tabs > .col-md-1 {
+	flex: 0 0 auto !important;
+	max-width: none !important;
+	min-width: 0;
+	padding: 2px 4px;
+}
+
+@media (max-width: 991px) {
+	.gene-detail-tabs > .col-md-1 {
+		flex: 0 0 25% !important;
+		max-width: 25% !important;
+	}
 }
 
 .result-gene-title-body {
