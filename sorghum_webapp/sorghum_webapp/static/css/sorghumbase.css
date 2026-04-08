@@ -535,12 +535,13 @@ html .container {
 	}
 }
 
-/* On medium+ screens, make sidebar sticky instead of fixed */
+/* On medium+ screens, make sidebar sticky and fill its column */
 @media (min-width: 768px) {
 	.gramene-sidebar,
 	.sorghumbase-sidebar {
 		position: sticky !important;
 		top: 0;
+		width: 100% !important;
 		max-height: 100vh;
 		overflow-y: auto;
 	}
