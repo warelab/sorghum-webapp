@@ -457,7 +457,7 @@ img {
 }
 
 /* ===========================
-   Responsive overrides for genes page
+   Responsive overrides — Assan template & sorghumbase site
    =========================== */
 
 /* Prevent horizontal overflow site-wide.
@@ -488,69 +488,54 @@ html .container {
 	max-width: 100% !important;
 }
 
-/* Prevent horizontal overflow on the gene search UI */
+/* Prevent horizontal overflow on the gene search UI wrapper */
 #gene-search-ui {
 	overflow-x: hidden;
 	width: 100%;
 }
 
-#gene-search-ui .row {
-	max-width: 100vw;
+/* ===========================
+   Genes page layout (flexbox sidebar + content)
+   These rules override gramene-search's published position:fixed sidebar
+   with a flexbox layout. Scoped under #gene-search-ui for higher specificity
+   since search/index.css loads after this file. Will move to gramene-search
+   when a new version is published with .search-views-layout support.
+   =========================== */
+#gene-search-ui .search-views-layout {
+	display: flex;
+	align-items: flex-start;
 }
 
-/* Constrain the taxonomic distribution SVG visualization */
-.results-vis {
-	overflow-x: auto;
-	max-width: 100%;
+#gene-search-ui .search-views-content {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
-/* On small screens, unfix the sidebar and stack it above content */
+#gene-search-ui .sorghumbase-sidebar {
+	flex: 0 0 250px;
+	position: sticky;
+	top: 0;
+	width: 250px;
+	max-height: 100vh;
+	overflow-y: auto;
+}
+
 @media (max-width: 767px) {
-	#gene-search-ui .row {
+	#gene-search-ui .search-views-layout {
 		flex-direction: column;
 	}
 
-	#gene-search-ui .col-md-2 {
-		width: 100%;
-		flex: none;
-		max-width: 300px;
-	}
-
-	#gene-search-ui .col-md-10 {
-		width: 100%;
-		flex: none;
-	}
-
-	.gramene-sidebar,
-	.sorghumbase-sidebar {
-		position: static !important;
-		width: 100% !important;
-	}
-
-	/* Constrain the gramoogle iframe on mobile */
-	#gramoogleFrame {
+	#gene-search-ui .sorghumbase-sidebar {
+		flex: 0 0 auto;
 		position: static;
 		width: 100%;
-		height: auto;
+		max-height: none;
+		overflow-y: visible;
 	}
-}
 
-/* On medium+ screens, make sidebar sticky and fill its column */
-@media (min-width: 768px) {
-	.gramene-sidebar,
-	.sorghumbase-sidebar {
-		position: sticky !important;
-		top: 0;
-		width: 100% !important;
-		max-height: 100vh;
-		overflow-y: auto;
+	#gene-search-ui .search-views-content {
+		width: 100%;
 	}
-}
-
-/* Prevent images from overflowing their containers */
-#gene-search-ui img {
-	max-width: 100%;
-	height: auto;
 }
 
 /* Footer copyright fix for small screens */
@@ -711,54 +696,6 @@ html .container {
 	.rev_slider_wrapper {
 		display: none !important;
 	}
-}
-
-/* Gene result cards: constrain hardcoded widths from gramene-search bundle */
-.gene-detail-tabs {
-	width: 100% !important;
-	flex-wrap: wrap !important;
-}
-
-/* Gene detail tabs (Germplasm / Sequences / Location / Expression / Homology /
-   Pathways / Papers / Xrefs) — wrap into 2 rows of 4 when the tab container
-   is too narrow to show all 8 without overlapping. Use a container query so
-   the breakpoint is based on the result card width, not the viewport. */
-.gene-detail-tabs > .col-md-1 {
-	flex: 0 0 auto !important;
-	max-width: none !important;
-	min-width: 0;
-	padding: 2px 4px;
-}
-
-@media (max-width: 991px) {
-	.gene-detail-tabs > .col-md-1 {
-		flex: 0 0 25% !important;
-		max-width: 25% !important;
-	}
-}
-
-.result-gene-title-body {
-	width: auto !important;
-	min-width: 0;
-	flex: 1 1 300px !important;
-}
-
-.closest-ortholog,
-.model-ortholog,
-.gene-summary-tair {
-	width: auto !important;
-	min-width: 0;
-	flex: 0 1 350px !important;
-}
-
-.result-gene-summary {
-	flex-wrap: wrap !important;
-}
-
-/* Ensure the content column doesn't overflow */
-#gene-search-ui .col-md-10 {
-	min-width: 0;
-	overflow-x: hidden;
 }
 
 /* ===========================
