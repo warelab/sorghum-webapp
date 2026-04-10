@@ -494,50 +494,6 @@ html .container {
 	width: 100%;
 }
 
-/* ===========================
-   Genes page layout (flexbox sidebar + content)
-   These rules override gramene-search's published position:fixed sidebar
-   with a flexbox layout. Scoped under #gene-search-ui for higher specificity
-   since search/index.css loads after this file. Will move to gramene-search
-   when a new version is published with .search-views-layout support.
-   =========================== */
-#gene-search-ui .search-views-layout {
-	display: flex;
-	align-items: flex-start;
-}
-
-#gene-search-ui .search-views-content {
-	flex: 1 1 0;
-	min-width: 0;
-}
-
-#gene-search-ui .sorghumbase-sidebar {
-	flex: 0 0 250px;
-	position: sticky;
-	top: 0;
-	width: 250px;
-	max-height: 100vh;
-	overflow-y: auto;
-}
-
-@media (max-width: 767px) {
-	#gene-search-ui .search-views-layout {
-		flex-direction: column;
-	}
-
-	#gene-search-ui .sorghumbase-sidebar {
-		flex: 0 0 auto;
-		position: static;
-		width: 100%;
-		max-height: none;
-		overflow-y: visible;
-	}
-
-	#gene-search-ui .search-views-content {
-		width: 100%;
-	}
-}
-
 /* Footer copyright fix for small screens */
 @media (max-width: 767px) {
 	.footer-bottomAlt .col-lg-6 span {
