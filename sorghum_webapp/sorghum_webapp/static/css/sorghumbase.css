@@ -220,9 +220,14 @@
 img {
     display: inline;
     margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+}
+
+.image-cropper img {
     height: 100%;
     width: auto;
-    /*margin-left: -25%;*/
+    max-width: none;
 }
 
 .centered {
@@ -449,4 +454,277 @@ img {
 	content:'Close';
 	display: table-cell;
 	vertical-align: middle;
+}
+
+/* ===========================
+   Responsive overrides — Assan template & sorghumbase site
+   =========================== */
+
+/* Prevent horizontal overflow site-wide.
+   NOTE: avoid 100vw on body — it includes the scrollbar width and causes
+   horizontal overflow when a vertical scrollbar is present. Use 100% instead. */
+html {
+	overflow-x: hidden;
+	max-width: 100%;
+}
+body {
+	overflow-x: hidden;
+	width: 100%;
+	max-width: 100%;
+}
+
+/* Override Assan template min-width on body and containers.
+   plugins.css uses "body { min-width: 992px!important }" and loads AFTER this file,
+   so equal-specificity !important loses. Use html prefix for higher specificity. */
+html body {
+	min-width: 0 !important;
+}
+
+html .container {
+	min-width: 0 !important;
+}
+
+.search-inline {
+	max-width: 100% !important;
+}
+
+/* Prevent horizontal overflow on the gene search UI wrapper */
+#gene-search-ui {
+	overflow-x: hidden;
+	width: 100%;
+}
+
+/* Footer copyright fix for small screens */
+@media (max-width: 767px) {
+	.footer-bottomAlt .col-lg-6 span {
+		position: static !important;
+		display: block;
+		text-align: center;
+		padding-top: 10px;
+	}
+}
+
+/* Navbar fix for small screens (collapsed navbar)
+   HTML structure: nav.navbar > .search-inline, .search-open, .container > (.navbar-brand, .navbar-toggler, .navbar-collapse)
+   We dissolve .container with display:contents so all items join the nav flex row:
+   [logo] [search-input] [hamburger] with collapsed menu below */
+@media (max-width: 991px) {
+	/* Make nav the single flex parent, constrain to viewport */
+	nav.navbar {
+		width: 100% !important;
+		max-width: 100% !important;
+		display: flex !important;
+		flex-wrap: wrap !important;
+		align-items: center;
+		padding: 8px 10px;
+		box-sizing: border-box;
+		overflow: hidden;
+	}
+
+	/* Dissolve .container so its children join nav's flex context */
+	nav.navbar > .container {
+		display: contents !important;
+	}
+
+	/* Hide the spyglass icon — search input is always visible on narrow screens */
+	.search-open {
+		display: none !important;
+	}
+
+	/* Logo on the far left — fixed size, never shrinks */
+	nav.navbar .navbar-brand {
+		order: 0;
+		flex: 0 0 auto;
+		margin-right: 8px;
+		padding: 0;
+	}
+
+	/* Search input takes remaining space, but can shrink below its content width */
+	nav.navbar .search-inline {
+		position: static !important;
+		opacity: 1 !important;
+		visibility: visible !important;
+		width: auto !important;
+		max-width: none !important;
+		flex: 1 1 0 !important;
+		min-width: 0 !important;
+		height: auto !important;
+		background-color: transparent !important;
+		padding: 0 !important;
+		margin: 0 8px;
+		z-index: auto !important;
+		order: 1;
+		display: block;
+	}
+
+	nav.navbar .search-inline > div {
+		width: 100%;
+		min-width: 0;
+	}
+
+	/* Style the search input to fit the navbar, allow shrinking below placeholder width */
+	nav.navbar .search-inline .form-control {
+		position: static !important;
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: 100% !important;
+		height: 36px !important;
+		font-size: 0.9rem !important;
+		font-weight: 400 !important;
+		border: 1px solid #ccc !important;
+		border-radius: 4px;
+		padding: 4px 8px !important;
+		box-sizing: border-box;
+	}
+
+	/* Hide the close button since search is always visible */
+	nav.navbar .search-inline .search-close {
+		display: none !important;
+	}
+
+	/* Hamburger on the far right — override vendor absolute positioning */
+	nav.navbar .navbar-toggler {
+		position: static !important;
+		order: 2;
+		flex: 0 0 auto;
+		margin-left: auto;
+		margin-right: 0;
+	}
+
+	/* Collapsed menu spans full width below the navbar row */
+	nav.navbar .navbar-collapse {
+		order: 3;
+		flex-basis: 100%;
+		width: 100%;
+		padding-left: 15px;
+		padding-right: 15px;
+	}
+}
+
+/* ===========================
+   Mobile hero banner (replaces Revolution Slider on small screens)
+   =========================== */
+
+/* Hide mobile banner on desktop — show the Revolution Slider */
+.mobile-hero-banner {
+	display: none;
+}
+
+@media (max-width: 991px) {
+	/* Show simple banner on mobile */
+	.mobile-hero-banner {
+		display: block;
+		width: 100%;
+		height: 50vh;
+		min-height: 250px;
+		background-size: cover;
+		background-position: center;
+		background-repeat: no-repeat;
+		position: relative;
+	}
+
+	.mobile-hero-overlay {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding: 24px 20px;
+		background: linear-gradient(transparent, rgba(0,0,0,0.6));
+		color: #fff;
+	}
+
+	.mobile-hero-overlay h1 {
+		font-size: 1.6rem;
+		font-weight: 700;
+		margin: 0 0 4px;
+		color: #fff;
+		text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+
+	.mobile-hero-overlay p {
+		font-size: 0.95rem;
+		margin: 0;
+		color: rgba(255,255,255,0.9);
+		text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+	}
+
+	/* Hide the Revolution Slider on mobile */
+	.rev_slider_wrapper {
+		display: none !important;
+	}
+}
+
+/* ===========================
+   Responsive overrides for other pages
+   =========================== */
+
+/* WordPress content: constrain images, embeds, and iframes */
+.post-content img,
+.card-body img,
+.vtimeline-content img {
+	max-width: 100% !important;
+	height: auto !important;
+}
+
+.post-content iframe,
+.card-body iframe {
+	max-width: 100%;
+}
+
+.post-content table,
+.card-body table {
+	width: 100%;
+	overflow-x: auto;
+	display: block;
+}
+
+/* Tables on VEP and other pages: horizontal scroll on small screens */
+table {
+	max-width: 100%;
+}
+
+@media (max-width: 767px) {
+	.container table {
+		display: block;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+}
+
+/* Masonry / cubeportfolio layouts: unstack on mobile */
+@media (max-width: 767px) {
+	#blog-masonry {
+		height: auto !important;
+	}
+
+	#blog-masonry .post-masonry {
+		position: static !important;
+		left: auto !important;
+		top: auto !important;
+	}
+}
+
+/* Events timeline: constrain floated images on mobile */
+@media (max-width: 767px) {
+	.vtimeline-content img {
+		float: none !important;
+		display: block;
+		margin: 0 auto 10px;
+		max-width: 100% !important;
+	}
+
+	.page-timeline .vtimeline-block {
+		margin-left: 0;
+	}
+}
+
+/* Mega menu: prevent overflow on medium screens */
+@media (max-width: 1199px) {
+	.dropdown-mega-fw .mega-menu-content .row {
+		flex-wrap: wrap;
+	}
+
+	.dropdown-mega-fw .mega-menu-content .col-lg {
+		min-width: 150px;
+	}
 }

@@ -14,15 +14,13 @@ const ResultsOrHelp = connect(
 
 const GrameneSearchLayout = (store) => (
   <Provider store={store}>
-    <div className="row no-margin no-padding">
-      <div className="col-md-2 no-padding">
-        <div className="sorghumbase-sidebar">
-          <Status/>
-          <Filters/>
-          {/*<Views/>*/}
-        </div>
+    <div className="no-margin no-padding search-views-layout">
+      <div className="sorghumbase-sidebar">
+        <Status/>
+        <Filters/>
+        {/*<Views/>*/}
       </div>
-      <div className="col-md-10 no-padding">
+      <div className="search-views-content">
         <ResultsOrHelp/>
       </div>
     </div>
