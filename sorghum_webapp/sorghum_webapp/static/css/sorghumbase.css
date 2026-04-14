@@ -543,6 +543,21 @@ html .container {
 	height: auto !important;
 }
 
+/* Videos page: fix layout on small screens.
+   gramene-videos renders each video as <Row><Col>iframe</Col><Col>text</Col></Row>
+   with no xs breakpoint — columns don't stack without these overrides.
+   Also reduce the 6rem section padding (designed for sticky TOC nav) which
+   creates excessive blank space when there is only one playlist and no TOC. */
+@media (max-width: 767px) {
+	#sorghumbase-videos .row.mb-3 > .col {
+		flex: 0 0 100%;
+		max-width: 100%;
+	}
+	#sorghumbase-videos section {
+		padding-top: 1rem !important;
+	}
+}
+
 /* Footer copyright fix for small screens */
 @media (max-width: 767px) {
 	.footer-bottomAlt .col-lg-6 span {
