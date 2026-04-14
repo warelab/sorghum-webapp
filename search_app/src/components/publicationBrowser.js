@@ -639,25 +639,25 @@ export default function PublicationBrowser({
 
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Publication date</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={styles.label}>From</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={styles.dateRow}>
                 <input
                   style={styles.dateInput}
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={styles.label}>To</div>
+                <span style={styles.dateLabel}>From</span>
+              </label>
+              <label style={styles.dateRow}>
                 <input
                   style={styles.dateInput}
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
-              </div>
+                <span style={styles.dateLabel}>To</span>
+              </label>
             </div>
           </div>
 
@@ -1076,12 +1076,24 @@ const styles = {
     padding: "10px 10px",
     outline: "none",
   },
+  dateRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: "#555",
+    whiteSpace: "nowrap",
+    minWidth: 28,
+  },
   dateInput: {
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     boxSizing: "border-box",
     border: "1px solid #ddd",
     borderRadius: 10,
-    padding: "5px 5px",
+    padding: "5px 8px",
     outline: "none",
   },
   checkboxRow: {
