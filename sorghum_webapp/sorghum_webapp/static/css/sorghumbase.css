@@ -539,8 +539,8 @@ html .container {
 .vtimeline-content img {
 	max-height: 120px;
 	max-width: 200px !important;
-	width: auto;
-	height: auto;
+	width: auto !important;
+	height: auto !important;
 }
 
 /* Footer copyright fix for small screens */
