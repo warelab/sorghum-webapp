@@ -157,6 +157,16 @@ export default function PublicationBrowser({
   const copiedTimerRef = useRef(null);
   const didMountRef = useRef(false);
 
+  // Responsive: track mobile viewport and sidebar visibility
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     if (!didMountRef.current) return;
@@ -571,16 +581,41 @@ export default function PublicationBrowser({
   // ---------------------------
   return (
     <div style={styles.wrap}>
-      <div style={styles.grid}>
-        <aside style={styles.sidebar}>
-          <div style={styles.titleBlock}>
-            <div style={styles.sub}>
-              &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
-              <button style={styles.clearBtn} onClick={clearAll} type="button">
-                Clear filters
-              </button>
+      {isMobile && (
+        <div style={styles.mobileToolbar}>
+          <span style={styles.sub}>
+            &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
+          </span>
+          <button
+            style={styles.filtersToggleBtn}
+            onClick={() => setFiltersOpen((v) => !v)}
+            type="button"
+          >
+            {filtersOpen ? "✕ Hide filters" : "⚙ Filters"}
+          </button>
+        </div>
+      )}
+      <div style={{ ...styles.grid, gridTemplateColumns: isMobile ? "1fr" : "320px 1fr" }}>
+        <aside style={{
+          ...styles.sidebar,
+          display: isMobile && !filtersOpen ? "none" : "flex",
+          position: isMobile ? "static" : "sticky",
+        }}>
+          {!isMobile && (
+            <div style={styles.titleBlock}>
+              <div style={styles.sub}>
+                &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
+                <button style={styles.clearBtn} onClick={clearAll} type="button">
+                  Clear filters
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {isMobile && (
+            <button style={{ ...styles.clearBtn, alignSelf: "flex-end", marginBottom: 4 }} onClick={clearAll} type="button">
+              Clear filters
+            </button>
+          )}
 
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Search</div>
@@ -990,6 +1025,24 @@ const styles = {
   titleBlock: { display: "flex", flexDirection: "column", gap: 4 },
   sub: { color: "#444" },
 
+  mobileToolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 4px",
+    borderBottom: "1px solid #eee",
+    marginBottom: 8,
+  },
+  filtersToggleBtn: {
+    background: "#111",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "7px 14px",
+    fontSize: 14,
+    cursor: "pointer",
+    fontWeight: 600,
+  },
   grid: {
     display: "grid",
     gridTemplateColumns: "320px 1fr",
