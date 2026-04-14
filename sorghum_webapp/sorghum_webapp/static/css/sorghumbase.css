@@ -533,6 +533,16 @@ html .container {
 	color: #fff;
 }
 
+/* Events page: constrain featured images (logos) to a thumbnail height.
+   The template sets height:100px inline but Bootstrap's img-fluid overrides
+   it with height:auto, causing tall logos to render at full natural height. */
+.vtimeline-content img {
+	max-height: 120px;
+	max-width: 200px !important;
+	width: auto;
+	height: auto;
+}
+
 /* Footer copyright fix for small screens */
 @media (max-width: 767px) {
 	.footer-bottomAlt .col-lg-6 span {
@@ -702,8 +712,7 @@ html .container {
 
 /* WordPress content: constrain images, embeds, and iframes */
 .post-content img,
-.card-body img,
-.vtimeline-content img {
+.card-body img {
 	max-width: 100% !important;
 	height: auto !important;
 }
@@ -752,7 +761,6 @@ table {
 		float: none !important;
 		display: block;
 		margin: 0 auto 10px;
-		max-width: 100% !important;
 	}
 
 	.page-timeline .vtimeline-block {
