@@ -1025,16 +1025,22 @@ const styles = {
   titleBlock: { display: "flex", flexDirection: "column", gap: 4 },
   sub: { color: "#444" },
 
+  // SorghumBase brand palette (from logo SVG):
+  //   maroon  #9F3D34   amber   #FCBC19
+  //   muted amber bg: #F9F3E3  light panel bg: #FFFCF2  border: #EDCF82
+
   mobileToolbar: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "8px 4px",
-    borderBottom: "1px solid #eee",
+    padding: "8px 12px",
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 10,
     marginBottom: 8,
   },
   filtersToggleBtn: {
-    background: "#111",
+    background: "#9F3D34",
     color: "#fff",
     border: "none",
     borderRadius: 8,
@@ -1056,15 +1062,18 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 12,
+    background: "#F9F3E3",
+    borderRadius: 14,
+    padding: 12,
   },
   panel: {
-    border: "1px solid #e6e6e6",
+    border: "1px solid #EDCF82",
     borderRadius: 12,
     padding: 12,
-    background: "#fff",
-    boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
+    background: "#FFFCF2",
+    boxShadow: "0 1px 8px rgba(159,61,52,0.06)",
   },
-  panelTitle: { fontWeight: 800, marginBottom: 8 },
+  panelTitle: { fontWeight: 800, marginBottom: 8, color: "#9F3D34" },
   label: { fontSize: 12, color: "#555", marginBottom: 4 },
   input: {
     width: "100%",
@@ -1100,8 +1109,8 @@ const styles = {
     fontSize: 13,
   },
   tagChipActive: {
-    border: "1px solid #111",
-    background: "#111",
+    border: "1px solid #9F3D34",
+    background: "#9F3D34",
     color: "#fff",
   },
   tagCount: {
@@ -1119,6 +1128,10 @@ const styles = {
     alignItems: "center",
     gap: 12,
     marginBottom: 10,
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 12,
+    padding: "8px 12px",
   },
   topBarSpacer: {},
   topBarCenter: {
@@ -1129,7 +1142,15 @@ const styles = {
     display: "flex",
     justifyContent: "flex-end",
   },
-  pagerBottom: { display: "flex", justifyContent: "center", marginTop: 10 },
+  pagerBottom: {
+    display: "flex",
+    justifyContent: "center",
+    marginTop: 10,
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 12,
+    padding: "8px 12px",
+  },
   results: { display: "flex", flexDirection: "column", gap: 10 },
   card: {
     border: "1px solid #e6e6e6",
@@ -1272,10 +1293,10 @@ const styles = {
   },
 
   smallBtn: {
-    border: "1px solid #ddd",
+    border: "1px solid #D4AA55",
     borderRadius: 10,
     padding: "7px 10px",
-    background: "#fff",
+    background: "#FFFCF2",
     cursor: "pointer",
   },
   smallBtnDanger: {
@@ -1296,18 +1317,18 @@ const styles = {
     textAlign: "left",
   },
   clearBtn: {
-    border: "1px solid #ddd",
+    border: "1px solid #D4AA55",
     borderRadius: 10,
     padding: "7px 10px",
-    background: "#fff",
+    background: "#FFFCF2",
     cursor: "pointer",
     marginLeft: "10px",
   },
   downloadBtn: {
-    border: "1px solid #111",
+    border: "1px solid #9F3D34",
     borderRadius: 10,
     padding: "9px 12px",
-    background: "#111",
+    background: "#9F3D34",
     color: "#fff",
     cursor: "pointer",
     fontWeight: 600,
