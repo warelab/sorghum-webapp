@@ -487,15 +487,13 @@ img {
    Responsive overrides — Assan template & sorghumbase site
    =========================== */
 
-/* Prevent horizontal overflow site-wide.
-   NOTE: avoid 100vw on body — it includes the scrollbar width and causes
-   horizontal overflow when a vertical scrollbar is present. Use 100% instead. */
+/* Constrain widths to prevent horizontal overflow without using
+   overflow-x:hidden on html/body — that breaks scroll chaining
+   and causes "resistance" when scrolling on touch devices. */
 html {
-	overflow-x: hidden;
 	max-width: 100%;
 }
 body {
-	overflow-x: hidden;
 	width: 100%;
 	max-width: 100%;
 }
@@ -515,10 +513,24 @@ html .container {
 	max-width: 100% !important;
 }
 
-/* Prevent horizontal overflow on the gene search UI wrapper */
+/* Gene search UI wrapper — avoid overflow-x:hidden here because
+   the taxonomy visualization uses position:absolute canvases that
+   need to be visible within their container. */
 #gene-search-ui {
-	overflow-x: hidden;
 	width: 100%;
+}
+
+/* Ensure the taxonomy vis is a positioning context for its
+   absolutely-positioned canvases so they align with the SVG tree. */
+.gramene-search-vis {
+	position: relative;
+}
+
+/* Page banner heading: force white at all widths — the Assan template only
+   sets this inside @media (min-width: 992px), so it reverts to dark on mobile. */
+.page-titles-img h1,
+.page-titles-img p {
+	color: #fff;
 }
 
 /* Footer copyright fix for small screens */
