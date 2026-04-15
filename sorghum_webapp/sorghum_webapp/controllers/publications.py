@@ -16,5 +16,10 @@ def publications():
     templateDict = navbar_template('Research')
     news_banner_media = api.media(slug="k-state-sorghum-field-1920x1000")
     templateDict["banner_media"] = news_banner_media
+    populate_footer_template(
+        template_dictionary=templateDict,
+        wp_api=api,
+        photos_to_credit=[news_banner_media]
+    )
 
     return render_template("publications.html", **templateDict)

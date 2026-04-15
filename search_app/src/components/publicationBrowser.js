@@ -925,9 +925,7 @@ export default function PublicationBrowser({
                           <span style={styles.abstractHeaderText}>Abstract</span>
                           {!isOpen ? (
                             <span style={styles.abstractPreview}>
-                              {abstractText.length > 140
-                                ? abstractText.slice(0, 140) + "…"
-                                : abstractText}
+                              {abstractText}
                             </span>
                           ) : null}
                         </div>
@@ -1274,6 +1272,8 @@ const styles = {
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+    flex: 1,
+    minWidth: 0,
   },
   abstractHeaderRight: {
     display: "flex",
@@ -1296,7 +1296,7 @@ const styles = {
     overflow: "hidden",
     transition: "max-height 220ms ease, opacity 180ms ease",
   },
-  abstractBodyOuterOpen: { maxHeight: 420, opacity: 1 },
+  abstractBodyOuterOpen: { maxHeight: 2000, opacity: 1 },
   abstractBodyInner: {
     marginTop: 8,
     padding: 10,

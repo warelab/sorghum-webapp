@@ -440,6 +440,21 @@ img {
   padding-top: 7em;
   padding-bottom: 3em; }
 
+/* Publications page: keep the React mount from inheriting full-height layout
+   rules from bundled search styles, which can leave a blank region above the footer. */
+#sorghumbase-publications,
+#sorghumbase-publications > div {
+	min-height: 0 !important;
+	height: auto !important;
+}
+
+.footer-bottomAlt {
+	background-color: #000;
+	clear: both;
+	position: relative;
+	z-index: 1;
+}
+
 .avatar-width {
 	width: 96px
 }
@@ -565,6 +580,50 @@ html .container {
 		display: block;
 		text-align: center;
 		padding-top: 10px;
+	}
+}
+
+/* Footer layout: keep logos and copyright aligned on desktop and stacked cleanly on smaller screens. */
+.footer-bottomAlt .footer-meta {
+	align-items: center;
+	row-gap: 12px;
+}
+
+.footer-bottomAlt .footer-brand a {
+	display: inline-block;
+}
+
+.footer-bottomAlt .footer-copyright {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.footer-bottomAlt .footer-copyright span {
+	position: static !important;
+	color: #fff;
+	text-align: right;
+}
+
+@media (max-width: 991px) {
+	.footer-bottomAlt .footer-meta {
+		justify-content: center;
+		text-align: center;
+	}
+
+	.footer-bottomAlt .footer-brand,
+	.footer-bottomAlt .footer-copyright {
+		flex: 0 0 100%;
+		max-width: 100%;
+		text-align: center;
+	}
+
+	.footer-bottomAlt .footer-copyright {
+		justify-content: center;
+	}
+
+	.footer-bottomAlt .footer-copyright span {
+		text-align: center;
 	}
 }
 
@@ -781,6 +840,33 @@ table {
 
 	.page-timeline .vtimeline-block {
 		margin-left: 0;
+	}
+}
+
+/* Override plugins.css min-width: 992px on body/container for small screens */
+@media (max-width: 991px) {
+	body {
+		min-width: 0 !important;
+	}
+	.container {
+		min-width: 0 !important;
+		width: 100% !important;
+		max-width: 100% !important;
+		padding-left: 15px;
+		padding-right: 15px;
+		box-sizing: border-box;
+	}
+}
+
+/* Footer logos: display inline-block and align on small screens */
+@media (max-width: 767px) {
+	.footer-bottomAlt .col-lg-3 {
+		text-align: center;
+	}
+	.footer-bottomAlt .logo-footer {
+		display: inline-block;
+		vertical-align: middle;
+		margin: 4px 8px;
 	}
 }
 
