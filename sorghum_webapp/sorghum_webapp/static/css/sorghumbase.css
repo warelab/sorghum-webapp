@@ -487,15 +487,13 @@ img {
    Responsive overrides — Assan template & sorghumbase site
    =========================== */
 
-/* Prevent horizontal overflow site-wide.
-   NOTE: avoid 100vw on body — it includes the scrollbar width and causes
-   horizontal overflow when a vertical scrollbar is present. Use 100% instead. */
+/* Constrain widths to prevent horizontal overflow without using
+   overflow-x:hidden on html/body — that breaks scroll chaining
+   and causes "resistance" when scrolling on touch devices. */
 html {
-	overflow-x: hidden;
 	max-width: 100%;
 }
 body {
-	overflow-x: hidden;
 	width: 100%;
 	max-width: 100%;
 }
@@ -515,10 +513,49 @@ html .container {
 	max-width: 100% !important;
 }
 
-/* Prevent horizontal overflow on the gene search UI wrapper */
+/* Gene search UI wrapper — avoid overflow-x:hidden here because
+   the taxonomy visualization uses position:absolute canvases that
+   need to be visible within their container. */
 #gene-search-ui {
-	overflow-x: hidden;
 	width: 100%;
+}
+
+/* Ensure the taxonomy vis is a positioning context for its
+   absolutely-positioned canvases so they align with the SVG tree. */
+.gramene-search-vis {
+	position: relative;
+}
+
+/* Page banner heading: force white at all widths — the Assan template only
+   sets this inside @media (min-width: 992px), so it reverts to dark on mobile. */
+.page-titles-img h1,
+.page-titles-img p {
+	color: #fff;
+}
+
+/* Events page: constrain featured images (logos) to a thumbnail height.
+   The template sets height:100px inline but Bootstrap's img-fluid overrides
+   it with height:auto, causing tall logos to render at full natural height. */
+.vtimeline-content img {
+	max-height: 120px;
+	max-width: 200px !important;
+	width: auto !important;
+	height: auto !important;
+}
+
+/* Videos page: fix layout on small screens.
+   gramene-videos renders each video as <Row><Col>iframe</Col><Col>text</Col></Row>
+   with no xs breakpoint — columns don't stack without these overrides.
+   Also reduce the 6rem section padding (designed for sticky TOC nav) which
+   creates excessive blank space when there is only one playlist and no TOC. */
+@media (max-width: 767px) {
+	#sorghumbase-videos .row.mb-3 > .col {
+		flex: 0 0 100%;
+		max-width: 100%;
+	}
+	#sorghumbase-videos section {
+		padding-top: 1rem !important;
+	}
 }
 
 /* Footer copyright fix for small screens */
@@ -688,10 +725,10 @@ html .container {
    Responsive overrides for other pages
    =========================== */
 
-/* WordPress content: constrain images, embeds, and iframes */
+/* WordPress content: constrain images, figures, embeds, and iframes */
+.post-content figure,
 .post-content img,
-.card-body img,
-.vtimeline-content img {
+.card-body img {
 	max-width: 100% !important;
 	height: auto !important;
 }
@@ -740,7 +777,6 @@ table {
 		float: none !important;
 		display: block;
 		margin: 0 auto 10px;
-		max-width: 100% !important;
 	}
 
 	.page-timeline .vtimeline-block {

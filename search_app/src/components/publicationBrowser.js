@@ -157,6 +157,26 @@ export default function PublicationBrowser({
   const copiedTimerRef = useRef(null);
   const didMountRef = useRef(false);
 
+  // Responsive: track mobile viewport and sidebar visibility
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // compactPager: true when the main column is too narrow for 4 nav buttons + download.
+  // At 320px sidebar + 14px gap the main area hits ~450px at 784px viewport width,
+  // so use 920px as the threshold to give a comfortable buffer.
+  const [compactPager, setCompactPager] = useState(() => typeof window !== "undefined" && window.innerWidth < 920);
+  useEffect(() => {
+    const mqMobile = window.matchMedia("(max-width: 767px)");
+    const mqNarrow = window.matchMedia("(max-width: 919px)");
+    const onMobile = (e) => setIsMobile(e.matches);
+    const onNarrow = (e) => setCompactPager(e.matches);
+    mqMobile.addEventListener("change", onMobile);
+    mqNarrow.addEventListener("change", onNarrow);
+    return () => {
+      mqMobile.removeEventListener("change", onMobile);
+      mqNarrow.removeEventListener("change", onNarrow);
+    };
+  }, []);
+
   // Reset to page 1 when filters change
   useEffect(() => {
     if (!didMountRef.current) return;
@@ -571,16 +591,41 @@ export default function PublicationBrowser({
   // ---------------------------
   return (
     <div style={styles.wrap}>
-      <div style={styles.grid}>
-        <aside style={styles.sidebar}>
-          <div style={styles.titleBlock}>
-            <div style={styles.sub}>
-              &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
-              <button style={styles.clearBtn} onClick={clearAll} type="button">
-                Clear filters
-              </button>
+      {isMobile && (
+        <div style={styles.mobileToolbar}>
+          <span style={styles.sub}>
+            &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
+          </span>
+          <button
+            style={styles.filtersToggleBtn}
+            onClick={() => setFiltersOpen((v) => !v)}
+            type="button"
+          >
+            {filtersOpen ? "✕ Hide filters" : "⚙ Filters"}
+          </button>
+        </div>
+      )}
+      <div style={{ ...styles.grid, gridTemplateColumns: isMobile ? "1fr" : "320px 1fr" }}>
+        <aside style={{
+          ...styles.sidebar,
+          display: isMobile && !filtersOpen ? "none" : "flex",
+          position: isMobile ? "static" : "sticky",
+        }}>
+          {!isMobile && (
+            <div style={styles.titleBlock}>
+              <div style={styles.sub}>
+                &nbsp;Showing <b>{total}</b> result{total === 1 ? "" : "s"}
+                <button style={styles.clearBtn} onClick={clearAll} type="button">
+                  Clear filters
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {isMobile && (
+            <button style={{ ...styles.clearBtn, alignSelf: "flex-end", marginBottom: 4 }} onClick={clearAll} type="button">
+              Clear filters
+            </button>
+          )}
 
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Search</div>
@@ -594,25 +639,25 @@ export default function PublicationBrowser({
 
           <div style={styles.panel}>
             <div style={styles.panelTitle}>Publication date</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={styles.label}>From</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={styles.dateRow}>
                 <input
                   style={styles.dateInput}
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={styles.label}>To</div>
+                <span style={styles.dateLabel}>From</span>
+              </label>
+              <label style={styles.dateRow}>
                 <input
                   style={styles.dateInput}
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
-              </div>
+                <span style={styles.dateLabel}>To</span>
+              </label>
             </div>
           </div>
 
@@ -748,12 +793,12 @@ export default function PublicationBrowser({
         </aside>
 
         <main style={styles.main}>
-          <div style={styles.topBar}>
-            <div style={styles.topBarSpacer} />
-            <div style={styles.topBarCenter}>
-              <Pager page={safePage} totalPages={totalPages} onPage={setPage} />
+          <div style={compactPager ? styles.topBarMobile : styles.topBar}>
+            {!compactPager && <div style={styles.topBarSpacer} />}
+            <div style={compactPager ? { flex: 1 } : styles.topBarCenter}>
+              <Pager page={safePage} totalPages={totalPages} onPage={setPage} compact={compactPager} />
             </div>
-            <div style={styles.topBarRight}>
+            <div style={compactPager ? {} : styles.topBarRight}>
               <button
                 type="button"
                 style={styles.downloadBtn}
@@ -923,7 +968,7 @@ export default function PublicationBrowser({
           </div>
 
           <div style={styles.pagerBottom}>
-            <Pager page={safePage} totalPages={totalPages} onPage={setPage} />
+            <Pager page={safePage} totalPages={totalPages} onPage={setPage} compact={compactPager} />
           </div>
         </main>
       </div>
@@ -931,51 +976,35 @@ export default function PublicationBrowser({
   );
 }
 
-function Pager({ page, totalPages, onPage }) {
+function Pager({ page, totalPages, onPage, compact = false }) {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
   const jump = (p) => onPage(Math.min(Math.max(1, p), totalPages));
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <button
-        type="button"
-        onClick={() => jump(1)}
-        disabled={!canPrev}
-        style={styles.smallBtn}
-      >
-        « First
-      </button>
-      <button
-        type="button"
-        onClick={() => jump(page - 1)}
-        disabled={!canPrev}
-        style={styles.smallBtn}
-      >
-        ‹ Prev
+    <div style={{ display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "nowrap" }}>
+      {!compact && (
+        <button type="button" onClick={() => jump(1)} disabled={!canPrev} style={styles.smallBtn}>
+          « First
+        </button>
+      )}
+      <button type="button" onClick={() => jump(page - 1)} disabled={!canPrev} style={styles.smallBtn}>
+        {compact ? "‹" : "‹ Prev"}
       </button>
 
-      <div style={{ minWidth: 120, textAlign: "center" }}>
+      <div style={{ minWidth: compact ? 80 : 120, textAlign: "center", whiteSpace: "nowrap" }}>
         Page <b>{page}</b> / {totalPages}
       </div>
 
-      <button
-        type="button"
-        onClick={() => jump(page + 1)}
-        disabled={!canNext}
-        style={styles.smallBtn}
-      >
-        Next ›
+      <button type="button" onClick={() => jump(page + 1)} disabled={!canNext} style={styles.smallBtn}>
+        {compact ? "›" : "Next ›"}
       </button>
-      <button
-        type="button"
-        onClick={() => jump(totalPages)}
-        disabled={!canNext}
-        style={styles.smallBtn}
-      >
-        Last »
-      </button>
+      {!compact && (
+        <button type="button" onClick={() => jump(totalPages)} disabled={!canNext} style={styles.smallBtn}>
+          Last »
+        </button>
+      )}
     </div>
   );
 }
@@ -990,6 +1019,30 @@ const styles = {
   titleBlock: { display: "flex", flexDirection: "column", gap: 4 },
   sub: { color: "#444" },
 
+  // SorghumBase brand palette (from logo SVG):
+  //   maroon  #9F3D34   amber   #FCBC19
+  //   muted amber bg: #F9F3E3  light panel bg: #FFFCF2  border: #EDCF82
+
+  mobileToolbar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 12px",
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  filtersToggleBtn: {
+    background: "#9F3D34",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "7px 14px",
+    fontSize: 14,
+    cursor: "pointer",
+    fontWeight: 600,
+  },
   grid: {
     display: "grid",
     gridTemplateColumns: "320px 1fr",
@@ -1003,15 +1056,18 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 12,
+    background: "#F9F3E3",
+    borderRadius: 14,
+    padding: 12,
   },
   panel: {
-    border: "1px solid #e6e6e6",
+    border: "1px solid #EDCF82",
     borderRadius: 12,
     padding: 12,
-    background: "#fff",
-    boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
+    background: "#FFFCF2",
+    boxShadow: "0 1px 8px rgba(159,61,52,0.06)",
   },
-  panelTitle: { fontWeight: 800, marginBottom: 8 },
+  panelTitle: { fontWeight: 800, marginBottom: 8, color: "#9F3D34" },
   label: { fontSize: 12, color: "#555", marginBottom: 4 },
   input: {
     width: "100%",
@@ -1020,11 +1076,24 @@ const styles = {
     padding: "10px 10px",
     outline: "none",
   },
+  dateRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: "#555",
+    whiteSpace: "nowrap",
+    minWidth: 28,
+  },
   dateInput: {
-    width: "90%",
+    flex: 1,
+    minWidth: 0,
+    boxSizing: "border-box",
     border: "1px solid #ddd",
     borderRadius: 10,
-    padding: "5px 5px",
+    padding: "5px 8px",
     outline: "none",
   },
   checkboxRow: {
@@ -1047,8 +1116,8 @@ const styles = {
     fontSize: 13,
   },
   tagChipActive: {
-    border: "1px solid #111",
-    background: "#111",
+    border: "1px solid #9F3D34",
+    background: "#9F3D34",
     color: "#fff",
   },
   tagCount: {
@@ -1066,6 +1135,20 @@ const styles = {
     alignItems: "center",
     gap: 12,
     marginBottom: 10,
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 12,
+    padding: "8px 12px",
+  },
+  topBarMobile: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 10,
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 12,
+    padding: "8px 10px",
   },
   topBarSpacer: {},
   topBarCenter: {
@@ -1076,7 +1159,15 @@ const styles = {
     display: "flex",
     justifyContent: "flex-end",
   },
-  pagerBottom: { display: "flex", justifyContent: "center", marginTop: 10 },
+  pagerBottom: {
+    display: "flex",
+    justifyContent: "center",
+    marginTop: 10,
+    background: "#F9F3E3",
+    border: "1px solid #EDCF82",
+    borderRadius: 12,
+    padding: "8px 12px",
+  },
   results: { display: "flex", flexDirection: "column", gap: 10 },
   card: {
     border: "1px solid #e6e6e6",
@@ -1219,10 +1310,10 @@ const styles = {
   },
 
   smallBtn: {
-    border: "1px solid #ddd",
+    border: "1px solid #D4AA55",
     borderRadius: 10,
     padding: "7px 10px",
-    background: "#fff",
+    background: "#FFFCF2",
     cursor: "pointer",
   },
   smallBtnDanger: {
@@ -1243,18 +1334,18 @@ const styles = {
     textAlign: "left",
   },
   clearBtn: {
-    border: "1px solid #ddd",
+    border: "1px solid #D4AA55",
     borderRadius: 10,
     padding: "7px 10px",
-    background: "#fff",
+    background: "#FFFCF2",
     cursor: "pointer",
     marginLeft: "10px",
   },
   downloadBtn: {
-    border: "1px solid #111",
+    border: "1px solid #9F3D34",
     borderRadius: 10,
     padding: "9px 12px",
-    background: "#111",
+    background: "#9F3D34",
     color: "#fff",
     cursor: "pointer",
     fontWeight: 600,

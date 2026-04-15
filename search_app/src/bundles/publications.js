@@ -1,5 +1,6 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
 import { count, fetchAll } from '../utils/wp_fetch'
+import publicationsProgress from './publicationsProgress'
 
 const sorghumPublicationsTally = createAsyncResourceBundle({
   name: 'sorghumPublicationsTally',
@@ -25,8 +26,15 @@ const sorghumPublications = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_PUBLICATIONS',
   persist: true,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/scientific_paper`)
-      .then(pubs => pubs)
+    store.doSetPubProgress(0, 0);
+    return fetchAll(
+      `https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/scientific_paper`,
+      100,
+      (loaded, total) => store.doSetPubProgress(loaded, total)
+    ).then(pubs => {
+      store.doResetPubProgress();
+      return pubs;
+    });
   }
 });
 sorghumPublications.reactSorghumPublications = createSelector(
@@ -89,4 +97,4 @@ sorghumTags.reactSorghumTags = createSelector(
   }
 );
 
-export default [sorghumPublications, sorghumPublicationsTally, sorghumTags, sorghumTagsTally];
+export default [sorghumPublications, sorghumPublicationsTally, sorghumTags, sorghumTagsTally, publicationsProgress];

@@ -13,8 +13,9 @@ export function count(apiUrl) {
       throw error;
     });
 }
-export function fetchAll(apiUrl, resultsPerPage = 100) {
+export function fetchAll(apiUrl, resultsPerPage = 100, onProgress) {
   let totalPages;
+  let totalItems;
   let allResults = [];
   const url = new URL(apiUrl);
   url.searchParams.set('per_page', resultsPerPage);
@@ -24,30 +25,34 @@ export function fetchAll(apiUrl, resultsPerPage = 100) {
   return fetch(url)
     .then(response => {
       const xWpTotal = response.headers.get('X-Wp-Total');
-      totalPages = Math.ceil(xWpTotal / resultsPerPage);
+      totalItems = +xWpTotal;
+      totalPages = Math.ceil(totalItems / resultsPerPage);
       return response.json();
     })
     .then(data => {
       // Add the results of the first page to the combined array
       allResults = allResults.concat(data);
+      if (onProgress) onProgress(allResults.length, totalItems);
 
       // Fetch the remaining pages
       const fetchPages = [];
       for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
         const page_url = new URL(url);
         page_url.searchParams.set('page', pageNum);
-        fetchPages.push(fetch(page_url));
+        fetchPages.push(
+          fetch(page_url)
+            .then(response => response.json())
+            .then(pageData => {
+              allResults = allResults.concat(pageData);
+              if (onProgress) onProgress(allResults.length, totalItems);
+              return pageData;
+            })
+        );
       }
 
-      // Combine results from all pages
-      return Promise.all(fetchPages.map(p => p.then(response => response.json())));
+      return Promise.all(fetchPages);
     })
-    .then(pageDataArray => {
-      // Concatenate results from all pages into a single array
-      pageDataArray.forEach(pageData => {
-        allResults = allResults.concat(pageData);
-      });
-
+    .then(() => {
       // Return the combined results
       return allResults;
     })
