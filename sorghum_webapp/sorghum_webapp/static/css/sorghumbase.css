@@ -725,7 +725,8 @@ html .container {
    Responsive overrides for other pages
    =========================== */
 
-/* WordPress content: constrain images, embeds, and iframes */
+/* WordPress content: constrain images, figures, embeds, and iframes */
+.post-content figure,
 .post-content img,
 .card-body img {
 	max-width: 100% !important;
