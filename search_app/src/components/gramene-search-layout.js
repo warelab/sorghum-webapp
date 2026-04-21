@@ -18,7 +18,7 @@ const GrameneSearchLayout = (store) => (
       <div className="sorghumbase-sidebar">
         <Status/>
         <Filters/>
-        {/*<Views/>*/}
+        <Views/>
       </div>
       <div className="search-views-content">
         <ResultsOrHelp/>

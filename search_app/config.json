@@ -16,6 +16,16 @@
     "taxa": {
     }
   },
+  showViews: true,
+  views: {
+    userLists: 'disabled',
+    expression: 'disabled',
+    export: 'off',
+    taxonomy: 'on',
+    list: 'on',
+    help: 'off',
+    attribs: 'disabled'
+  },
   "partialCompara": true,
   details: {
     sequences: true,
