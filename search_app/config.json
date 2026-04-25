@@ -32,7 +32,8 @@
     taxonomy: 'on',
     list: 'on',
     help: 'off',
-    attribs: 'disabled'
+    attribs: 'disabled',
+    exprViz: 'off'
   },
   "partialCompara": true,
   details: {
