@@ -28,6 +28,7 @@ def news():
 
 def engage():
     menu = make_menu('Engage')
+    add_link(menu, 'New to SorghumBase', '/new-user-guide')
 #     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
 #     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
