@@ -1,0 +1,651 @@
+{% extends "base.html" %}
+{% block page_title %}SorghumBase - New User Guide{% endblock %}
+{% block additional_header %}
+<style>
+  /* ===== SorghumBase new-user decision tree ===== */
+  .sb-guide-root {
+    --sb-maroon: #7c1212;
+    --sb-maroon-dark: #5a0c0c;
+    --sb-maroon-light: #f5e8e8;
+    --sb-tan: #deb887;
+    --sb-tan-light: #f5ead4;
+    --sb-text: #2a2a2a;
+    --sb-muted: #6b6b6b;
+    --sb-border: #e3dccf;
+    --sb-bg: #fbf8f1;
+  }
+  .sb-guide {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    color: var(--sb-text);
+    line-height: 1.5;
+  }
+  .sb-guide h1 {
+    color: var(--sb-maroon);
+    font-size: 1.75rem;
+    margin: 0 0 6px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .sb-guide h2 {
+    color: var(--sb-maroon);
+    font-size: 1.25rem;
+    margin: 0 0 18px;
+    font-weight: 600;
+  }
+  .sb-guide .intro {
+    color: var(--sb-muted);
+    margin: 0 0 28px;
+    font-size: 0.97rem;
+  }
+  .sb-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 18px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid var(--sb-border);
+    border-radius: 6px;
+  }
+  .sb-breadcrumb button {
+    background: none;
+    border: none;
+    color: var(--sb-maroon);
+    cursor: pointer;
+    padding: 2px 4px;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .sb-breadcrumb button:hover { color: var(--sb-maroon-dark); }
+  .sb-breadcrumb .crumb-sep { color: var(--sb-muted); }
+  .sb-breadcrumb .crumb-current { color: var(--sb-text); font-weight: 600; }
+  .sb-controls { display: flex; gap: 8px; margin-bottom: 20px; }
+  .sb-btn {
+    background: white;
+    border: 1px solid var(--sb-border);
+    color: var(--sb-text);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .sb-btn:hover { background: var(--sb-maroon-light); border-color: var(--sb-maroon); color: var(--sb-maroon); }
+  .sb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .sb-question {
+    font-size: 1.05rem;
+    color: var(--sb-text);
+    margin: 0 0 16px;
+    font-weight: 600;
+  }
+  .sb-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .sb-card {
+    background: white;
+    border: 1px solid var(--sb-border);
+    border-left: 4px solid var(--sb-tan);
+    border-radius: 8px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.18s;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 110px;
+  }
+  .sb-card:hover {
+    border-left-color: var(--sb-maroon);
+    box-shadow: 0 4px 14px rgba(124, 18, 18, 0.12);
+    transform: translateY(-1px);
+  }
+  .sb-card .card-title {
+    font-weight: 600;
+    color: var(--sb-maroon);
+    margin: 0 0 4px;
+    font-size: 1rem;
+  }
+  .sb-card .card-desc { color: var(--sb-muted); font-size: 0.88rem; margin: 0 0 8px; }
+  .sb-card .card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+  .sb-card.is-leaf { border-left-color: var(--sb-maroon); }
+  .sb-card.is-leaf .card-title::after {
+    content: " \2197";
+    font-weight: 400;
+    color: var(--sb-maroon);
+  }
+  .sb-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--sb-tan-light);
+    color: var(--sb-maroon-dark);
+    border: 1px solid var(--sb-tan);
+    font-weight: 500;
+  }
+  .sb-tag.tag-breeder { background: #e8f0e3; color: #345d28; border-color: #b6d09e; }
+  .sb-tag.tag-genomics { background: #e3eaf5; color: #1d3d72; border-color: #9fb9de; }
+  .sb-tag.tag-external { background: #f5e8e8; color: var(--sb-maroon); border-color: #d8b1b1; }
+  .sb-summary {
+    padding: 14px 18px;
+    background: var(--sb-maroon-light);
+    border: 1px solid #e0c4c4;
+    border-radius: 8px;
+    margin-bottom: 18px;
+    font-size: 0.92rem;
+    color: var(--sb-maroon-dark);
+  }
+  .sb-footer-note {
+    margin-top: 36px;
+    padding: 14px 16px;
+    background: white;
+    border: 1px dashed var(--sb-border);
+    border-radius: 8px;
+    color: var(--sb-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .sb-footer-note a { color: var(--sb-maroon); text-decoration: underline; }
+  @media (max-width: 520px) {
+    .sb-guide { padding: 20px 14px 60px; }
+    .sb-options { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-titles-img title-space-md parallax-overlay bg-parallax" data-jarallax='{"speed": 0.4}' style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <h1 class="text-uppercase">New to SorghumBase</h1>
+      </div>
+    </div>
+  </div>
+</div><!--page title end-->
+
+<div class="sb-guide-root">
+<div class="sb-guide" id="sb-guide-root">
+  <h1>New to SorghumBase?</h1>
+  <p class="intro">Answer a couple of quick questions and we'll point you to the right tool, dataset, or resource. Designed for plant breeders and genomics researchers.</p>
+
+  <div class="sb-breadcrumb" id="sb-breadcrumb"></div>
+  <div class="sb-controls">
+    <button class="sb-btn" id="sb-back" type="button">&larr; Back</button>
+    <button class="sb-btn" id="sb-restart" type="button">Start over</button>
+  </div>
+
+  <div id="sb-summary-host"></div>
+
+  <h2 class="sb-question" id="sb-question"></h2>
+  <div class="sb-options" id="sb-options" role="list"></div>
+
+  <div class="sb-footer-note">
+    Can't find what you need? Try the <a href="{{request.script_root}}/search">site-wide search</a>, browse the <a href="{{request.script_root}}/faq">FAQ</a>, post on the <a href="{{request.script_root}}/contact">contact form</a>, or join the <a href="{{request.script_root}}/mailing_list">mailing list</a> to ask the community.
+  </div>
+</div>
+</div>
+
+<script>
+/* ============================================================
+   SorghumBase decision tree data
+   - Each node has: question, options[]
+   - Each option has: label, desc, audience[], and either:
+       next: <node id>   (branches deeper)
+       link: <url>       (terminal leaf -> resource)
+   ============================================================ */
+(function () {
+  var SCRIPT_ROOT = {{ request.script_root | tojson }};
+  var ENSEMBL = "https://ensembl.sorghumbase.org";
+  var FTP = "https://ftp.sorghumbase.org";
+
+  // helper to prefix internal paths with the Flask script_root
+  function r(path) {
+    if (!path) return path;
+    if (/^https?:\/\//i.test(path)) return path;
+    return SCRIPT_ROOT + path;
+  }
+
+  var TREE = {
+    root: {
+      question: "What brings you to SorghumBase today?",
+      options: [
+        { label: "Find or analyze a specific gene",
+          desc: "Look up a gene by ID, name, function, or sequence.",
+          audience: ["breeder","genomics"], next: "gene" },
+        { label: "Explore or compare genomes",
+          desc: "Browse reference assemblies, the pan-genome, or do comparative genomics.",
+          audience: ["genomics"], next: "genomes" },
+        { label: "Find germplasm or breeding lines",
+          desc: "Reference accessions, association panels, mutant populations, seed sources.",
+          audience: ["breeder"], next: "germplasm" },
+        { label: "Find variants, QTL, or GWAS data",
+          desc: "SNPs, EMS-induced mutations, GWAS hits, variant effect prediction.",
+          audience: ["breeder","genomics"], next: "variants" },
+        { label: "Find gene expression data",
+          desc: "Expression atlases, transcriptome resources, eQTL.",
+          audience: ["genomics"], next: "expression" },
+        { label: "Read research / publications",
+          desc: "Peer-reviewed papers, research highlights, special topics, funded projects.",
+          audience: ["breeder","genomics"], next: "research" },
+        { label: "Learn how to use SorghumBase",
+          desc: "Quick guides, tutorials, videos, FAQ, release notes.",
+          audience: ["breeder","genomics"], next: "learn" },
+        { label: "Engage with the community",
+          desc: "Mailing list, events, conferences, contact the team.",
+          audience: ["breeder","genomics"], next: "engage" }
+      ]
+    },
+
+    gene: {
+      question: "How would you like to find the gene?",
+      options: [
+        { label: "I have a gene ID (e.g. SORBI_3001G...)",
+          desc: "Paste an ID into the gene search to land on its page.",
+          audience: ["genomics","breeder"], link: r("/genes"),
+          leafNote: "Use the search box on /genes — it accepts gene IDs across the pan-genome." },
+        { label: "Search by keyword or function",
+          desc: "Type-ahead search by name, description, GO term, or domain.",
+          audience: ["genomics","breeder"], link: r("/genes") },
+        { label: "Search by DNA / protein sequence (BLAST)",
+          desc: "Run a BLAST against any of the SorghumBase reference genomes.",
+          audience: ["genomics"], link: ENSEMBL + "/Tools/Blast", external: true },
+        { label: "Get gene, transcript, or protein sequences",
+          desc: "Use the Sequences tab on a gene page for FASTA exports.",
+          audience: ["genomics"], link: r("/genes") },
+        { label: "Find orthologs / paralogs (Compara)",
+          desc: "Phylogenetic trees and homology across grasses.",
+          audience: ["genomics"], link: ENSEMBL + "/info/genome/compara/prot_tree_stats.html", external: true },
+        { label: "Find loss-of-function alleles for a gene",
+          desc: "The Germplasm tab on a gene page lists accessions with putative LoF SNPs and EMS hits.",
+          audience: ["breeder","genomics"], link: r("/genes") }
+      ]
+    },
+
+    genomes: {
+      question: "What kind of genome exploration?",
+      options: [
+        { label: "Browse a single reference genome",
+          desc: "BTx623, Tx430, Tx436, Tx2783, Rio, and more.",
+          audience: ["genomics"], next: "genomes_ref" },
+        { label: "Pan-genome / CP-NAM founders",
+          desc: "Compare across the Carbon-Partitioning NAM founder genomes.",
+          audience: ["genomics","breeder"], link: ENSEMBL + "/species.html", external: true,
+          leafNote: "Open the Species table and look for the CP-NAM section (ChineseAmber, Grassl, Leoti, Rio, PI 229841, etc.)." },
+        { label: "Phylogenetic / comparative overview",
+          desc: "Protein-tree statistics across all SorghumBase species.",
+          audience: ["genomics"], link: ENSEMBL + "/info/genome/compara/prot_tree_stats.html", external: true },
+        { label: "Bulk download (FASTA, GFF3, VCF)",
+          desc: "Genome assemblies, annotations, variation files via FTP.",
+          audience: ["genomics","breeder"], link: FTP, external: true },
+        { label: "Cross-species (maize, rice, other grasses)",
+          desc: "Pivot to Gramene or Phytozome for related species.",
+          audience: ["genomics"], next: "genomes_xspecies" }
+      ]
+    },
+    genomes_ref: {
+      question: "Which reference assembly?",
+      options: [
+        { label: "BTx623 (NCBIv3) — community standard",
+          desc: "The classic reference; 41M-SNP variation track.",
+          audience: ["genomics","breeder"], link: ENSEMBL + "/Sorghum_bicolor/Info/Annotation", external: true },
+        { label: "BTx623 v5.1",
+          desc: "Updated v5.1 assembly of BTx623.",
+          audience: ["genomics"], link: ENSEMBL + "/Sorghum_bicolorv5/Info/Annotation", external: true },
+        { label: "Tx430",
+          desc: "Sweet sorghum / important breeding line.",
+          audience: ["breeder","genomics"], link: ENSEMBL + "/Sorghum_tx430nano/Info/Annotation", external: true },
+        { label: "Tx436",
+          desc: "Chromosome-scale assembly.",
+          audience: ["breeder","genomics"], link: ENSEMBL + "/Sorghum_tx436pac/Info/Annotation", external: true },
+        { label: "Tx2783",
+          desc: "Chromosome-scale assembly (Wang et al.).",
+          audience: ["breeder","genomics"], link: ENSEMBL + "/Sorghum_tx2783pac/Info/Annotation", external: true },
+        { label: "See the full species table",
+          desc: "All assemblies including additional founders and CP-NAM.",
+          audience: ["genomics"], link: ENSEMBL + "/species.html", external: true }
+      ]
+    },
+    genomes_xspecies: {
+      question: "Which related-species resource?",
+      options: [
+        { label: "Gramene — comparative plant genomics",
+          desc: "Cross-species views, pathways, expression for grasses.",
+          audience: ["genomics"], link: "http://www.gramene.org", external: true },
+        { label: "JGI Phytozome (Sorghum bicolor)",
+          desc: "DOE plant genome portal entry for sorghum.",
+          audience: ["genomics"], link: "https://phytozome.jgi.doe.gov/pz/portal.html#!info?alias=Org_Sbicolor", external: true },
+        { label: "MaizeGDB — sister-crop reference",
+          desc: "Useful for translating maize hypotheses to sorghum.",
+          audience: ["breeder","genomics"], link: "https://www.maizegdb.org/", external: true }
+      ]
+    },
+
+    germplasm: {
+      question: "What kind of germplasm are you looking for?",
+      options: [
+        { label: "Reference accessions",
+          desc: "BTx623, Rio, Tx430, Tx436, Tx2783 — pages with metadata and links.",
+          audience: ["breeder"], next: "germ_ref" },
+        { label: "Diversity / association panels",
+          desc: "SAP, BAP, World Core, Mini Core, Nigerian Diversity Panel, etc.",
+          audience: ["breeder","genomics"], next: "germ_panels" },
+        { label: "EMS / NAM mutant populations",
+          desc: "Mutagenized and bi-parental populations for trait mapping.",
+          audience: ["breeder","genomics"], next: "germ_ems_nam" },
+        { label: "Find seed sources (request seed)",
+          desc: "GRIN-Global is the USDA germplasm request portal.",
+          audience: ["breeder"], link: "https://npgsweb.ars-grin.gov/gringlobal/search.aspx", external: true }
+      ]
+    },
+    germ_ref: {
+      question: "Which reference accession?",
+      options: [
+        { label: "BTx623 (PI 564163)", desc: "Community reference inbred.",
+          audience: ["breeder"], link: r("/accession/btx623") },
+        { label: "Rio (PI 651496)", desc: "Sweet-stem reference.",
+          audience: ["breeder"], link: r("/accession/rio") },
+        { label: "Tx430 (PI 655996)", desc: "Grain-type elite line.",
+          audience: ["breeder"], link: r("/accession/rtx430") },
+        { label: "Tx436 (PI 561071)", desc: "Chromosome-scale reference assembly.",
+          audience: ["breeder"], link: r("/accession/rtx436") },
+        { label: "Tx2783 (PI 656001)", desc: "Chromosome-scale reference assembly.",
+          audience: ["breeder"], link: r("/accession/tx2783") }
+      ]
+    },
+    germ_panels: {
+      question: "Which association panel?",
+      options: [
+        { label: "Sorghum Association Panel (SAP)", desc: "Core diversity panel; 234-trait GWAS meta-analysis available.",
+          audience: ["breeder","genomics"], link: r("/population/sap") },
+        { label: "Bioenergy Association Panel (BAP)", desc: "Biomass and bioenergy traits.",
+          audience: ["breeder"], link: r("/population/bap") },
+        { label: "World Core Collection", desc: "Globally representative diversity.",
+          audience: ["breeder","genomics"], link: r("/population/world-core") },
+        { label: "Mini Core Collection", desc: "Compact representative subset.",
+          audience: ["breeder","genomics"], link: r("/population/mini-core") },
+        { label: "SCP + Exotic parents", desc: "Sorghum Conversion Program plus exotic founders.",
+          audience: ["breeder"], link: r("/population/scp-exotic") },
+        { label: "Expanded SCP Lines", desc: "Extended Sorghum Conversion Program lines.",
+          audience: ["breeder"], link: r("/population/expanded-scp") },
+        { label: "Nigerian Diversity Panel", desc: "African germplasm of interest for African breeding programs.",
+          audience: ["breeder"], link: r("/population/nigeria-div") }
+      ]
+    },
+    germ_ems_nam: {
+      question: "Which mutant or NAM population?",
+      options: [
+        { label: "Xin EMS", desc: "EMS-mutagenized population (Xin lab).",
+          audience: ["breeder","genomics"], link: r("/population/xin-ems") },
+        { label: "Weil EMS", desc: "EMS-mutagenized population (Weil lab).",
+          audience: ["breeder","genomics"], link: r("/population/weil-ems") },
+        { label: "Klein BC-NAM", desc: "Backcross NAM (Klein).",
+          audience: ["breeder"], link: r("/population/klein-nam") },
+        { label: "Kresovich NAM", desc: "NAM panel (Kresovich).",
+          audience: ["breeder"], link: r("/population/kresovich-nam") },
+        { label: "Mace BC-NAM", desc: "Backcross NAM (Mace).",
+          audience: ["breeder"], link: r("/population/mace-nam") }
+      ]
+    },
+
+    variants: {
+      question: "What kind of variant data?",
+      options: [
+        { label: "Browse SNPs in BTx623 (41M-SNP track)",
+          desc: "Open the genome browser and turn on the variation tracks.",
+          audience: ["genomics","breeder"], link: ENSEMBL + "/Sorghum_bicolor/Info/Annotation", external: true },
+        { label: "GWAS hits across the SAP",
+          desc: "Meta-analysis of 234 traits on 406 SAP accessions, viewable in the browser.",
+          audience: ["breeder","genomics"], link: r("/population/sap") },
+        { label: "EMS-induced mutations (forward / reverse genetics)",
+          desc: "Find mutant lines hitting your gene of interest.",
+          audience: ["breeder","genomics"], next: "germ_ems_nam" },
+        { label: "Predict the effect of a variant (VEP)",
+          desc: "Variant Effect Predictor against the reference annotation.",
+          audience: ["genomics"], link: r("/VEP") },
+        { label: "Loss-of-function germplasm for a specific gene",
+          desc: "Use the Germplasm tab on a gene page in /genes.",
+          audience: ["breeder","genomics"], link: r("/genes") },
+        { label: "Bulk VCFs",
+          desc: "Download variation files from FTP.",
+          audience: ["genomics"], link: FTP, external: true }
+      ]
+    },
+
+    expression: {
+      question: "What kind of expression data?",
+      options: [
+        { label: "Expression on a gene page",
+          desc: "Open /genes, find the gene, and look at the Expression tab.",
+          audience: ["genomics"], link: r("/genes") },
+        { label: "NCBI GEO sorghum datasets",
+          desc: "Curated raw and processed expression studies.",
+          audience: ["genomics"], link: "https://www.ncbi.nlm.nih.gov/gds", external: true },
+        { label: "Morokoshi sorghum transcriptome",
+          desc: "RIKEN's sorghum transcriptome resource.",
+          audience: ["genomics"], link: "http://sorghum.riken.jp/morokoshi/Home.html", external: true },
+        { label: "Grassius — TF expression / regulation",
+          desc: "Grass transcription factor database.",
+          audience: ["genomics"], link: "http://grassius.org/grasstfdb.php", external: true }
+      ]
+    },
+
+    research: {
+      question: "What kind of research content?",
+      options: [
+        { label: "Search all publications",
+          desc: "Peer-reviewed sorghum literature indexed at SorghumBase.",
+          audience: ["breeder","genomics"], link: r("/publications") },
+        { label: "Curated research highlights",
+          desc: "Editor-selected papers with summaries.",
+          audience: ["breeder","genomics"], link: r("/posts?categories=research-highlights") },
+        { label: "Special topics",
+          desc: "In-depth thematic posts (e.g. drought, biomass).",
+          audience: ["breeder","genomics"], link: r("/posts?categories=topics") },
+        { label: "Funded projects",
+          desc: "Active and past sorghum research projects.",
+          audience: ["breeder","genomics"], link: r("/projects") },
+        { label: "How to cite SorghumBase",
+          desc: "SorghumBase reference papers.",
+          audience: ["breeder","genomics"], link: r("/publications?q=sorghumbase") }
+      ]
+    },
+
+    learn: {
+      question: "What's the best way for you to learn?",
+      options: [
+        { label: "Quick guides & tutorials",
+          desc: "Short how-tos for common tasks.",
+          audience: ["breeder","genomics"], link: r("/guides") },
+        { label: "Video tutorials",
+          desc: "Recorded walkthroughs of the major tools.",
+          audience: ["breeder","genomics"], link: r("/videos") },
+        { label: "FAQ",
+          desc: "Frequently asked questions.",
+          audience: ["breeder","genomics"], link: r("/faq") },
+        { label: "Release notes",
+          desc: "What changed between SorghumBase versions.",
+          audience: ["genomics"], link: r("/relnotes") },
+        { label: "Newsletters",
+          desc: "Past community newsletters in the FTP archive.",
+          audience: ["breeder","genomics"], link: FTP + "/outreach/newsletters/", external: true }
+      ]
+    },
+
+    engage: {
+      question: "How would you like to connect?",
+      options: [
+        { label: "Subscribe to the mailing list",
+          desc: "Updates, releases, calls for feedback.",
+          audience: ["breeder","genomics"], link: r("/mailing_list") },
+        { label: "Contact the team",
+          desc: "Question, bug report, or collaboration inquiry.",
+          audience: ["breeder","genomics"], link: r("/contact") },
+        { label: "Meetings & events",
+          desc: "Workshops, webinars, and community meetings.",
+          audience: ["breeder","genomics"], link: r("/events") },
+        { label: "SICNA conference proceedings",
+          desc: "Sorghum Improvement Conference of North America.",
+          audience: ["breeder","genomics"], next: "engage_sicna" },
+        { label: "News & announcements",
+          desc: "Blog-style updates from SorghumBase.",
+          audience: ["breeder","genomics"], link: r("/posts?categories=news,research-highlights") },
+        { label: "Meet the team",
+          desc: "Who's behind SorghumBase.",
+          audience: ["breeder","genomics"], link: r("/people") }
+      ]
+    },
+    engage_sicna: {
+      question: "Which conference proceedings?",
+      options: [
+        { label: "SICNA 2024", desc: "Most recent abstracts and program.",
+          audience: ["breeder","genomics"], link: r("/conferences?conference=sicna-2024") },
+        { label: "SICNA 2022", desc: "Previous SICNA meeting.",
+          audience: ["breeder","genomics"], link: r("/conferences?conference=sicna-2022") }
+      ]
+    }
+  };
+
+  /* ============================================================
+     Renderer
+     ============================================================ */
+  var state = { path: ["root"] };
+
+  var $question = document.getElementById("sb-question");
+  var $options = document.getElementById("sb-options");
+  var $crumb = document.getElementById("sb-breadcrumb");
+  var $back = document.getElementById("sb-back");
+  var $restart = document.getElementById("sb-restart");
+  var $summaryHost = document.getElementById("sb-summary-host");
+
+  function audienceLabel(a) {
+    if (a === "breeder") return "For breeders";
+    if (a === "genomics") return "For genomics research";
+    return a;
+  }
+  function audienceClass(a) {
+    if (a === "breeder") return "tag-breeder";
+    if (a === "genomics") return "tag-genomics";
+    return "";
+  }
+  function findOptionLabel(parentId, childId) {
+    var parent = TREE[parentId];
+    if (!parent) return null;
+    var opt = parent.options.find(function (o) { return o.next === childId; });
+    return opt ? opt.label : null;
+  }
+
+  function render() {
+    var currentId = state.path[state.path.length - 1];
+    var node = TREE[currentId];
+    if (!node) return;
+
+    $crumb.innerHTML = "";
+    state.path.forEach(function (nid, idx) {
+      var isLast = idx === state.path.length - 1;
+      var label = idx === 0 ? "Start" : (findOptionLabel(state.path[idx - 1], nid) || nid);
+      if (isLast) {
+        var span = document.createElement("span");
+        span.className = "crumb-current";
+        span.textContent = label;
+        $crumb.appendChild(span);
+      } else {
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = label;
+        btn.addEventListener("click", function () {
+          state.path = state.path.slice(0, idx + 1);
+          render();
+        });
+        $crumb.appendChild(btn);
+        var sep = document.createElement("span");
+        sep.className = "crumb-sep";
+        sep.textContent = "›";
+        $crumb.appendChild(sep);
+      }
+    });
+
+    $back.disabled = state.path.length === 1;
+
+    $question.textContent = node.question;
+    $options.innerHTML = "";
+    node.options.forEach(function (opt) {
+      var isLeaf = !!opt.link;
+      var el = isLeaf ? document.createElement("a") : document.createElement("button");
+      el.className = "sb-card" + (isLeaf ? " is-leaf" : "");
+      if (isLeaf) {
+        el.href = opt.link;
+        el.target = opt.external ? "_blank" : "_self";
+        if (opt.external) el.rel = "noopener noreferrer";
+        el.dataset.external = opt.external ? "true" : "false";
+      } else {
+        el.type = "button";
+        el.addEventListener("click", function () {
+          state.path.push(opt.next);
+          render();
+        });
+      }
+
+      var title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = opt.label;
+      el.appendChild(title);
+
+      var desc = document.createElement("div");
+      desc.className = "card-desc";
+      desc.textContent = opt.leafNote ? (opt.desc + " " + opt.leafNote) : opt.desc;
+      el.appendChild(desc);
+
+      var meta = document.createElement("div");
+      meta.className = "card-meta";
+      (opt.audience || []).forEach(function (a) {
+        var tag = document.createElement("span");
+        tag.className = "sb-tag " + audienceClass(a);
+        tag.textContent = audienceLabel(a);
+        meta.appendChild(tag);
+      });
+      if (opt.external) {
+        var tag = document.createElement("span");
+        tag.className = "sb-tag tag-external";
+        tag.textContent = "External";
+        meta.appendChild(tag);
+      }
+      el.appendChild(meta);
+      $options.appendChild(el);
+    });
+
+    $summaryHost.innerHTML = "";
+    if (currentId === "root") {
+      var s = document.createElement("div");
+      s.className = "sb-summary";
+      s.innerHTML = "Tip: tags below show which audience an option is most useful for &mdash; "
+        + "<span class='sb-tag tag-breeder'>For breeders</span> "
+        + "<span class='sb-tag tag-genomics'>For genomics research</span>. "
+        + "Most paths work for both.";
+      $summaryHost.appendChild(s);
+    }
+  }
+
+  $back.addEventListener("click", function () {
+    if (state.path.length > 1) { state.path.pop(); render(); }
+  });
+  $restart.addEventListener("click", function () {
+    state.path = ["root"]; render();
+  });
+
+  render();
+})();
+</script>
+
+{% endblock %}
