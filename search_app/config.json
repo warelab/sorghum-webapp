@@ -33,7 +33,8 @@
     list: 'on',
     help: 'off',
     attribs: 'disabled',
-    exprViz: 'off'
+    exprViz: 'off',
+    gsea: 'off'
   },
   "partialCompara": true,
   details: {
