@@ -34,7 +34,7 @@
     help: 'off',
     attribs: 'disabled',
     exprViz: 'off',
-    gsea: 'off'
+    ontologyEnrichment: 'off'
   },
   "partialCompara": true,
   details: {
