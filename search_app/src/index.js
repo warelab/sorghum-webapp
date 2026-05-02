@@ -1,5 +1,9 @@
 import React from 'react'
-import { render } from 'react-dom'
+import { createRoot } from 'react-dom/client'
+const render = (component, container) => {
+  createRoot(container).render(component);
+  return true;
+};
 import getStore from './bundles'
 import cache from './utils/cache'
 import ReactGA from 'react-ga4'

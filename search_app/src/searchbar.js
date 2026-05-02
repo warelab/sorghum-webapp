@@ -1,4 +1,7 @@
-import { render } from 'react-dom'
+import { createRoot } from 'react-dom/client'
+const render = (component, container) => {
+  createRoot(container).render(component);
+};
 import getStore from './bundles'
 import cache from './utils/cache'
 import SearchBar from './components/searchbar'
