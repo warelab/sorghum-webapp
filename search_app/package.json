@@ -15,10 +15,10 @@
     "ag-grid-react": "^31.3.1",
     "axios": "^0.21.1",
     "formik": "^3.0.0-next.8",
-    "gramene-alerts": "^1.0.2",
-    "gramene-mdview": "^2.0.6",
+    "gramene-alerts": "^1.0.3",
+    "gramene-mdview": "^2.0.8",
     "gramene-search": "^2.1.1",
-    "gramene-videos": "^1.0.5",
+    "gramene-videos": "^1.0.6",
     "he": "^1.2.0",
     "is-email": "^1.0.0",
     "lodash": "^4.17.15",
@@ -35,7 +35,7 @@
     "react-simple-maps": "^3.0.0",
     "redux-bundler": "^21.0.0",
     "redux-bundler-react": "^1.2.0",
-    "sorghum-search": "^1.1.40",
+    "sorghum-search": "^1.1.42",
     "yup": "^0.32.9"
   },
   "prettier": {
