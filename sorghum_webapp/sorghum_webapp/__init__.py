@@ -60,6 +60,7 @@ def register_blueprints(app=None):
 # 	from .controllers.abstracts import abstracts_list
 	from .controllers.abstract import abstract_page
 	from .controllers.clear_wp_cache import clear_wp_cache_page
+	from .controllers.wp_cache import wp_cache_page
 
 	# from .controllers.VEP import VEP_entry_page, VEP_source_page, VEP_page
 
@@ -106,6 +107,7 @@ def register_blueprints(app=None):
 	app.register_blueprint(abstract_page)
 	app.register_blueprint(search_api)
 	app.register_blueprint(clear_wp_cache_page)
+	app.register_blueprint(wp_cache_page)
 
 	# app.register_blueprint(VEP_entry_page)
 	# app.register_blueprint(VEP_source_page)

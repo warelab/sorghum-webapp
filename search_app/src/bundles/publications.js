@@ -1,14 +1,18 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
-import { count, fetchAll } from '../utils/wp_fetch'
+import { countCached, fetchAllCached } from '../utils/wp_fetch'
 import publicationsProgress from './publicationsProgress'
+
+const PUBS_DATA_URL = '/api/wp_cache/publications'
+const PUBS_META_URL = '/api/wp_cache/publications/meta'
+const TAGS_DATA_URL = '/api/wp_cache/tags'
+const TAGS_META_URL = '/api/wp_cache/tags/meta'
 
 const sorghumPublicationsTally = createAsyncResourceBundle({
   name: 'sorghumPublicationsTally',
   actionBaseType: 'SORGHUM_PUBLICATIONS_TALLY',
   persist: false,
   getPromise: ({store}) => {
-    return count(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/scientific_paper`)
-      .then(pubs => pubs)
+    return countCached(PUBS_META_URL)
   }
 });
 sorghumPublicationsTally.reactSorghumPublicationsTally = createSelector(
@@ -27,9 +31,8 @@ const sorghumPublications = createAsyncResourceBundle({
   persist: true,
   getPromise: ({store}) => {
     store.doSetPubProgress(0, 0);
-    return fetchAll(
-      `https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/scientific_paper`,
-      100,
+    return fetchAllCached(
+      PUBS_DATA_URL,
       (loaded, total) => store.doSetPubProgress(loaded, total)
     ).then(pubs => {
       store.doResetPubProgress();
@@ -56,8 +59,7 @@ const sorghumTagsTally = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_TAGS_TALLY',
   persist: false,
   getPromise: ({store}) => {
-    return count(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags`)
-      .then(pubs => pubs)
+    return countCached(TAGS_META_URL)
   }
 });
 sorghumTagsTally.reactSorghumTagsTally = createSelector(
@@ -75,7 +77,7 @@ const sorghumTags = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_TAGS',
   persist: true,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags`)
+    return fetchAllCached(TAGS_DATA_URL)
       .then(tags => {
         let tag2Name = {};
         tags.forEach(tag => { tag2Name[tag.id] = tag.name});

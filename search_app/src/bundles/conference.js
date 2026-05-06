@@ -1,13 +1,13 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
 import _ from 'lodash'
-import { fetchAll } from '../utils/wp_fetch'
+import { fetchAll, fetchAllCached } from '../utils/wp_fetch'
 
 const sorghumConference = createAsyncResourceBundle({
   name: 'sorghumConference',
   actionBaseType: 'SORGHUM_CONFERENCE',
   persist: true,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference`)
+    return fetchAllCached(`/api/wp_cache/conferences`)
       .then(conferences => _.keyBy(conferences, 'slug'))
   }
 });
@@ -32,7 +32,7 @@ const sorghumSessions = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_SESSIONS',
   persist: false,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_session`)
+    return fetchAllCached(`/api/wp_cache/conference_sessions`)
       .then(sessions => sessions.sort(compareStartTime))
   }
 });
@@ -51,7 +51,7 @@ const sorghumAbstracts = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_ABSTRACTS',
   persist: true,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_abstract?orderby=date&order=asc`)
+    return fetchAllCached(`/api/wp_cache/conference_abstracts`)
       .then(abstracts => _.groupBy(abstracts,'session'))
   }
 });
@@ -70,7 +70,7 @@ const sorghumPeople = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_PEOPLE',
   persist: false,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_person`)
+    return fetchAllCached(`/api/wp_cache/conference_people`)
       .then(people => _.keyBy(people,'id'))
   }
 });
@@ -89,7 +89,7 @@ const sorghumOrganizations = createAsyncResourceBundle({
   actionBaseType: 'SORGHUM_ORGANIZATIONS',
   persist: false,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/organization`)
+    return fetchAllCached(`/api/wp_cache/organizations`)
       .then(orgs => _.keyBy(orgs,'id'))
   }
 });
@@ -108,7 +108,7 @@ const sicnaTags = createAsyncResourceBundle({
   actionBaseType: 'SICNA_TAGS',
   persist: false,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags?search=sicna`)
+    return fetchAllCached(`/api/wp_cache/sicna_tags`)
       .then(tags => _.keyBy(tags,'id'))
   }
 });
@@ -126,16 +126,8 @@ const sorghumDocs = {
   name: 'sorghumDocs',
   getReducer: () => {
     const initialState = {
-      media: {},
-      people: {}
+      media: {}
     };
-    const initializeToState = (state, key, payload) => {
-      let newStateInfo = {...state[key]};
-      payload.forEach(id => {
-        if (!state[key].hasOwnProperty(id)) newStateInfo[id] = {};
-      })
-      return newStateInfo;
-    }
     const assignToState = (state, key, items) => {
       let newState = {...state[key]};
       items.forEach(item => {
@@ -146,25 +138,10 @@ const sorghumDocs = {
 
     const reducer = (state = initialState, {type, payload}) => {
       switch (type) {
-        case 'SORGHUM_MEDIA_REQUESTED':
-          return {
-            ...state,
-            media: initializeToState(state, 'media', payload)
-          };
         case 'SORGHUM_MEDIA_RECEIVED':
           return {
             ...state,
             media: assignToState(state, 'media', payload)
-          };
-        case 'SORGHUM_PEOPLE_REQUESTED':
-          return {
-            ...state,
-            people: initializeToState(state, 'people', payload)
-          };
-        case 'SORGHUM_PEOPLE_RECEIVED':
-          return {
-            ...state,
-            people: assignToState(state, 'people', payload)
           };
         default:
           return state;
@@ -176,25 +153,12 @@ const sorghumDocs = {
     const media = store.selectSorghumMedia();
     const idsToFetch = ids.filter(id => !media.hasOwnProperty(id));
     if (idsToFetch.length > 0) {
-      // dispatch({ type: 'SORGHUM_MEDIA_REQUESTED', payload: idsToFetch })
       return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/media?include=${idsToFetch.join(',')}`)
         .then(media => {
           dispatch({ type: 'SORGHUM_MEDIA_RECEIVED', payload: media });
         });
     }
   },
-  doRequestPeople: ids => ({dispatch, store}) => {
-    const people = store.selectSorghumPeople();
-    const idsToFetch = ids.filter(id => !people.hasOwnProperty(id));
-    if (idsToFetch.length > 0) {
-      dispatch({ type: 'SORGHUM_PEOPLE_REQUESTED', payload: idsToFetch })
-      return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/conference_person?include=${idsToFetch.join(',')}`)
-        .then(people => {
-          dispatch({ type: 'SORGHUM_PEOPLE_RECEIVED', payload: people });
-        });
-    }
-  },
-  selectSorghumMedia: state => state.sorghumDocs.media,
-  // selectSorghumPeople: state => state.sorghumDocs.people
+  selectSorghumMedia: state => state.sorghumDocs.media
 }
 export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumPeople,sorghumOrganizations,sicnaTags,sorghumDocs];

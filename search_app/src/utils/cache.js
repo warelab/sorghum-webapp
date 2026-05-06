@@ -12,7 +12,10 @@ import { getConfiguredCache } from 'money-clip'
 // someone loading someone else's cached data.
 //
 // So, there are gotchas, but it sure is cool when you've got it all set up.
+// The server-side cache (controllers/wp_cache.py) gives us a cheap meta
+// endpoint to detect when local data is stale, so we can keep the browser
+// copy around for much longer than the redux-bundler stale window.
 export default getConfiguredCache({
-  maxAge: 1000 * 60 * 60,
+  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
   version: 1
 })

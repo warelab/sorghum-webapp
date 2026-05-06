@@ -1,12 +1,12 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
-import { fetchAll } from '../utils/wp_fetch'
+import { fetchAllCached } from '../utils/wp_fetch'
 
 const sorghumFundedProjects = createAsyncResourceBundle({
   name: 'sorghumFundedProjects',
   actionBaseType: 'SORGHUM_FUNDED_PROJECTS',
   persist: true,
   getPromise: ({store}) => {
-    return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/project`)
+    return fetchAllCached(`/api/wp_cache/projects`)
       .then(projects => projects)
   }
 });
