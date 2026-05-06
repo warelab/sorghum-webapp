@@ -10,8 +10,10 @@ content.sorghumbase.org from the browser. This blueprint exposes:
     GET /api/wp_cache/<resource>/meta     {count, fetched_at} (cached)
 
 Backed by Redis when available, with an in-process fallback so the page
-still works if Redis is down. A short threading.Lock per resource keeps
-expiring entries from triggering a stampede of refills inside one worker.
+still works if Redis is down. Refills are serialized by a Redis-side
+SET-NX lock so concurrent requests across uWSGI workers don't all
+hammer WordPress for the same data; if Redis is unavailable, a
+threading.Lock keeps the in-process fallback path from doing the same.
 """
 
 import flask
@@ -19,6 +21,7 @@ import json
 import logging
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -149,29 +152,96 @@ def _write_cache(resource, items, meta, ttl):
     _mem_cache[resource] = (items, meta)
 
 
+# Atomic compare-and-delete so we only release the lock if we still own it.
+# (TTL might have expired and another worker could now hold the same key.)
+_RELEASE_LOCK_LUA = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] "
+    "then return redis.call('del', KEYS[1]) "
+    "else return 0 end"
+)
+
+# How long any one refill is allowed to take before the lock auto-expires.
+# Must be > the slowest realistic _fetch_all_from_wp() run.
+_LOCK_TTL_SECONDS = 120
+_LOCK_POLL_SECONDS = 0.5
+_LOCK_WAIT_BUDGET = _LOCK_TTL_SECONDS + 30
+
+
+def _do_fetch_and_store(resource, ttl):
+    entry = RESOURCES[resource]
+    logger.info("wp_cache: refreshing %s from WordPress", resource)
+    t0 = time.time()
+    items, total = _fetch_all_from_wp(entry)
+    meta = {
+        "count": len(items),
+        "fetched_at": time.time(),
+        "wp_total": total,
+        "fetch_seconds": round(time.time() - t0, 2),
+    }
+    _write_cache(resource, items, meta, ttl)
+    return items, meta
+
+
+def _refresh_with_redis_lock(resource, ttl, rds):
+    """Cross-worker serialization. Whoever wins SET-NX fills the cache;
+    everyone else polls until the data shows up, then returns it."""
+    lock_key = f"wp_cache:{resource}:lock"
+    token = uuid.uuid4().hex
+    deadline = time.time() + _LOCK_WAIT_BUDGET
+
+    while True:
+        try:
+            acquired = rds.set(lock_key, token, nx=True, ex=_LOCK_TTL_SECONDS)
+        except Exception as e:
+            logger.warning("wp_cache: lock acquire failed (%s); fetching unguarded", e)
+            return _do_fetch_and_store(resource, ttl)
+
+        if acquired:
+            try:
+                # Re-check in case the previous holder finished between our
+                # initial cache read and our SET-NX win.
+                items, meta = _read_cache(resource, ttl)
+                if items is not None:
+                    return items, meta
+                return _do_fetch_and_store(resource, ttl)
+            finally:
+                try:
+                    rds.eval(_RELEASE_LOCK_LUA, 1, lock_key, token)
+                except Exception:
+                    pass
+
+        # Lock held by another worker. Wait for the cache to be populated.
+        time.sleep(_LOCK_POLL_SECONDS)
+        items, meta = _read_cache(resource, ttl)
+        if items is not None:
+            return items, meta
+        if time.time() > deadline:
+            logger.warning(
+                "wp_cache: gave up waiting on lock for %s after %ss; fetching unguarded",
+                resource, _LOCK_WAIT_BUDGET,
+            )
+            return _do_fetch_and_store(resource, ttl)
+
+
+def _refresh_with_thread_lock(resource, ttl):
+    """Fallback when Redis is unavailable: serialize within this worker only."""
+    with _resource_lock(resource):
+        items, meta = _read_cache(resource, ttl)
+        if items is not None:
+            return items, meta
+        return _do_fetch_and_store(resource, ttl)
+
+
 def _get_or_refresh(resource):
     ttl = int(app.config.get("WP_CACHE_TTL", 3600))
     items, meta = _read_cache(resource, ttl)
     if items is not None:
         return items, meta
 
-    with _resource_lock(resource):
-        items, meta = _read_cache(resource, ttl)
-        if items is not None:
-            return items, meta
-
-        entry = RESOURCES[resource]
-        logger.info("wp_cache: refreshing %s from WordPress", resource)
-        t0 = time.time()
-        items, total = _fetch_all_from_wp(entry)
-        meta = {
-            "count": len(items),
-            "fetched_at": time.time(),
-            "wp_total": total,
-            "fetch_seconds": round(time.time() - t0, 2),
-        }
-        _write_cache(resource, items, meta, ttl)
-        return items, meta
+    rds = _get_redis()
+    if rds:
+        return _refresh_with_redis_lock(resource, ttl, rds)
+    return _refresh_with_thread_lock(resource, ttl)
 
 
 def _invalidate(resource):
