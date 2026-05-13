@@ -122,7 +122,7 @@ cache.getAll().then(initialData => {
   element && render(WorkingGroups(store), element) && console.log('rendered sorghumbase-working-groups')
 
   element = document.getElementById('sorghumbase-funded-projects');
-  element && render(FundedProjects(store), element) && console.log('rendered sorghumbase-funded-projects')
+  element && render(<FundedProjects />, element) && console.log('rendered sorghumbase-funded-projects')
 
   element = document.getElementById('sorghumbase-alerts');
   element && render(Alerter(), element) && console.log('rendered alerter')

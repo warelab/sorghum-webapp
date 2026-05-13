@@ -38,10 +38,16 @@ logger = logging.getLogger("sorghumbase")
 
 wp_cache_page = flask.Blueprint("wp_cache_page", __name__)
 
-# Resource name in our URL -> { path, params? }
-# `params` holds fixed query args baked into the cache key (e.g. a
-# server-side filter or a stable sort). Per-page/skip_cache are added
-# automatically at fetch time.
+# Resource name in our URL -> entry describing how to refill the cache.
+# Two flavors:
+#   { "path": "<wp_rest_path>", "params"?: {...} }
+#       Page through a single WP REST endpoint. `params` holds fixed
+#       query args baked into the cache key.
+#   { "builder": callable() -> json_serializable }
+#       Run a custom Python function (e.g. multi-query aggregations like
+#       /api/people). The return value is stored as-is.
+# Builder entries are typically registered from their owning controller
+# module after import (see controllers/people.py).
 RESOURCES = {
     "publications":         {"path": "scientific_paper"},
     "tags":                 {"path": "tags"},
@@ -172,13 +178,22 @@ def _do_fetch_and_store(resource, ttl):
     entry = RESOURCES[resource]
     logger.info("wp_cache: refreshing %s from WordPress", resource)
     t0 = time.time()
-    items, total = _fetch_all_from_wp(entry)
+    if "builder" in entry:
+        items = entry["builder"]()
+        total = None
+    else:
+        items, total = _fetch_all_from_wp(entry)
+    try:
+        count = len(items)
+    except TypeError:
+        count = 0
     meta = {
-        "count": len(items),
+        "count": count,
         "fetched_at": time.time(),
-        "wp_total": total,
         "fetch_seconds": round(time.time() - t0, 2),
     }
+    if total is not None:
+        meta["wp_total"] = total
     _write_cache(resource, items, meta, ttl)
     return items, meta
 

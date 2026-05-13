@@ -3,9 +3,9 @@ import { getConfiguredCache } from 'money-clip'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
-const peopleCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2 })
+const peopleCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3 })
 
-const PEOPLE_URL = '/api/people'
+const PEOPLE_URL = '/api/wp_cache/people'
 
 const SECTIONS = [
   { key: 'team', heading: 'Sorghumbase Team', anchor: 'team', showOrg: false },

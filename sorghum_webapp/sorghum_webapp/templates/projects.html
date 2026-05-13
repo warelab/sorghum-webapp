@@ -6,11 +6,8 @@
   (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({
     key: "AIzaSyBM9lr_SnZTIn5sAVC8V_jHSJuE3KA4W1A",
     v: "weekly",
-    // Use the 'v' parameter to indicate the version to use (weekly, beta, alpha, etc.).
-    // Add other bootstrap parameters as needed, using camel case.
   });
 </script>
-
 {% endblock %}
 {% block content %}
 
@@ -22,115 +19,12 @@
       </div>
     </div>
   </div>
-</div><!--page title end-->
-<!--<div class="container" id="sorghumbase-funded-projects"></div>-->
-
-<div class="container pt90">
-  <div id="funding_map"></div>
-  <div class="input-group mb-3">
-    <div class="input-group-prepend">
-      <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
-    </div>
-    <input id="funding_search" onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
-  </div>
-    <table id="projects_tbl" class="table table-hover table-bordered">
-        <thead class="thead-light"></thead>
-        <tbody></tbody>
-    </table>
 </div>
-{% endblock %}
-{% block script_below_content %}
-function reformatDates(ymd_str1,ymd_str2) {
-  const ymd1 = ymd_str1.split('-');
-  const ymd2 = ymd_str2.split('-');
-  return `${ymd1[1]}/${ymd1[0]} to ${ymd2[1]}/${ymd2[0]}`;
-}
-function dateSorter(date1, date2) {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
-  return d1 - d2; // For ascending order; use d2 - d1 for descending
-}
 
-var tableData = [
-{% for p in projects %}
-{ "funding_agency": "{{p.funding_agency}}", "funding_program": "{{p.funding_program}}", "funding_subcategory": "{{p.funding_subcategory}}",
-  "funding_link": "{{p.funding_link}}",
-  "award_id": "{{p.award_id}}",
-  "project_title": "{{p.project_title | title}}",
-  "dates": reformatDates("{{p.start_date}}","{{p.end_date}}"),
-  "start_date": "{{p.start_date | safe}}",
-  "end_date": "{{p.end_date | safe}}",
-  "pi": {{p.pi | safe}}.join(','),
-  "orgs": {{p.organizations | safe}},
-  "orgstr": {{p.organizations | safe}}.map(o=>o.post_title).join(' '),
-  "slug": "{{p.slug}}",
-  "id": {{p.id}}
-},
-{% endfor %}
-];
-var places = {};
-tableData.forEach(item => item.orgs.forEach(o => places[o.plus_code]=o));
-initMap();
-var agencies = {};
-var programs = {};
-var categories = {};
-tableData.forEach(p => {agencies[p.funding_agency]++; programs[p.funding_program]++; categories[p.funding_subcategory]++;});
-var myDataTable = FathGrid("projects_tbl",{
-editable:false,filterable:true,showGrouping:false,
-columns:[
-{name:'pi',header:'PI(s)',editable:false, filterable:false },
-{name:'orgs',header:'Organizations',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' ')
-// ,html:item => {lis = item.orgs.map(o => `<li><a target=_blank href="https://plus.codes/${o.plus_code}">${o.post_title}</a></li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}
-},
-{name:'project_title',editable:false, width:'550px', header:'Project Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/project/${item.slug}">${item.project_title}</a></span>`}},
-// {name:'dates',header:'Dates',editable:false,type:'date', filterable:false},
-{name:'start_date',header:'Start Date',type:'date',editable:false, filterable:false, sort: dateSorter },
-// {name:'end_date',header:'End',type:'date',editable:false, filterable:false, sort: dateSorter },
-{name:'funding_agency',header:'Funding Agency',editable:false, filterable:true, filter:Object.keys(agencies).sort((a,b) => agencies[b] - agencies[b])},
-{name:'funding_program',header:'Program',editable:false, filterable:true, filter:Object.keys(programs).sort((a,b) => programs[b] - programs[b])},
-{name:'funding_subcategory',visible:false,header:'Category',editable:false, filterable:true, filter:Object.keys(categories).sort((a,b) => categories[b] - categories[b])},
-{name:'award_id',header:'Award ID',editable:false,html:function(item){return `<a class="btn-link btn" target=_blank href="${item.funding_link}">${item.award_id}</a>`}, filterable:false},
-{name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
-{name:'orgstr',visible:false,editable:false,filterable:false,header:'idx'}
-],
-data:tableData});
+{# The funding map, search input, and FathGrid table are rendered by the
+   FundedProjects react component (see search_app/src/components/fundedProjects.js).
+   It fetches /api/wp_cache/projects and caches the payload in money-clip
+   for 24 hours. #}
+<div id="sorghumbase-funded-projects"></div>
 
-let funding_map;
-  // This function initializes the map.
-  async function initMap() {
-    const { Map, InfoWindow } = await google.maps.importLibrary("maps");
-    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-    const mapElement = document.getElementById('funding_map');
-      // Create a new map centered on a specific location.
-      funding_map = new Map(mapElement, {
-        center: { lat: 39.197437, lng:-96.58468840 },
-        zoom: 4, // Adjust the zoom level as needed
-        mapId: "SB_FUNDING_MAP"
-      });
-      const infoWindow = new InfoWindow();
-      // Loop through the Plus Codes and create markers for each location.
-<!--    var gc = new google.maps.Geocoder;-->
-      for(const [plusCode, place] of Object.entries(places)) {
-        // Extract latitude and longitude from the Plus Code.
-        fetch(`https://data.gramene.org/google_api/geocode/${plusCode}`).then(res => res.json()).then(res => {
-          var location = res.geometry.location;
-          var marker = new AdvancedMarkerElement({
-              position: location,
-              map: funding_map,
-              title: place.post_title
-          });
-          // Add a click listener for each marker, and set up the info window
-          marker.addListener("click", ({ domEvent, latLng }) => {
-            const { target } = domEvent;
-            content = document.createElement("div");
-            content.innerHTML = `
-<h5>${marker.title}</h5><button class="btn-link btn" onclick="document.getElementById('funding_search').value='${marker.title}';myDataTable.search('${marker.title}')">Filter Projects</button>
-`;
-            infoWindow.close();
-            infoWindow.setContent(content);
-            infoWindow.open(marker.map, marker);
-          });
-        });
-      }
-    }
 {% endblock %}
