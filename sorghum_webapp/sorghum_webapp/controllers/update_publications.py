@@ -1,181 +1,454 @@
 #!/usr/bin/python
 
-# from flask import request #, make_response
+''' Maintenance UI: enrich draft scientific_paper posts from PubMed and
+publish selected ones.
+
+GET /update_publications scans WordPress for `scientific_paper` posts in
+`draft` status. For each draft whose only seed data is a `pubmed_id`,
+it looks up the enriched payload in a Redis-backed cache keyed by
+pubmed_id, fetching from PubMed only on cache miss. The rendered page
+shows a checkbox per candidate. The admin selects rows and submits the
+form to POST /update_publications/publish, which applies the cached
+enrichment to each chosen draft, sets status=publish, and PUTs the
+result back to WordPress. No WordPress writes happen on GET.
+'''
+
+import json
+import logging
+import os
+import threading
 
 import flask
-import logging
-import json
-import math
-from flask import request, render_template
-from wordpress_orm import wp_session
-from wordpress_orm.entities.tag import Tag, TagRequest
-from ..wordpress_orm_extensions.scientific_paper import ScientificPaperRequest
+from flask import request, render_template, redirect
+from requests.auth import HTTPBasicAuth
+from wordpress_orm.entities.tag import Tag
 
+from ..wordpress_orm_extensions.scientific_paper import ScientificPaperRequest
 from ..utilities.pubmedIDpull import getMetaData
 
 from .. import app
 from .. import wordpress_api as api
-#from .. import wordpress_orm_logger as wp_logger
 from . import valueFromRequest
 from .navbar import navbar_template
-from .footer import populate_footer_template
 from .local_media import local_banner
+from .wp_cache import _get_redis, _invalidate as _wp_cache_invalidate, _get_or_refresh as _wp_cache_get
 
-#logger = logging.getLogger("wordpress_orm")
-wp_logger = logging.getLogger("wordpress_orm")
-app_logger = logging.getLogger("sorghumbase")
+logger = logging.getLogger("sorghumbase")
 
 update_publications_page = flask.Blueprint("update_publications_page", __name__)
 
-def getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include):
-    print("getPapers",current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include)
-    updatedPapers = []
-    while show_all and per_page * (current_page-1) < paper_tally :
-        updatedPapers += getPapers(current_page, per_page, paper_tally, tag_filter, before, after, False, force_update, include)
-        current_page = current_page + 1
-    if not show_all:
-        paper_request = ScientificPaperRequest(api=api)
-        if tag_filter:
-            paper_request.tags = tag_filter
-        if before:
-            paper_request.before= before
-        if after:
-            paper_request.after= after
-        if include:
-            paper_request.include= include
-        paper_request.per_page = per_page
-        paper_request.page = current_page
-        paper_request.status = "draft"
-        page_of_papers = paper_request.get()
-        queryPubmed = []
-        for p in page_of_papers :
-            if len(p.s.pubmed_id) > 0 and (force_update or len(p.s.content) == 0) :
-               queryPubmed.append(p)
-            else :
-               updatedPapers.append(p)
+DRAFT_PAGE_SIZE = 100
+PUBMED_BATCH = 100
 
-        if len(queryPubmed) > 0:
-            info = getMetaData(queryPubmed)
+# Redis hash storing enrichment payloads keyed by pubmed_id. One TTL on
+# the whole hash; HSETs implicitly refresh it via _cache_set.
+ENRICHMENT_HASH = "wp_cache:pubmed_enrichment"
+ENRICHMENT_TTL_SECONDS = 24 * 3600
 
-            for paper in info:
-                if not len(paper.s.paper_authors) == 0 :
-                    paper.s.content = paper.s.abstract + "\n" + paper.s.paper_authors
-                    if paper.s.keywords != "No keywords in Pubmed":
-                        paper.s.content += "\n" + paper.s.keywords
-                        paper_tags = []
-                        kwl = paper.s.keywords.split(',')
-                        kwd = [w.strip() for w in kwl]
-                        for keyword in kwd:
-                            new_tag = Tag(api=api)
-                            new_tag.s.name = keyword
-                            tag_id = str(new_tag.post)
-                            paper_tags.append(tag_id)
-                            paper.s.tags = ', '.join(paper_tags)
-                    paper.s.content += "\n" + paper.s.pubmed_id
-                    if paper.s.doi:
-                        paper.s.content += "\n" + paper.s.doi
-                    print("calling paper.update()")
-                    paper.update()
-                    print("updated paper", paper.s.pubmed_id, paper.s.title)
-                    updatedPapers.append(paper)
-                else :
-                    updatedPapers.append(paper)
-                    print("pubmed found no authors for",paper.s.pubmed_id)
-    return updatedPapers
+# In-process fallback if Redis is unavailable.
+_mem_enrichments = {}
+_mem_lock = threading.Lock()
 
-WAY_MORE_THAN_WE_WILL_EVER_HAVE = 100
+# Detailed error strings from the most recent publish run, shown once on
+# the next GET. Counts also flow via query params; this carries the text.
+_last_publish_errors = []
+_last_publish_lock = threading.Lock()
+
+
+def _ensure_wp_auth():
+    ''' paper.update() PUTs to WordPress and requires authentication. The
+    global auth block in __init__.py only fires when SB_WP_* *and*
+    MANTIS_* are all configured; fill in basic auth from SB_WP_* on
+    demand so this endpoint works in dev environments. '''
+    if getattr(api, "authenticator", None) is not None:
+        return
+    username = os.environ.get("SB_WP_USERNAME")
+    password = os.environ.get("SB_WP_PASSWORD")
+    if username and password:
+        api.authenticator = HTTPBasicAuth(username, password)
+
+
+def _cache_get(pubmed_id):
+    rds = _get_redis()
+    if rds:
+        try:
+            raw = rds.hget(ENRICHMENT_HASH, pubmed_id)
+            if raw:
+                return json.loads(raw)
+        except Exception as e:
+            logger.warning("update_publications: redis hget failed (%s); using memory", e)
+    with _mem_lock:
+        return _mem_enrichments.get(pubmed_id)
+
+
+def _cache_set(pubmed_id, payload):
+    rds = _get_redis()
+    if rds:
+        try:
+            rds.hset(ENRICHMENT_HASH, pubmed_id, json.dumps(payload))
+            rds.expire(ENRICHMENT_HASH, ENRICHMENT_TTL_SECONDS)
+        except Exception as e:
+            logger.warning("update_publications: redis hset failed (%s); using memory", e)
+    with _mem_lock:
+        _mem_enrichments[pubmed_id] = payload
+
+
+def _cache_del(pubmed_id):
+    rds = _get_redis()
+    if rds:
+        try:
+            rds.hdel(ENRICHMENT_HASH, pubmed_id)
+        except Exception:
+            pass
+    with _mem_lock:
+        _mem_enrichments.pop(pubmed_id, None)
+
+
+def _serialize_enrichment(paper, status, error=None):
+    ''' Capture the fields getMetaData populates so /publish can apply
+    them without re-hitting PubMed. '''
+    return {
+        "status": status,  # "ready" | "no_authors" | "error"
+        "error": error,
+        "wp_id": paper.s.id,
+        "pubmed_id": paper.s.pubmed_id or "",
+        "title": paper.s.title or "",
+        "abstract": paper.s.abstract or "",
+        "paper_authors": paper.s.paper_authors or "",
+        "source_url": paper.s.source_url or "",
+        "doi": paper.s.doi or "",
+        "journal": paper.s.journal or "",
+        "publication_date": paper.s.publication_date or "",
+        "date": paper.s.date or "",
+        "keywords": paper.s.keywords or "",
+        "affiliations": paper.s.affiliations or [],
+        "funding_agencies": paper.s.funding_agencies or [],
+    }
+
+
+def _fetch_all_drafts():
+    drafts = []
+    page = 1
+    while True:
+        req = ScientificPaperRequest(api=api)
+        req.status = "draft"
+        req.per_page = DRAFT_PAGE_SIZE
+        req.page = page
+        chunk = req.get() or []
+        if not chunk:
+            break
+        drafts.extend(chunk)
+        if len(chunk) < DRAFT_PAGE_SIZE:
+            break
+        page += 1
+    return drafts
+
+
+def _needs_enrichment(paper, force):
+    if not (paper.s.pubmed_id or ""):
+        return False
+    if force:
+        return True
+    return not (paper.s.content or "")
+
+
+def _enrich_via_pubmed(papers):
+    ''' Run getMetaData on a list of paper objects, then cache one payload
+    per pubmed_id. Returns the serialized payloads in input order. '''
+    payloads = []
+    for i in range(0, len(papers), PUBMED_BATCH):
+        batch = papers[i:i + PUBMED_BATCH]
+        try:
+            getMetaData(batch)
+        except Exception as e:
+            logger.exception("update_publications: pubmed fetch failed")
+            for p in batch:
+                payload = _serialize_enrichment(p, "error", error=str(e))
+                _cache_set(p.s.pubmed_id, payload)
+                payloads.append(payload)
+            continue
+        for p in batch:
+            status = "ready" if (p.s.paper_authors or "").strip() else "no_authors"
+            payload = _serialize_enrichment(p, status)
+            _cache_set(p.s.pubmed_id, payload)
+            payloads.append(payload)
+    return payloads
+
+
+def _wp_title(item):
+    ''' WP REST returns title as {"rendered": "..."}; Pods custom fields
+    are sometimes flat strings. Handle both. '''
+    title = item.get("title")
+    if isinstance(title, dict):
+        return title.get("rendered") or ""
+    return title or ""
+
+
+def _existing_published_by_pubmed_id():
+    ''' {pubmed_id: {"wp_id": id, "title": str}} for every already-
+    published scientific paper. Pulled from wp_cache:publications.
+    Used both to flag duplicates in the listing and to refuse re-publish
+    in the POST handler. '''
+    try:
+        items, _ = _wp_cache_get("publications")
+    except Exception as e:
+        logger.warning("update_publications: could not load published-papers snapshot (%s); "
+                       "duplicate check will only see within-batch collisions", e)
+        return {}
+    out = {}
+    for p in (items or []):
+        pmid = (p.get("pubmed_id") or "").strip()
+        if pmid:
+            out[pmid] = {"wp_id": p.get("id"), "title": _wp_title(p)}
+    return out
+
+
+def _existing_tag_names():
+    ''' Lowercased set of tag names already known to WordPress. Used to
+    decide whether the publish run actually created any new tags. '''
+    try:
+        items, _ = _wp_cache_get("tags")
+    except Exception as e:
+        logger.warning("update_publications: could not load tags snapshot (%s); "
+                       "will conservatively invalidate the tags cache", e)
+        return None  # caller treats None as "unknown -> always invalidate"
+    return {(t.get("name") or "").strip().lower() for t in (items or [])}
+
+
+# Form fields the user can fill in for empty PubMed records. Keep this in
+# sync with the inputs in templates/update_publications.html.
+_EDITABLE_SCALAR_FIELDS = {
+    "title", "paper_authors", "journal", "publication_date",
+    "doi", "source_url", "keywords", "abstract",
+}
+_EDITABLE_LIST_FIELDS = {"affiliations", "funding_agencies"}
+
+
+def _collect_edits(form):
+    ''' Pull out form keys of the shape `edit__<pmid>__<field>` and return
+    {pmid: {field: value}}. Only fields we know about are kept. '''
+    edits = {}
+    for key, value in form.items():
+        if not key.startswith("edit__"):
+            continue
+        parts = key.split("__", 2)
+        if len(parts) != 3:
+            continue
+        _, pmid, field = parts
+        value = (value or "").strip()
+        if not value:
+            continue
+        if field in _EDITABLE_LIST_FIELDS:
+            entries = [line.strip() for line in value.splitlines() if line.strip()]
+            if entries:
+                edits.setdefault(pmid, {})[field] = entries
+        elif field in _EDITABLE_SCALAR_FIELDS:
+            edits.setdefault(pmid, {})[field] = value
+    return edits
+
+
+def _apply_edits(payload, fields):
+    ''' Overlay user-supplied edits on top of a cached enrichment payload.
+    Only overwrites genuinely empty values so PubMed data wins where it
+    exists. '''
+    if not fields:
+        return payload
+    merged = dict(payload)
+    for k, v in fields.items():
+        existing = merged.get(k)
+        if existing in (None, "", [], {}):
+            merged[k] = v
+    if merged.get("paper_authors", "").strip():
+        merged["status"] = "ready"
+    return merged
+
+
 @update_publications_page.route('/update_publications')
 def update_publications():
-    ''' List of research papers '''
-    templateDict = navbar_template('Research')
-    show_all = valueFromRequest(key="show_all", request=request, boolean=True) or False
     force_update = valueFromRequest(key="force_update", request=request, boolean=True) or False
-    tag_filter = request.args.getlist("tag")
-    before = valueFromRequest(key="before", request=request)
-    after = valueFromRequest(key="before", request=request)
-    current_page = valueFromRequest(key="page", request=request, integer=True) or 1
-    per_page = valueFromRequest(key="per_page", request=request, integer=True) or 100
-    keywords_limit = valueFromRequest(key="max_keywords", request=request, integer=True) or 20
-    include = valueFromRequest(key="include", request=request, aslist=True)
+    force_refresh = valueFromRequest(key="force_refresh", request=request, boolean=True) or False
+
+    published = valueFromRequest(key="published", request=request, integer=True)
+    error_count = valueFromRequest(key="errors", request=request, integer=True)
+
+    already_published = _existing_published_by_pubmed_id()
+
     with api.Session():
-        paper_count = ScientificPaperRequest(api=api)
-        if tag_filter:
-            paper_count.tags = tag_filter
-        if before:
-            paper_count.before = before
-        if after:
-            paper_count.after = after
-        if include:
-            paper_count.include = include
-        paper_count.per_page = 10
-        paper_count.page = 1
-        paper_count.status = "draft"
-        paper_tally = paper_count.get(count=True)
-        print("paper_tally",paper_tally)
-        if force_update:
-            updatedPapers = getPapers(current_page, per_page, paper_tally, tag_filter, before, after, show_all, force_update, include)
-        else:
-            updatedPapers = getPapers(1, 100, paper_tally, tag_filter, before, after, True, force_update, include)
+        drafts = _fetch_all_drafts()
+        candidates = [p for p in drafts if _needs_enrichment(p, force_update)]
 
-        tag_freq = {}
-        selected_tags = {}
-        for tag in tag_filter:
-            selected_tags[int(tag)] = 1
-        for paper in updatedPapers:
-            for tag in paper.s.tags:
-                if tag not in tag_freq:
-                    tag_freq[tag] = 1
-                else:
-                    tag_freq[tag] += 1
-        first=0
-        last=paper_tally
-        if not show_all:
-            first = per_page* (current_page-1)
-            last = per_page * current_page
-            if last > paper_tally:
-                last = paper_tally
-        templateDict['papers'] = updatedPapers[first:last]
-        templateDict['page'] = current_page
-        templateDict['n_pages'] = math.ceil(paper_tally / per_page)
-        templateDict['n_papers'] = paper_tally
-        templateDict['keywords_limit'] = keywords_limit
-        if math.ceil(paper_tally / per_page) > 1:
-            templateDict['filters_url'] = f"/publications?per_page={per_page}&max_keywords={keywords_limit}"
-            templateDict['pagination_url'] = f"/publications?per_page={per_page}&max_keywords={keywords_limit}"
-            templateDict['kw_url'] = f"/publications?per_page={per_page}&page={current_page}"
-            if tag_filter:
-                templateDict['pagination_url'] += f"&tag={'&tag='.join(tag_filter)}"
-                templateDict['kw_url'] += f"&tag={'&tag='.join(tag_filter)}"
-            if before:
-                templateDict['pagination_url'] += f"&before={before}"
-                templateDict['kw_url'] += f"&before={before}"
-            if after:
-                templateDict['pagination_url'] += f"&after={after}"
-                templateDict['kw_url'] += f"&after={after}"
-        tags_tally = 0
-        min_2_tags = {key: value for (key, value) in sorted(tag_freq.items(), reverse=True, key=lambda t: t[1]) if value > 0 }
-        tlist= list(min_2_tags.keys())
-        tag_names = {}
-        tags_per_page=100
-        tag_page = 0
-        for i in range(0,len(tlist), tags_per_page):
-            tag_page += 1
-            tag_getter = TagRequest(api=api)
-            tag_getter.per_page = tags_per_page
-            tag_getter.page = tag_page
-            tag_getter.include = ','.join(map(str,tlist[i:i+tags_per_page]))
-            tag_getter.populate_request_parameters()
-            page_of_tags = tag_getter.get()
-            for t in page_of_tags :
-                tag_names[t.s.id] = t.s.name
-        templateDict['tags'] = min_2_tags
-        templateDict['tagname'] = tag_names
-        templateDict['tagfreq'] = tag_freq
-        templateDict['selected'] = selected_tags
+        if force_refresh:
+            for p in candidates:
+                _cache_del(p.s.pubmed_id)
 
+        # Short-circuit: drafts whose pubmed_id is already represented by
+        # a published paper get flagged "published" without consulting
+        # the enrichment cache or PubMed.
+        published_rows = []
+        live_candidates = []
+        for paper in candidates:
+            pmid = paper.s.pubmed_id
+            hit = already_published.get(pmid)
+            if hit:
+                published_rows.append({
+                    "status": "published",
+                    "wp_id": paper.s.id,
+                    "pubmed_id": pmid,
+                    "title": "",
+                    "abstract": "",
+                    "paper_authors": "",
+                    "source_url": "",
+                    "doi": "",
+                    "journal": "",
+                    "publication_date": "",
+                    "date": "",
+                    "keywords": "",
+                    "affiliations": [],
+                    "funding_agencies": [],
+                    "duplicate_of": hit,
+                })
+            else:
+                live_candidates.append(paper)
+
+        cached_rows = []
+        to_fetch = []
+        for paper in live_candidates:
+            cached = _cache_get(paper.s.pubmed_id)
+            if cached and cached.get("wp_id") == paper.s.id:
+                cached_rows.append(cached)
+            else:
+                to_fetch.append(paper)
+
+        newly_enriched = _enrich_via_pubmed(to_fetch)
+
+    rows = published_rows + cached_rows + newly_enriched
+    rows.sort(key=lambda r: r.get("date") or "", reverse=True)
+
+    templateDict = navbar_template('Research')
     templateDict["banner_media"] = local_banner("sorghum_panicle")
+    templateDict["rows"] = rows
+    templateDict["ready_count"] = sum(1 for r in rows if r["status"] == "ready")
+    templateDict["force_update"] = force_update
+    templateDict["last_published"] = published
+    templateDict["last_errors"] = error_count
 
-    populate_footer_template(template_dictionary=templateDict, wp_api=api)
-    app_logger.debug(" ============= controller finished ============= ")
+    with _last_publish_lock:
+        global _last_publish_errors
+        templateDict["last_error_details"] = _last_publish_errors
+        _last_publish_errors = []
 
-    return render_template("research_filter.html", **templateDict)
+    return render_template("update_publications.html", **templateDict)
+
+
+@update_publications_page.route('/update_publications/publish', methods=['POST'])
+def publish_selected():
+    _ensure_wp_auth()
+    if getattr(api, "authenticator", None) is None:
+        flask.abort(503, description=(
+            "WordPress basic auth not configured; set SB_WP_USERNAME and SB_WP_PASSWORD"
+        ))
+
+    selected = request.form.getlist("pubmed_ids")
+    edits = _collect_edits(request.form)
+    published = 0
+    errors = []
+
+    # Snapshots taken before the loop so we can (a) reject duplicates and
+    # (b) detect whether the run actually created any new tags.
+    existing_pubmed_ids = set(_existing_published_by_pubmed_id().keys())
+    existing_tag_names = _existing_tag_names()  # None if snapshot unavailable
+    new_tags_created = False
+    published_this_run = set()  # catches within-batch pubmed_id collisions
+
+    with api.Session():
+        for pmid in selected:
+            payload = _cache_get(pmid)
+            if not payload:
+                errors.append(f"{pmid}: not in cache (reload the page to re-fetch from PubMed)")
+                continue
+            payload = _apply_edits(payload, edits.get(pmid, {}))
+            if not (payload.get("paper_authors") or "").strip():
+                errors.append(f"{pmid}: paper_authors is empty; fill it in before publishing")
+                continue
+            if pmid in existing_pubmed_ids:
+                errors.append(f"{pmid}: a published paper with this PubMed ID already exists; skipping")
+                continue
+            if pmid in published_this_run:
+                errors.append(f"{pmid}: duplicate of another row published earlier in this batch; skipping")
+                continue
+            try:
+                req = ScientificPaperRequest(api=api)
+                req.include = [str(payload["wp_id"])]
+                req.status = "draft"
+                results = req.get() or []
+                if not results:
+                    errors.append(f"{pmid}: draft id={payload['wp_id']} not found")
+                    continue
+                paper = results[0]
+
+                paper.s.title = payload["title"]
+                paper.s.abstract = payload["abstract"]
+                paper.s.paper_authors = payload["paper_authors"]
+                paper.s.source_url = payload["source_url"]
+                paper.s.doi = payload["doi"]
+                paper.s.journal = payload["journal"]
+                paper.s.publication_date = payload["publication_date"]
+                paper.s.date = payload["date"]
+                paper.s.keywords = payload["keywords"]
+                paper.s.affiliations = payload["affiliations"]
+                paper.s.funding_agencies = payload["funding_agencies"]
+
+                if payload["keywords"] and payload["keywords"] != "No keywords in Pubmed":
+                    tag_ids = []
+                    for kw in [w.strip() for w in payload["keywords"].split(",") if w.strip()]:
+                        kw_lc = kw.lower()
+                        if existing_tag_names is not None and kw_lc not in existing_tag_names:
+                            new_tags_created = True
+                            existing_tag_names.add(kw_lc)
+                        tag = Tag(api=api)
+                        tag.s.name = kw
+                        tag_ids.append(str(tag.post))
+                    if tag_ids:
+                        paper.s.tags = ", ".join(tag_ids)
+
+                parts = [payload["abstract"], payload["paper_authors"]]
+                if payload["keywords"] and payload["keywords"] != "No keywords in Pubmed":
+                    parts.append(payload["keywords"])
+                parts.append(payload["pubmed_id"])
+                if payload["doi"]:
+                    parts.append(payload["doi"])
+                paper.s.content = "\n".join(p for p in parts if p)
+
+                paper.s.status = "publish"
+
+                paper.update()
+                _cache_del(pmid)
+                published += 1
+                published_this_run.add(pmid)
+            except Exception as e:
+                logger.exception("update_publications: publish failed for %s", pmid)
+                errors.append(f"{pmid}: {e}")
+
+    if published > 0:
+        _wp_cache_invalidate("publications")
+        # Only invalidate the tags cache if the publish run actually
+        # created at least one new tag (or if we couldn't load the tag
+        # snapshot and have to be conservative).
+        if existing_tag_names is None or new_tags_created:
+            _wp_cache_invalidate("tags")
+            logger.info(
+                "update_publications: invalidated wp_cache:publications and "
+                "wp_cache:tags after publishing %d paper(s)", published,
+            )
+        else:
+            logger.info(
+                "update_publications: invalidated wp_cache:publications after "
+                "publishing %d paper(s); no new tags so leaving wp_cache:tags",
+                published,
+            )
+
+    with _last_publish_lock:
+        global _last_publish_errors
+        _last_publish_errors = errors
+
+    return redirect(f"/update_publications?published={published}&errors={len(errors)}")

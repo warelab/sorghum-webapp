@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block page_title %}SorghumBase - Update Publications{% endblock %}
+{% block additional_header %}{% endblock %}
+{% block content %}
+
+<div class="page-titles-img title-space-sm parallax-overlay bg-parallax" data-jarallax='{"speed": 0.2}'
+     style='background-image: url("{{banner_media.s.source_url}}");background-position:top center;'>
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12 ml-auto mr-auto">
+        <h1 class="text-uppercase">Update Publications</h1>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container pt40 pb80">
+
+  {% if last_published is not none or last_errors is not none %}
+  <div class="alert {% if last_errors and last_errors > 0 %}alert-warning{% else %}alert-success{% endif %}" role="alert">
+    Last run: <strong>{{ last_published or 0 }}</strong> published, <strong>{{ last_errors or 0 }}</strong> errors.
+    {% if last_error_details %}
+    <ul class="mb0 mt10">
+      {% for line in last_error_details %}
+      <li><code>{{ line }}</code></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <p>
+    Draft scientific papers seeded with only a PubMed ID. Enriched data
+    below was pulled from PubMed and cached server-side (keyed by
+    pubmed_id); ticking rows and clicking <em>Publish Selected</em> applies
+    that cached data to each draft and sets its status to <code>publish</code>.
+    No WordPress writes happen on this page load.
+  </p>
+
+  <div class="mb20">
+    <a class="btn btn-sm btn-outline-secondary" href="/update_publications?force_refresh=true">Re-fetch from PubMed</a>
+    {% if force_update %}
+    <a class="btn btn-sm btn-outline-secondary" href="/update_publications">Drafts with empty content only</a>
+    {% else %}
+    <a class="btn btn-sm btn-outline-secondary" href="/update_publications?force_update=true">Include drafts that already have content</a>
+    {% endif %}
+    <span class="ml20">
+      {{ ready_count }} ready / {{ rows|length }} total candidates
+    </span>
+  </div>
+
+  {% if rows %}
+  <form method="POST" action="/update_publications/publish">
+    <div class="mb10">
+      <button type="button" class="btn btn-sm btn-link" onclick="document.querySelectorAll('input.up-pick:not(:disabled)').forEach(c=>{c.checked=true})">Select all</button>
+      <button type="button" class="btn btn-sm btn-link" onclick="document.querySelectorAll('input.up-pick').forEach(c=>{c.checked=false})">Select none</button>
+    </div>
+
+    {% for r in rows %}
+    <div class="card mb20" style="border-left:4px solid {% if r.status == 'ready' %}#28a745{% elif r.status == 'no_authors' %}#ffc107{% elif r.status == 'published' %}#6c757d{% else %}#dc3545{% endif %};">
+      <div class="card-body p-3">
+        <div class="d-flex align-items-start mb10">
+          <input class="up-pick mt-1 mr-3" type="checkbox" name="pubmed_ids" value="{{ r.pubmed_id }}"
+                 {% if r.status == 'ready' %}checked{% elif r.status == 'published' %}disabled{% endif %}>
+          <div class="flex-grow-1">
+            <div class="mb-1">
+              {% if r.status == 'ready' %}
+              <span class="badge" style="background:#28a745;color:#fff;">ready</span>
+              {% elif r.status == 'no_authors' %}
+              <span class="badge" style="background:#ffc107;color:#212529;">no authors</span>
+              {% elif r.status == 'published' %}
+              <span class="badge" style="background:#6c757d;color:#fff;">already published</span>
+              {% else %}
+              <span class="badge" style="background:#dc3545;color:#fff;" title="{{ r.error or '' }}">error</span>
+              {% endif %}
+              <a href="https://www.ncbi.nlm.nih.gov/pubmed/{{ r.pubmed_id }}" target="_blank" class="ml-2">PMID {{ r.pubmed_id }}</a>
+              <small class="text-muted ml-2">wp id {{ r.wp_id }}</small>
+              {% if r.date %}
+              <small class="text-muted ml-2">{{ r.date }}</small>
+              {% endif %}
+            </div>
+            {% if r.status == 'published' %}
+            <div class="text-muted">
+              A published paper with this PubMed ID already exists in WordPress
+              {% if r.duplicate_of %}
+              &mdash; <a href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post={{ r.duplicate_of.wp_id }}" target="_blank">
+                {{ r.duplicate_of.title or ('wp id ' ~ r.duplicate_of.wp_id) }}
+              </a>{% endif %}.
+            </div>
+            <div class="mt-2 font-weight-bold">
+              <a href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post={{ r.wp_id }}" target="_blank">
+                Open this draft in WordPress
+              </a>
+              to delete or merge it; it will then drop off this list.
+            </div>
+            {% elif r.title %}
+            <h5 class="mb-2">{{ r.title }}</h5>
+            {% else %}
+            <input class="form-control mb-2" type="text" name="edit__{{ r.pubmed_id }}__title" placeholder="Title (empty)">
+            {% endif %}
+          </div>
+        </div>
+
+        {% if r.status != 'published' %}
+        <dl class="row mb-2" style="font-size:0.9em;">
+          <dt class="col-sm-2 text-right text-muted">Authors</dt>
+          <dd class="col-sm-10">
+            {% if r.paper_authors %}{{ r.paper_authors }}
+            {% else %}<input class="form-control form-control-sm" type="text" name="edit__{{ r.pubmed_id }}__paper_authors" placeholder="comma-separated authors">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Journal</dt>
+          <dd class="col-sm-10">
+            {% if r.journal %}{{ r.journal }}
+            {% else %}<input class="form-control form-control-sm" type="text" name="edit__{{ r.pubmed_id }}__journal" placeholder="journal name">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Pub date</dt>
+          <dd class="col-sm-10">
+            {% if r.publication_date %}{{ r.publication_date }}
+            {% else %}<input class="form-control form-control-sm" type="text" name="edit__{{ r.pubmed_id }}__publication_date" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">DOI</dt>
+          <dd class="col-sm-10">
+            {% if r.doi %}<a href="https://doi.org/{{ r.doi }}" target="_blank">{{ r.doi }}</a>
+            {% else %}<input class="form-control form-control-sm" type="text" name="edit__{{ r.pubmed_id }}__doi" placeholder="10.xxxx/yyyy">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Source URL</dt>
+          <dd class="col-sm-10">
+            {% if r.source_url %}<a href="{{ r.source_url }}" target="_blank">{{ r.source_url }}</a>
+            {% else %}<input class="form-control form-control-sm" type="url" name="edit__{{ r.pubmed_id }}__source_url" placeholder="https://...">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Keywords</dt>
+          <dd class="col-sm-10">
+            {% if r.keywords %}{{ r.keywords }}
+            {% else %}<input class="form-control form-control-sm" type="text" name="edit__{{ r.pubmed_id }}__keywords" placeholder="comma-separated keywords">{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Affiliations</dt>
+          <dd class="col-sm-10">
+            {% if r.affiliations %}
+            <ul class="mb-0 pl-3">
+              {% for aff in r.affiliations %}<li>{{ aff }}</li>{% endfor %}
+            </ul>
+            {% else %}<textarea class="form-control form-control-sm" rows="2" name="edit__{{ r.pubmed_id }}__affiliations" placeholder="one affiliation per line"></textarea>{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Funding</dt>
+          <dd class="col-sm-10">
+            {% if r.funding_agencies %}
+            <ul class="mb-0 pl-3">
+              {% for agency in r.funding_agencies %}<li>{{ agency }}</li>{% endfor %}
+            </ul>
+            {% else %}<textarea class="form-control form-control-sm" rows="2" name="edit__{{ r.pubmed_id }}__funding_agencies" placeholder="one agency per line"></textarea>{% endif %}
+          </dd>
+
+          <dt class="col-sm-2 text-right text-muted">Abstract</dt>
+          <dd class="col-sm-10" style="white-space:pre-wrap;">
+            {% if r.abstract %}{{ r.abstract }}
+            {% else %}<textarea class="form-control form-control-sm" rows="4" name="edit__{{ r.pubmed_id }}__abstract" placeholder="paper abstract"></textarea>{% endif %}
+          </dd>
+
+          {% if r.error %}
+          <dt class="col-sm-2 text-right text-muted">Error</dt>
+          <dd class="col-sm-10"><code>{{ r.error }}</code></dd>
+          {% endif %}
+        </dl>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="mt20">
+      <button type="submit" class="btn btn-primary">Publish Selected</button>
+    </div>
+  </form>
+  {% else %}
+  <p><em>No draft scientific papers need enrichment.</em></p>
+  {% endif %}
+
+</div>
+{% endblock %}
