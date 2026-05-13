@@ -18,6 +18,7 @@ import ConferencePage from './components/conference'
 import WorkingGroups from './components/workingGroups'
 import FundedProjects from './components/fundedProjects'
 import Publications from './components/publications'
+import HomeSection from './components/homePosts'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -122,4 +123,13 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sorghumbase-alerts');
   element && render(Alerter(), element) && console.log('rendered alerter')
+
+  element = document.getElementById('sb-home-news');
+  element && render(<HomeSection sectionKey="news" />, element) && console.log('rendered sb-home-news')
+
+  element = document.getElementById('sb-home-highlights');
+  element && render(<HomeSection sectionKey="highlights" />, element) && console.log('rendered sb-home-highlights')
+
+  element = document.getElementById('sb-home-topics');
+  element && render(<HomeSection sectionKey="topics" />, element) && console.log('rendered sb-home-topics')
 })
