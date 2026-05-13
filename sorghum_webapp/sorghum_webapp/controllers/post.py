@@ -16,6 +16,7 @@ from .. import wordpress_api as api
 from . import valueFromRequest
 from .navbar import navbar_template
 from .footer import populate_footer_template
+from .local_media import local_banner
 from ..wordpress_orm_extensions.germplasm import GermplasmRequest
 from ..wordpress_orm_extensions.population import PopulationRequest
 from ..wordpress_orm_extensions.scientific_paper import ScientificPaperRequest
@@ -66,7 +67,7 @@ def post(slug):
 		pr.per_page = 3				# only get three newest
 		latest_posts = pr.get()
 
-		sorghum_grains_image = api.media(slug="sorghum-grains_1920x1000")
+		sorghum_grains_image = local_banner("sorghum-grains_1920x1000")
 
 		populate_footer_template(wp_api=api, template_dictionary=templateDict, photos_to_credit=[])
 
@@ -142,7 +143,7 @@ def population(slug):
 
 		# print(makeup_table)
 
-		sorghum_grains_image = api.media(slug="sorghum-grains_1920x1000")
+		sorghum_grains_image = local_banner("sorghum-grains_1920x1000")
 
 		templateDict["population"] = population[0]
 		templateDict["related_posts"] = tagged_posts
@@ -187,7 +188,7 @@ def genome(slug):
 		popr.tags = [tag_id]
 		tagged_populations = popr.get()
 
-		sorghum_grains_image = api.media(slug="sorghum-grains_1920x1000")
+		sorghum_grains_image = local_banner("sorghum-grains_1920x1000")
 
 		templateDict["germplasm"] = germplasm[0]
 		templateDict["related_posts"] = tagged_posts

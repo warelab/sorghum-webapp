@@ -20,6 +20,8 @@ import FundedProjects from './components/fundedProjects'
 import Publications from './components/publications'
 import HomeSection from './components/homePosts'
 import PostsList from './components/postsList'
+import EventsList from './components/eventsList'
+import PeopleList from './components/peopleList'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -136,4 +138,10 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sb-posts-list');
   element && render(<PostsList />, element) && console.log('rendered sb-posts-list')
+
+  element = document.getElementById('sb-events-list');
+  element && render(<EventsList />, element) && console.log('rendered sb-events-list')
+
+  element = document.getElementById('sb-people-list');
+  element && render(<PeopleList />, element) && console.log('rendered sb-people-list')
 })

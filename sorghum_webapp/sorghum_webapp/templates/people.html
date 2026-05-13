@@ -8,136 +8,14 @@
     <div class="row">
       <div class=" col-md-12">
         <h1 class="text-uppercase">People</h1>
-
       </div>
-    </div>
-  </div>
-</div><!--page title end-->
-<div class="container pt90 ">
-  <div class="row">
-<!--    <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block" style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">-->
-<!--      &lt;!&ndash;/col&ndash;&gt;-->
-<!--      <div class="theiaStickySidebar"-->
-<!--      style="padding-top: 100px; padding-bottom: 1px; position: static; transform: none; left: 0px; top: 0px;">-->
-<!--        <div class="pt50 title">People</div>-->
-<!--        <div class="mb40">-->
-
-<!--          <a data-scroll="" href="#team" class="nav-link active">Team Members</a>-->
-
-<!--&lt;!&ndash;        <a data-scroll="" href="#contributors" class="nav-link active">Contributors</a>&ndash;&gt;-->
-<!--          <a data-scroll="" href="#sac" class="nav-link active">Scientific Advisory Committee</a>-->
-<!--          <a data-scroll="" href="#escapees" class="nav-link active">Former Team Members</a>-->
-
-<!--        </div>-->
-<!--      </div>-->
-<!--    </div>-->
-    <div class="col-lg-12">
-      <div class="title-heading1 mb60" id = "team">
-        <h3 class="mb10">Sorghumbase Team</h3>
-      </div>
-      <div class="row pb60">
-<!--        <div class="class = col-lg-4"></div>-->
-<!--        <div class="class = col-lg-4"></div>-->
-        {% for user in team %}
-        <div class="col-lg-4 col-md-6  mb30">
-          <div class="team-card-default">
-            <!-- #<img src="{{ user.s.author_gravatar_url }}" alt="" class="img-fluid rounded-circle"> -->
-            <img src="{{ user.imgURL }}" style="height:96px" alt="" class="img-fluid rounded-circle centered">
-            <div class="team-default-content text-center pt30 pb20">
-              <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>
-              <span>{{user.job_title | safe}}</span><br>
-<!--              {% if user.s.description %}-->
-<!--              <span>{{user.s.description | safe}}</span><br>-->
-<!--              {% endif %}-->
-<!--              <span class="font-weight-bold">{{user.organization | safe}}</span>-->
-            </div>
-            <!-- <div class="text-center">
-              <p>{{ user.s.description | safe }}</p>
-            </div> -->
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
-      <div class="title-heading1 mb60" id = "sac">
-        <h3 class="mb10">Sorghum User Working Group (SUWG)</h3>
-      </div>
-      <div class="row pb60">
-        {% for user in sac %}
-        <div class="col-lg-4 col-md-6  mb30">
-          <div class="team-card-default">
-            <!-- #<img src="{{ user.s.author_gravatar_url }}" alt="" class="img-fluid rounded-circle"> -->
-            <img src="{{ user.imgURL }}" style="height:96px" alt="" class="img-fluid rounded-circle centered">
-            <div class="team-default-content text-center pt30 pb20">
-              <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>
-              <span>{{user.job_title | safe}}</span><br>
-              <span class="font-weight-bold">{{user.organization | safe}}</span>
-            </div>
-            <!-- <div class="text-center">
-            <p>{{ user.s.description | safe }}</p>
-          </div> -->
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
-<!--      <div class="title-heading1 mb60" id = "contributors">-->
-<!--        <h3 class="mb10">Contributors</h3>-->
-<!--      </div>-->
-<!--      <div class="row pb60">-->
-<!--        {% for user in contributors %}-->
-<!--        <div class="col-lg-4 col-md-6  mb30">-->
-<!--          <div class="team-card-default">-->
-<!--            &lt;!&ndash; #<img src="{{ user.s.author_gravatar_url }}" alt="" class="img-fluid rounded-circle"> &ndash;&gt;-->
-<!--            <img src="{{ user.s.avatar_urls['96'] }}" alt="" class="img-fluid rounded-circle centered">-->
-<!--            <div class="team-default-content text-center pt30 pb20">-->
-<!--              <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>-->
-<!--              <span>{{user.job_title | safe}}</span><br>-->
-<!--              <span class="font-weight-bold">{{user.organization | safe}}</span>-->
-<!--            </div>-->
-<!--            &lt;!&ndash; <div class="text-center">-->
-<!--            <p>{{ user.s.description | safe }}</p>-->
-<!--          </div> &ndash;&gt;-->
-<!--          </div>-->
-<!--        </div>-->
-<!--      {% endfor %}-->
-<!--      </div>-->
-
-      <div class="title-heading1 mb60" id = "escapees">
-        <h3 class="mb10">Former Team Members</h3>
-      </div>
-      <div class="row pb60">
-        {% for user in escapees %}
-        <div class="col-lg-4 col-md-6  mb30">
-          <div class="team-card-default">
-            <!-- #<img src="{{ user.s.author_gravatar_url }}" alt="" class="img-fluid rounded-circle"> -->
-            <img src="{{ user.imgURL }}" style="height:96px" alt="" class="img-fluid rounded-circle centered">
-            <div class="team-default-content text-center pt30 pb20">
-              <h4 class="mb0 text-uppercase">{{ user.s.name | safe}}</h4>
-<!--              <span>{{user.job_title | safe}}</span><br>-->
-<!--              <span class="font-weight-bold">{{user.organization | safe}}</span>-->
-            </div>
-            <!-- <div class="text-center">
-            <p>{{ user.s.description | safe }}</p>
-          </div> -->
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
     </div>
   </div>
 </div>
-<!--<div>-->
-<!--  <h3>Working Groups</h3>-->
-<!--  {% for g in wg %}-->
-<!--  <p>{{ g.s.title }}</p>-->
-<!--  <div>-->
-<!--    {% for m in g.s.members %}-->
-<!--    <p>{{ m.display_name }}</p>-->
-<!--    {% endfor %}}-->
-<!--  </div>-->
-<!--  {% endfor %}-->
-<!--</div>-->
-<!--<div id="sorghumbase-institutions"></div>-->
+
+{# The team / SUWG / former-team card grids are rendered by the PeopleList
+   react component (see search_app/src/components/peopleList.js). It fetches
+   /api/people once and caches the payload in money-clip for 24 hours. #}
+<div id="sb-people-list"></div>
+
 {% endblock %}

@@ -53,6 +53,7 @@ RESOURCES = {
     "conference_people":    {"path": "conference_person"},
     "organizations":        {"path": "organization"},
     "sicna_tags":           {"path": "tags", "params": {"search": "sicna"}},
+    "events":               {"path": "event"},
 }
 
 _redis_client = None

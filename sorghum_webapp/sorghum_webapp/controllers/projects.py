@@ -16,6 +16,7 @@ from .. import wordpress_api as api
 from . import valueFromRequest
 from .navbar import navbar_template
 from .footer import populate_footer_template
+from .local_media import local_banner
 
 logger = logging.getLogger("wordpress_orm")
 
@@ -79,10 +80,9 @@ def projects():
         else:
             projects = getProjects(current_page, per_page, project_tally, tag_filter, force_update, show_all)
 
-        news_banner_media = api.media(slug="k-state-sorghum-field-1920x1000")
-        templateDict["banner_media"] = news_banner_media
+        templateDict["banner_media"] = local_banner("k-state-sorghum-field-1920x1000")
 
-        populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[news_banner_media])
+        populate_footer_template(template_dictionary=templateDict, wp_api=api)
 
         def getInfo(p):
             orgs = []
