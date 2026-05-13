@@ -19,6 +19,7 @@ import WorkingGroups from './components/workingGroups'
 import FundedProjects from './components/fundedProjects'
 import Publications from './components/publications'
 import HomeSection from './components/homePosts'
+import PostsList from './components/postsList'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -132,4 +133,7 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sb-home-topics');
   element && render(<HomeSection sectionKey="topics" />, element) && console.log('rendered sb-home-topics')
+
+  element = document.getElementById('sb-posts-list');
+  element && render(<PostsList />, element) && console.log('rendered sb-posts-list')
 })

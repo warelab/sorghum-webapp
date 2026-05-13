@@ -29,78 +29,20 @@ spacer = " & "
 
 @post_grid.route('/posts')
 def posts():
-	''' List of posts '''
-	current_page = valueFromRequest(key="page", request=request) or 1
-	if type(current_page) is str:
-		current_page = int(current_page)
-	n_per_page = valueFromRequest(key="show", request=request) or 9
-	categories = valueFromRequest(key="categories", request=request, aslist=True)
+	''' List of posts.
+
+	The grid, banner, and pagination are rendered client-side by the
+	PostsList react component, which hits the WordPress REST API directly
+	and caches per page in money-clip. The Flask route now only renders
+	the navbar/footer shell so it returns in milliseconds.
+	'''
+	categories = valueFromRequest(key="categories", request=request, aslist=True) or []
 	active_menu = 'Resources'
-	if categories[0] == 'news':
+	if categories and categories[0] == 'news':
 		active_menu = 'News'
-	if categories[0] == 'researchnote':
+	elif categories and categories[0] == 'researchnote':
 		active_menu = 'Community'
 	templateDict = navbar_template(active_menu)
-
-	with api.Session():
-
-		post_count = api.PostRequest()
-		if categories:
-			post_count.categories = categories
-		post_count.categories_exclude = ["faq", 17]  # 17 is the category for Sorghumbase CMS Tutorials
-# 		post_count.per_page = WAY_MORE_THAN_WE_WILL_EVER_HAVE
-		post_tally = post_count.get(count=True)
-
-		post_request = api.PostRequest()
-		if categories:
-			post_request.categories = categories
-		post_request.categories_exclude = ["faq", 17]  # 17 is the category for Sorghumbase CMS Tutorials
-		post_request.orderby = "date"
-		post_request.order = "desc"
-		post_request.per_page = n_per_page
-		post_request.page = current_page
-
-		posts = post_request.get(count=False)
-		if isinstance(categories, list) and 'blog' in categories:
-			posts_banner_media = api.media(slug="sorghum_combine")
-		else:
-			posts_banner_media = api.media(slug="k-state-sorghum-field-1920x1000")
-
-		templateDict["banner_media"] = posts_banner_media
-
-		team_request = api.UserRequest()
-		team_request.context = "edit"
-		team_request.per_page = 50
-		team_request.roles = ['team_member','former_team_member', 'editor']
-		team = team_request.get(class_object=SBUser)
-		teamDict = {}
-		for i in team:
-			teamDict[i.s.name] = 'SorghumBase Team'
-
-		# pre-cache these items so new HTTP connections aren't made from the template
-		for p in posts:
-			p.categories
-			p.author
-			if p.author.s.name not in teamDict:
-				teamDict[p.author.s.name] = p.author.s.name
-
-		populate_footer_template(template_dictionary=templateDict, wp_api=api, photos_to_credit=[posts_banner_media])
-
-	templateDict['posts'] = posts
-	templateDict['authors'] = teamDict
-	templateDict['post_tally'] = post_tally
-	if categories:
-		templateDict['categories'] = spacer.join(categories)
-		if categories[0] == "topics":
-			templateDict['categories'] = "Special Topics"
-	else:
-		templateDict['categories'] = 'posts'
-	templateDict['current_page'] = current_page
-	templateDict['previous_page'] = max([current_page - 1, 0])
-	templateDict['next_page'] = min([current_page + 1, ceil(post_tally / n_per_page)])
-	templateDict['n_per_page'] = n_per_page
-	logger.debug(" ============= controller finished ============= ")
-
 	return render_template("posts.html", **templateDict)
 
 @germplasm_grid.route('/germplasms')
