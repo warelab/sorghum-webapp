@@ -15,6 +15,17 @@
 
 <div class="bg-faded">
   <div class="container pt90 mb30">
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <span class="input-group-text" id="resource-links-search-label">Search</span>
+      </div>
+      <input id="resource-links-search" type="text" class="form-control"
+             placeholder="Filter resources by title or description…"
+             aria-describedby="resource-links-search-label">
+    </div>
+    <p id="resource-links-empty" class="mb20" style="display:none;color:#888;">
+      No resources match.
+    </p>
     <!-- <div class="col-lg-2 col md-1 mb40 sticky-sidebar d-none d-sm-block"
          style="position: relative; overflow: visible; box-sizing: border-box; min-height: 1px;">
         <!--/col
@@ -87,9 +98,10 @@
 
           {% endif %} -->
 
-        <div class="row" id="blog-masonry" style="position: relative; height: 1179.5px;">
+        <div class="row resource-links-grid" id="blog-masonry" style="position: relative; height: 1179.5px;">
           {% for resource in resources_list %}
-          <article class="col-md-5 post-masonry mb20" style="position: absolute; left: 0px; top: 0px;">
+          <article class="col-md-5 post-masonry mb20 resource-link-card" style="position: absolute; left: 0px; top: 0px;"
+                   data-search="{{ (resource.s.title ~ ' ' ~ resource.s.content) | striptags | lower }}">
             <div class="card">
               <div class="mx10">
                 <a href="{{resource.s.resource_url}}">
@@ -110,4 +122,32 @@
 
   </div>
 </div>
+<script>
+  (function () {
+    var input = document.getElementById('resource-links-search');
+    var empty = document.getElementById('resource-links-empty');
+    var cards = document.querySelectorAll('.resource-link-card');
+    if (!input || !cards.length) return;
+
+    function applyFilter(q) {
+      var needle = (q || '').trim().toLowerCase();
+      var shown = 0;
+      cards.forEach(function (card) {
+        var hay = card.getAttribute('data-search') || '';
+        var match = !needle || hay.indexOf(needle) !== -1;
+        card.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      if (empty) empty.style.display = shown ? 'none' : '';
+    }
+
+    input.addEventListener('input', function (e) { applyFilter(e.target.value); });
+
+    var urlQ = new URLSearchParams(window.location.search).get('q') || '';
+    if (urlQ) {
+      input.value = urlQ;
+      applyFilter(urlQ);
+    }
+  })();
+</script>
 {% endblock %}

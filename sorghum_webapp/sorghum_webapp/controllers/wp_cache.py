@@ -49,6 +49,7 @@ wp_cache_page = flask.Blueprint("wp_cache_page", __name__)
 # Builder entries are typically registered from their owning controller
 # module after import (see controllers/people.py).
 RESOURCES = {
+    "posts":                {"path": "posts", "params": {"categories_exclude": "8,17"}},
     "publications":         {"path": "scientific_paper"},
     "tags":                 {"path": "tags"},
     "projects":             {"path": "project"},
@@ -60,6 +61,7 @@ RESOURCES = {
     "organizations":        {"path": "organization"},
     "sicna_tags":           {"path": "tags", "params": {"search": "sicna"}},
     "events":               {"path": "event"},
+    "resource_links":       {"path": "resource-link"},
 }
 
 _redis_client = None
@@ -195,7 +197,25 @@ def _do_fetch_and_store(resource, ttl):
     if total is not None:
         meta["wp_total"] = total
     _write_cache(resource, items, meta, ttl)
+    _sync_typesense(resource, items)
     return items, meta
+
+
+def _sync_typesense(resource, items):
+    """Best-effort mirror of the refilled resource into Typesense.
+
+    Imported lazily so a missing typesense client or library never blocks
+    the WP cache refresh path.
+    """
+    try:
+        from . import typesense_index
+    except Exception as e:
+        logger.debug("typesense_index import failed (%s); skipping sync", e)
+        return
+    try:
+        typesense_index.sync_resource(resource, items)
+    except Exception as e:
+        logger.warning("typesense sync failed for %s (%s)", resource, e)
 
 
 def _refresh_with_redis_lock(resource, ttl, rds):

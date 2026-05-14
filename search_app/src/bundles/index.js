@@ -1,7 +1,7 @@
 import { composeBundles, createCacheBundle } from 'redux-bundler'
-import {bundles as sorghumBundles} from 'sorghum-search'
 import {bundles as grameneBundles} from 'gramene-search'
 import UIbundle from './searchUI'
+import typeaheadBundle from './typeahead.js'
 import conferenceBundles from './conference.js'
 import workingGroupBundles from './workingGroups.js'
 import fundedProjectsBundles from './fundedProjects.js'
@@ -30,13 +30,13 @@ const config = {
 };
 
 const bundle = composeBundles(
-  ...sorghumBundles,
   ...grameneBundles,
   ...conferenceBundles,
   ...workingGroupBundles,
   ...fundedProjectsBundles,
   ...publicationsBundles,
   UIbundle,
+  typeaheadBundle,
   config,
   createCacheBundle(cache.set)
 );

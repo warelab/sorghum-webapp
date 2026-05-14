@@ -1,0 +1,21 @@
+services:
+  typesense:
+    image: typesense/typesense:27.1
+    container_name: sorghum-typesense
+    restart: unless-stopped
+    ports:
+      - "${TYPESENSE_PORT:-8108}:8108"
+    volumes:
+      - typesense_data:/data
+    environment:
+      TYPESENSE_DATA_DIR: /data
+      TYPESENSE_API_KEY: ${TYPESENSE_API_KEY:?TYPESENSE_API_KEY must be set}
+      TYPESENSE_ENABLE_CORS: "true"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8108/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  typesense_data:

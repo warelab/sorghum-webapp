@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
+import { expectedCount } from '../utils/typesense_counts'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
-const projectsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1 })
+// Bump the version any time the normalize() output shape changes so older
+// browsers with a populated IndexedDB don't render rows full of `undefined`.
+const projectsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2 })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
+const TYPESENSE_COLLECTION = 'projects'
 
 function titleCase(s) {
   return (s || '').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -29,20 +33,31 @@ function normalize(raw) {
   }
 }
 
+function fetchAndCache() {
+  return fetch(PROJECTS_URL, { headers: { Accept: 'application/json' } })
+    .then((r) => {
+      if (!r.ok) throw new Error(`projects ${r.status}`)
+      return r.json()
+    })
+    .then((rows) => {
+      const projects = rows.map(normalize)
+      projects.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
+      if (projects.length) projectsCache.set('all', projects)
+      return projects
+    })
+}
+
 function loadProjects() {
   return projectsCache.get('all').then((cached) => {
-    if (cached && cached.length) return cached
-    return fetch(PROJECTS_URL, { headers: { Accept: 'application/json' } })
-      .then((r) => {
-        if (!r.ok) throw new Error(`projects ${r.status}`)
-        return r.json()
-      })
-      .then((rows) => {
-        const projects = rows.map(normalize)
-        projects.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
-        if (projects.length) projectsCache.set('all', projects)
-        return projects
-      })
+    if (!cached || !cached.length) return fetchAndCache()
+    // Compare cached length to Typesense's view of the world. If they
+    // disagree, the local cache is stale — drop it and refetch.
+    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
+      if (expected !== null && expected !== cached.length) {
+        return fetchAndCache()
+      }
+      return cached
+    })
   })
 }
 
@@ -169,9 +184,15 @@ async function initFundingMap(places) {
   }
 }
 
+function readUrlQ() {
+  if (typeof window === 'undefined') return ''
+  return new URLSearchParams(window.location.search).get('q') || ''
+}
+
 const FundedProjects = () => {
   const [projects, setProjects] = useState(null)
   const [error, setError] = useState(null)
+  const [searchValue, setSearchValue] = useState(readUrlQ)
   const initRef = useRef(false)
 
   useEffect(() => {
@@ -209,6 +230,11 @@ const FundedProjects = () => {
       data: tableData,
     })
 
+    // Apply ?q= once the table is built so the filter actually engages.
+    if (searchValue) {
+      window.myDataTable.search(searchValue)
+    }
+
     const places = {}
     tableData.forEach((item) => (item.orgs || []).forEach((o) => {
       if (o.plus_code) places[o.plus_code] = o
@@ -217,6 +243,7 @@ const FundedProjects = () => {
   }, [projects])
 
   const onSearch = (e) => {
+    setSearchValue(e.target.value)
     if (window.myDataTable) window.myDataTable.search(e.target.value)
   }
 
@@ -232,6 +259,7 @@ const FundedProjects = () => {
         </div>
         <input
           id="funding_search"
+          value={searchValue}
           onChange={onSearch}
           type="text"
           className="form-control"

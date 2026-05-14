@@ -27,7 +27,8 @@ function readQuery() {
     : []
   const page = parseInt(params.get('page'), 10) || 1
   const perPage = parseInt(params.get('show'), 10) || DEFAULT_PER_PAGE
-  return { categories, page, perPage }
+  const q = (params.get('q') || '').trim()
+  return { categories, page, perPage, q }
 }
 
 function categoryHeading(categories) {
@@ -63,20 +64,25 @@ function lookupCategoryIds(slugs) {
   })
 }
 
-function buildPostsUrl({ categoryIds, page, perPage }) {
+function buildPostsUrl({ categoryIds, page, perPage, q }) {
   const params = new URLSearchParams()
   if (categoryIds.length) params.set('categories', categoryIds.join(','))
   params.set('categories_exclude', EXCLUDE_IDS.join(','))
-  params.set('orderby', 'date')
-  params.set('order', 'desc')
+  // WP's `search` orders by relevance internally, so only force date order
+  // when there is no query.
+  if (!q) {
+    params.set('orderby', 'date')
+    params.set('order', 'desc')
+  }
   params.set('per_page', String(perPage))
   params.set('page', String(page))
   params.set('_embed', 'wp:featuredmedia,author')
+  if (q) params.set('search', q)
   return `${WP_BASE}/posts?${params.toString()}`
 }
 
-function fetchPostsPage({ categoryIds, page, perPage }) {
-  const cacheKey = `posts:${categoryIds.join(',')}|p=${page}|n=${perPage}`
+function fetchPostsPage({ categoryIds, page, perPage, q }) {
+  const cacheKey = `posts:${categoryIds.join(',')}|p=${page}|n=${perPage}|q=${q || ''}`
   return postsCache.get(cacheKey).then((cached) => {
     if (cached) return cached
     const url = buildPostsUrl({ categoryIds, page, perPage })
@@ -86,7 +92,9 @@ function fetchPostsPage({ categoryIds, page, perPage }) {
       const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || '1', 10)
       return r.json().then((rows) => {
         const value = { posts: rows.map(normalizePost), total, totalPages }
-        postsCache.set(cacheKey, value)
+        // Skip caching empty search results so a transient WP error isn't
+        // sticky for 15 minutes.
+        if (rows.length || !q) postsCache.set(cacheKey, value)
         return value
       })
     })
@@ -115,22 +123,23 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
 }
 
-function pageHref({ categories, page, perPage }) {
+function pageHref({ categories, page, perPage, q }) {
   const params = new URLSearchParams()
   if (categories.length) params.set('categories', categories.join(','))
   params.set('page', String(page))
   if (perPage !== DEFAULT_PER_PAGE) params.set('show', String(perPage))
+  if (q) params.set('q', q)
   return `${window.location.pathname}?${params.toString()}`
 }
 
-const Pagination = ({ categories, page, perPage, totalPages, onNavigate }) => {
+const Pagination = ({ categories, page, perPage, totalPages, onNavigate, q }) => {
   if (totalPages <= 1) return null
   const items = []
   const click = (target) => (e) => {
     e.preventDefault()
     onNavigate(target)
   }
-  const linkTo = (p) => pageHref({ categories, page: p, perPage })
+  const linkTo = (p) => pageHref({ categories, page: p, perPage, q })
 
   items.push(
     <li className="page-item" key="prev">
@@ -213,7 +222,7 @@ const PostsList = () => {
     let cancelled = false
     setState((s) => ({ ...s, posts: null, error: null }))
     lookupCategoryIds(query.categories)
-      .then((categoryIds) => fetchPostsPage({ categoryIds, page: query.page, perPage: query.perPage }))
+      .then((categoryIds) => fetchPostsPage({ categoryIds, page: query.page, perPage: query.perPage, q: query.q }))
       .then((res) => {
         if (cancelled) return
         setState({ posts: res.posts, totalPages: res.totalPages, error: null })
@@ -225,11 +234,11 @@ const PostsList = () => {
     return () => {
       cancelled = true
     }
-  }, [catsKey, query.page, query.perPage])
+  }, [catsKey, query.page, query.perPage, query.q])
 
   const navigate = (page) => {
     const next = { ...query, page }
-    window.history.pushState({}, '', pageHref({ categories: next.categories, page: next.page, perPage: next.perPage }))
+    window.history.pushState({}, '', pageHref({ categories: next.categories, page: next.page, perPage: next.perPage, q: next.q }))
     setQuery(next)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -254,9 +263,20 @@ const PostsList = () => {
       </div>
       <div className="container pt90">
         <div className="container mb30">
+          {query.q && (
+            <p className="mb20" style={{ color: '#666' }}>
+              Showing posts matching <strong>{query.q}</strong>.{' '}
+              <a href={pageHref({ categories: query.categories, page: 1, perPage: query.perPage, q: '' })}>
+                Clear search
+              </a>
+            </p>
+          )}
           <div className="row">
             {state.error && <div className="col-lg-12">Unable to load posts.</div>}
             {!state.error && !state.posts && <div className="col-lg-12">&nbsp;</div>}
+            {state.posts && state.posts.length === 0 && (
+              <div className="col-lg-12">No matching posts.</div>
+            )}
             {state.posts && state.posts.map((p) => <PostCard post={p} key={p.id} />)}
           </div>
           <Pagination
@@ -265,6 +285,7 @@ const PostsList = () => {
             perPage={query.perPage}
             totalPages={state.totalPages}
             onNavigate={navigate}
+            q={query.q}
           />
         </div>
       </div>

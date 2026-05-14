@@ -40,8 +40,6 @@ def register_blueprints(app=None):
 	from .controllers.people import people_page
 	from .controllers.faq import faq_page
 	from .controllers.new_user_guide import new_user_guide_page
-	from .controllers.search import search_page
-	from .controllers.search_api import search_api
 	from .controllers.publications import publications_page
 	from .controllers.update_publications import update_publications_page
 	from .controllers.paper import paper_page
@@ -57,10 +55,11 @@ def register_blueprints(app=None):
 	from .controllers.project import project_page
 	from .controllers.conference import conference_page
 	from .controllers.workingGroups import workingGroups_page
-# 	from .controllers.abstracts import abstracts_list
+	from .controllers.abstracts import abstracts_list
 	from .controllers.abstract import abstract_page
 	from .controllers.clear_wp_cache import clear_wp_cache_page
 	from .controllers.wp_cache import wp_cache_page
+	from .controllers.typesense_index import typesense_page
 
 	# from .controllers.VEP import VEP_entry_page, VEP_source_page, VEP_page
 
@@ -87,7 +86,6 @@ def register_blueprints(app=None):
 	app.register_blueprint(people_page)
 	app.register_blueprint(faq_page)
 	app.register_blueprint(new_user_guide_page)
-	app.register_blueprint(search_page)
 	app.register_blueprint(publications_page)
 	app.register_blueprint(update_publications_page)
 	app.register_blueprint(paper_page)
@@ -103,11 +101,11 @@ def register_blueprints(app=None):
 	app.register_blueprint(project_page)
 	app.register_blueprint(conference_page)
 	app.register_blueprint(workingGroups_page)
-# 	app.register_blueprint(abstracts_list)
+	app.register_blueprint(abstracts_list)
 	app.register_blueprint(abstract_page)
-	app.register_blueprint(search_api)
 	app.register_blueprint(clear_wp_cache_page)
 	app.register_blueprint(wp_cache_page)
+	app.register_blueprint(typesense_page)
 
 	# app.register_blueprint(VEP_entry_page)
 	# app.register_blueprint(VEP_source_page)

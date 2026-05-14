@@ -1,192 +1,19 @@
 {% extends "base.html" %}
-{% block page_title %}Funded Project - {{ project.s.project_title }}{% endblock %}
+{% block page_title %}Funded Project{% endblock %}
 {% block additional_header %}{% endblock %}
 {% block content %}
 
-<!-- place page content here -->
-
-{# Page is constructed in sections (rows). #}
-
-
-{# Section: Image slider #}
-
 <div class="page-titles-img title-space-md bg-parallax parallax-overlay mb70" data-jarallax='{"speed": 0.2}'
-     style='background-image: url("{{sorghum_grains_image.s.source_url}}")'>
+     style='background-image: url("{{banner_url}}")'>
     <div class="container">
         <div class="row">
             <div class=" col-md-8 ml-auto mr-auto">
                 <h1 class='text-uppercase'>Research project</h1>
-
             </div>
-        </div>
-    </div>
-</div><!--page title end-->
-
-<div class="container pb50">
-    <div class="row justify-content-md-center">
-        <div class="col-md-9 mb40">
-            <article>
-
-              <div class="clearfix pb20">
-                  <h2 class="mb0">
-                      {% if project.s.project_logo %}
-                          <img src='{{ project.s.project_logo.guid }}' style="max-height:80px;">
-                      {% endif %}
-                      {{project.s.project_title | safe}}
-                  </h2>
-              </div>
-              <p>
-                {{project.s.start_date | safe }} to {{project.s.end_date | safe}}
-              </p>
-              <br>
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            {{project.s.funding_agency}} {{project.s.funding_program}} {{project.s.funding_subcategory}}
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <h6><a  style="color:#9F3D34" href="{{project.s.funding_link}}">Award ID {{project.s.award_id}}</a></h6>
-                    </div>
-                </div>
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            Awardees
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <h6>{{project.s.awardees | safe}}</h6>
-                    </div>
-                </div>
-
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            Description
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <h6>{{project.s.project_description | safe}}</h6>
-                    </div>
-                </div>
-
-                {% if project.s.project_web_sites %}
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            Project Links
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% for rlink in project.s.project_web_sites %}
-                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="{{rlink.resource_url}}">
-                            {{ rlink.post_title | safe }}
-                            </a></h6>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                {% if project.s.project_news %}
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            Project News
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% for post in project.s.project_news %}
-                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="/post/{{post|replace(" ", "-")}}">
-                            {{ post | safe }}
-                            </a></h6>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-                {% if project.s.project_publications %}
-                <div class="card mb10">
-                    <div class="card-header" role="tab" id="posts">
-                        <h5 class="mb-0">
-                            Project Publications
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        {% for paper in project.s.project_publications %}
-                        <h6 class="masonry-title mb1"><a style="color:#9F3D34" href="/paper/{{paper.id|replace(" ", "-")}}">
-                            {{ paper.post_title | safe }}
-                            </a></h6>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-              <br>
-                {% if project.s.project_images %}
-              <h6>Project Images</h6>
-              <div id="js-grid-lightbox-gallery" class="cbp">
-              {% for image in project.project_images %}
-              <div class="cbp-item identity graphic print">
-                <div class="cbp-caption margin-bottom-20">
-                    <div class="cbp-caption-defaultWrap">
-                        <img src="{{image.s.source_url}}" alt="">
-                    </div>
-                    <div class="cbp-caption-activeWrap">
-                        <div class="cbp-l-caption-alignCenter">
-                            <div class="cbp-l-caption-body">
-                                <ul class="link-captions no-bottom-space">
-                                    <li><a href="{{image.s.source_url}}" class="cbp-lightbox" data-title="{{image.s.caption}}"><i class="ti-plus"></i></a></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-                {% endif %}
-            </article>
         </div>
     </div>
 </div>
-{% endblock %}
-{% block script_below_content %}
 
-    (function ($, window, document, undefined) {
-        'use strict';
-
-        // init cubeportfolio
-        $('#js-grid-lightbox-gallery').cubeportfolio({
-            filters: '#js-filters-lightbox-gallery',
-            layoutMode: 'grid',
-            mediaQueries: [{
-                    width: 1500,
-                    cols: 3
-                }, {
-                    width: 1100,
-                    cols: 3
-                }, {
-                    width: 800,
-                    cols: 3
-                }, {
-                    width: 480,
-                    cols: 2,
-                    options: {
-                        caption: ''
-                    }
-                }],
-            defaultFilter: '*',
-            animationType: 'sequentially',
-            gapHorizontal: 15,
-            gapVertical: 15,
-            gridAdjustment: 'responsive',
-            caption: 'zoom',
-            displayType: 'fadeIn',
-            displayTypeSpeed: 100,
-            // lightbox
-            lightboxDelegate: '.cbp-lightbox',
-            lightboxGallery: true,
-            lightboxTitleSrc: 'data-title'
-            // lightboxCounter: '<div class="cbp-popup-lightbox-counter">{{current}} of {{total}}</div>'
-        });
-    })(jQuery, window, document);
+<div id="sb-project" data-slug="{{slug}}"></div>
 
 {% endblock %}

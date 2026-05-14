@@ -436,6 +436,120 @@ img {
   width:1000px;
 }
 
+/* Typesense-backed typeahead dropdown (see search_app/src/components/typeahead.js) */
+.typeahead-results {
+  padding: 0.5rem 0;
+}
+.typeahead-empty {
+  padding: 1rem;
+  color: #6c757d;
+  font-style: italic;
+}
+.typeahead-group + .typeahead-group {
+  border-top: 1px solid #eee;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+}
+.typeahead-group-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #555;
+  background: #f7f7f7;
+}
+.typeahead-group-count {
+  font-weight: 500;
+  color: #888;
+  text-transform: none;
+}
+.typeahead-group-showall {
+  font-weight: 500;
+  color: #2a6496;
+  text-transform: none;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.typeahead-group-showall:hover,
+.typeahead-group-showall:focus {
+  text-decoration: underline;
+}
+.typeahead-group-showall-label {
+  color: #666;
+  font-weight: 400;
+  margin-left: 0.25rem;
+}
+.typeahead-hit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.typeahead-hit a {
+  display: block;
+  padding: 0.45rem 1rem;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid #f3f3f3;
+}
+.typeahead-hit a:hover,
+.typeahead-hit a:focus {
+  background: #f0f6ff;
+  text-decoration: none;
+}
+.typeahead-hit-title {
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.typeahead-hit-citation {
+  margin-top: 0.15rem;
+  color: #444;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.typeahead-hit-authors {
+  color: #444;
+}
+.typeahead-hit-journal {
+  color: #555;
+  margin-left: 0.35rem;
+}
+.typeahead-hit-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-top: 0.15rem;
+  color: #6c757d;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.typeahead-hit-date {
+  flex: 0 0 auto;
+  color: #888;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.typeahead-hit-excerpt {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.typeahead-hit mark {
+  background: #fff3a3;
+  padding: 0;
+}
+
 .title-space-md {
   padding-top: 7em;
   padding-bottom: 3em; }

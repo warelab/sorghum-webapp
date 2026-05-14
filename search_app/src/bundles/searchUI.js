@@ -1,223 +1,92 @@
-import qs from 'querystringify'
 import ReactGA from 'react-ga4'
 
-const isString = obj =>
-    Object.prototype.toString.call(obj) === '[object String]'
-const ensureString = input =>
-    isString(input) ? input : qs.stringify(input)
-const clearResults = [
-  {type: 'SORGHUM_POSTS_CLEARED'},
-  {type: 'SORGHUM_PROJECTS_CLEARED'},
-  {type: 'SORGHUM_LINKS_CLEARED'},
-  {type: 'SORGHUM_EVENTS_CLEARED'},
-  {type: 'SORGHUM_PEOPLE_CLEARED'},
-  {type: 'SORGHUM_PAPERS_CLEARED'},
-  {type: 'GRAMENE_GENES_CLEARED'},
-  {type: 'GRAMENE_TAXONOMY_CLEARED'},
-  {type: 'GRAMENE_DOMAINS_CLEARED'},
-  {type: 'GRAMENE_PATHWAYS_CLEARED'}
-];
+// Only the gramene-search bundles still own their own suggestions state.
+// The sorghum side is now served by /api/typeahead (see ./typeahead.js).
 const clearSuggestions = [
-  {type: 'SORGHUM_POSTS_SUGGESTIONS_CLEARED'},
-  {type: 'SORGHUM_PROJECTS_SUGGESTIONS_CLEARED'},
-  {type: 'SORGHUM_LINKS_SUGGESTIONS_CLEARED'},
-  {type: 'SORGHUM_EVENTS_SUGGESTIONS_CLEARED'},
-  {type: 'SORGHUM_PEOPLE_SUGGESTIONS_CLEARED'},
-  {type: 'SORGHUM_PAPERS_SUGGESTIONS_CLEARED'},
-  {type: 'GRAMENE_SUGGESTIONS_CLEARED'},
-  {type: 'SUGGESTIONS_CLEARED'}
+  { type: 'GRAMENE_SUGGESTIONS_CLEARED' },
+  { type: 'SUGGESTIONS_CLEARED' },
 ];
+
 const UIbundle = {
   name: 'searchUI',
   getReducer: () => {
     const initialState = {
       suggestions_query: '',
       suggestions_tab: 'sorghumbase',
-      CMSTab: 'Posts',
-      sorghumbase: true,
-      Posts: true,
-      Projects: true,
-      Events: true,
-      People: true,
-      Links: true,
-      Papers: true,
-      updates: 1,
-      Gramene: false,
-      Genes: true,
-      Domains: false,
-      Pathways: false,
-      Species: false,
-      rows: {
-        Posts: 6,
-        Projects: 6,
-        Events: 6,
-        People: 6,
-        Links: 6,
-        Papers: 6,
-        Genes: 20
-      }
     };
-    return (state = initialState, {type, payload}) => {
-      if (type === 'CATEGORY_TOGGLED') {
-        let update = {
-          updates: state.updates + 1
-        };
-        update[payload] = !state[payload];
-        return Object.assign({}, state, update)
-      }
-      if (type === 'CATEGORY_QUANTITY_CHANGED') {
-        let newState = Object.assign({}, state, {
-          updates: state.updates + 1
-        });
-        newState.rows[payload.cat] += payload.delta;
-        return newState;
-      }
+    return (state = initialState, { type, payload }) => {
       if (type === 'SUGGESTIONS_QUERY_CHANGED') {
-        return Object.assign({}, state, {
-          suggestions_query: payload.query
-        });
+        return { ...state, suggestions_query: payload.query };
       }
       if (type === 'SUGGESTIONS_TAB_CHANGED') {
-        return Object.assign({}, state, {
-          suggestions_tab: payload.key
-        });
+        return { ...state, suggestions_tab: payload.key };
       }
       if (type === 'SUGGESTIONS_CLEARED') {
-        return Object.assign({}, state, {
-          suggestions_query: ''
-        });
+        return { ...state, suggestions_query: '' };
       }
-      if (type === 'CMS_TAB_CHANGED') {
-        return Object.assign({}, state, {CMSTab:payload})
-      }
-      return state
-    }
+      return state;
+    };
   },
-  doToggleCategory: cat => ({dispatch}) => {
-    dispatch({type: 'CATEGORY_TOGGLED', payload: cat})
-  },
-  doChangeSorghumTab: tab => ({dispatch}) => {
-    dispatch({type: 'CMS_TAB_CHANGED', payload: tab})
-  },
-  persistActions: ['CATEGORY_TOGGLED', 'CATEGORY_QUANTITY_CHANGED', 'SUGGESTIONS_TAB_CHANGED', 'SUGGESTIONS_CLEARED', 'CMS_TAB_CHANGED'],
-  doChangeQuantity: (cat, delta) => ({dispatch, getState}) => {
-    const state = getState();
-    console.log('doChangeQuantity', state);
-    dispatch({type: 'CATEGORY_QUANTITY_CHANGED', payload: {cat: cat, delta: delta}});
 
-    function possiblyFetch(category, delta) {
-      const bundleName = category === 'Genes' ? 'Gramene' : 'Sorghum';
-      const data = state[bundleName.toLowerCase() + category].data;
-      const rows = state.searchUI.rows[category] + delta;
-      if (bundleName === 'Gramene') {
-        if (data && rows > data.response.docs.length && data.response.docs.length < data.response.numFound) {
-          dispatch({actionCreator: `doFetch${bundleName}${category}`})
-        }
-      }
-      if (bundleName === 'Sorghum') {
-        if (data && rows > data.docs.length && data.docs.length < data.numFound) {
-          dispatch({actionCreator: `doFetch${bundleName}${category}`})
-        }
-      }
-    }
+  persistActions: ['SUGGESTIONS_TAB_CHANGED', 'SUGGESTIONS_CLEARED'],
 
-    possiblyFetch(cat, delta);
-  },
-  doChangeSuggestionsQuery: query => ({dispatch}) => {
+  doChangeSuggestionsQuery: (query) => ({ dispatch }) => {
     ReactGA.event({
       category: 'search',
-      action: "query",
-      label: query.trim()
+      action: 'query',
+      label: query.trim(),
     });
     dispatch({
-      type: 'BATCH_ACTIONS', actions: [
+      type: 'BATCH_ACTIONS',
+      actions: [
         ...clearSuggestions,
-        {type: 'SUGGESTIONS_QUERY_CHANGED', payload: {query: query.trim()}}
-      ]
+        { type: 'SUGGESTIONS_QUERY_CHANGED', payload: { query: query.trim() } },
+      ],
     });
   },
-  doClearSuggestions: () => ({dispatch}) => {
-    document.getElementById('sorghumbase-searchbar-parent').classList.remove('search-visible');
-    dispatch({
-      type: 'BATCH_ACTIONS', actions: clearSuggestions
-    });
+
+  doClearSuggestions: () => ({ dispatch }) => {
+    const el = document.getElementById('sorghumbase-searchbar-parent');
+    if (el) el.classList.remove('search-visible');
+    dispatch({ type: 'BATCH_ACTIONS', actions: clearSuggestions });
   },
-  doUpdateTheQueries: query => ({dispatch, getState}) => {
-    const url = new URL(getState().url.url);
-    url.search = ensureString(query);
-    dispatch({
-      type: 'BATCH_ACTIONS', actions: [
-        ...clearResults,
-        {type: 'URL_UPDATED', payload: {url: url.href, replace: false}}
-      ]
-    });
-  },
-  doAcceptSorghumSuggestion: query => ({dispatch, getState}) => {
-    const url = new URL(getState().url.url);
-    url.search = ensureString(query);
-    const updateLocation = (url.pathname !== '/search');
-    url.pathname = '/search';
-    dispatch({
-      type: 'BATCH_ACTIONS', actions: [
-        ...clearSuggestions,
-        ...clearResults,
-        {type: 'URL_UPDATED', payload: {url: url.href, replace: false}}
-      ]
-    });
-    document.getElementById('sorghumbase-searchbar-parent').classList.remove('search-visible');
-    if (updateLocation) {
-      window.location = url
-    }
-  },
-  doAcceptSuggestion: suggestion => ({dispatch, getState}) => {
+
+  doAcceptSuggestion: (suggestion) => ({ dispatch, getState }) => {
     const url = new URL(getState().url.url);
     if (url.pathname !== '/genes' && url.pathname !== '/genes.html') {
-      if (!suggestion.name) {
-        suggestion.name = suggestion.display_name;
-      }
+      if (!suggestion.name) suggestion.name = suggestion.display_name;
       url.pathname = '/genes';
       url.search = `sugg=${JSON.stringify(suggestion)}`;
       window.location = url;
-    }
-    else {
-      document.getElementById('sorghumbase-searchbar-parent').classList.remove('search-visible');
-      dispatch({
-        type: 'BATCH_ACTIONS', actions: [
-          ...clearSuggestions
-        ]
-      });
+    } else {
+      const el = document.getElementById('sorghumbase-searchbar-parent');
+      if (el) el.classList.remove('search-visible');
+      dispatch({ type: 'BATCH_ACTIONS', actions: clearSuggestions });
     }
   },
-  doChangeSuggestionsTab: key => ({dispatch, getState}) => {
+
+  doChangeSuggestionsTab: (key) => ({ dispatch, getState }) => {
     const currentTab = getState().suggestions_tab;
     if (key !== currentTab) {
-      dispatch({
-        type: 'SUGGESTIONS_TAB_CHANGED', payload: {key: key}
-      })
+      dispatch({ type: 'SUGGESTIONS_TAB_CHANGED', payload: { key } });
     }
   },
-  selectSearchUI: state => state.searchUI,
-  selectSearchUpdated: state => state.searchUI.updates,
-  selectRows: state => state.searchUI.rows,
-  selectSuggestionsQuery: state => state.searchUI.suggestions_query,
-  selectSuggestionsTab: state => state.searchUI.suggestions_tab,
-  selectSorghumTab: state => state.searchUI.CMSTab,
-  selectPath: state => state.pathname,
-  selectSorghumSuggestionsStatus: state => {
-    let matches=0;
-    let loading=0;
-    if (state.sorghumPostsSuggestions && state.sorghumPostsSuggestions.data) matches += state.sorghumPostsSuggestions.data.numFound;
-    else loading++;
-    if (state.sorghumProjectsSuggestions && state.sorghumProjectsSuggestions.data) matches += state.sorghumProjectsSuggestions.data.numFound;
-    else loading++;
-    // if (state.sorghumLinksSuggestions && state.sorghumLinksSuggestions.data) matches += state.sorghumLinksSuggestions.data.numFound;
-    // else loading++;
-    if (state.sorghumEventsSuggestions && state.sorghumEventsSuggestions.data) matches += state.sorghumEventsSuggestions.data.numFound;
-    else loading++;
-    if (state.sorghumPapersSuggestions && state.sorghumPapersSuggestions.data) matches += state.sorghumPapersSuggestions.data.numFound;
-    else loading++;
-    return loading ? 'loading' : `${matches} match${matches !== 1 ? 'es' : ''}`;
-  }
+
+  selectSearchUI: (state) => state.searchUI,
+  selectSuggestionsQuery: (state) => state.searchUI.suggestions_query,
+  selectSuggestionsTab: (state) => state.searchUI.suggestions_tab,
+  selectPath: (state) => state.pathname,
+
+  selectSorghumSuggestionsStatus: (state) => {
+    const t = state.typeahead;
+    if (!t || t.status === 'idle') return '';
+    if (t.status === 'loading') return 'loading';
+    if (t.status === 'error') return 'error';
+    const total = (t.data && t.data.facets)
+      ? Object.values(t.data.facets).reduce((acc, n) => acc + (n || 0), 0)
+      : 0;
+    return `${total} match${total !== 1 ? 'es' : ''}`;
+  },
 };
 
 export default UIbundle;

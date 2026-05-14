@@ -1,18 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { DebounceInput } from 'react-debounce-input'
-import { Nav, Tab, Row, Col, Button } from 'react-bootstrap'
-import {suggestions as SorghumSummary} from 'sorghum-search'
+import { Nav, Tab, Row, Col } from 'react-bootstrap'
 import {suggestions as GrameneSummary} from 'gramene-search'
+import Typeahead from './typeahead'
 
 const handleKey = (e, props) => {
   if (e.key === "Escape") {
     props.doClearSuggestions();
-  }
-  if (e.key === "Enter") {
-    // if (props.suggestionsTab === "sorghumbase") {
-    //   props.doAcceptSorghumSuggestion(`q=${props.suggestionsQuery}`)
-    // }
   }
   if (e.key === "Tab") {
     if (props.suggestionsTab === "gramene" && props.grameneSuggestionsReady) {
@@ -37,81 +32,75 @@ const SearchBarCmp = props => {
 
     prevNonEmpty.current = isNonEmpty;
   }, [props.suggestionsQuery]);
+
   return <DebounceInput
     minLength={0}
     debounceTimeout={300}
     onChange={e => props.doChangeSuggestionsQuery(e.target.value)}
     onKeyDown={e => handleKey(e, props)}
-    // onKeyUp={e => handleKey(e.key,props)}
     className="form-control"
     value={props.suggestionsQuery || ''}
-    placeholder="Search for genes, species, pathways, domains, ontology terms..."
+    placeholder="Search posts, papers, abstracts, projects, events, links…"
     id="sorghumbase-search-input"
     autoComplete="off"
     spellCheck="false"
   />;
-}
+};
 
 const SearchBar = connect(
   'selectSuggestionsQuery',
   'selectSuggestionsTab',
   'doChangeSuggestionsQuery',
   'doClearSuggestions',
-  'doAcceptSorghumSuggestion',
   'selectGrameneSuggestionsReady',
   SearchBarCmp
 );
 
 const ResultsCmp = props => {
-  if (props.suggestionsQuery) {
-    const spinner = <img src="/static/images/dna_spinner.svg"/>;
+  if (!props.suggestionsQuery) return null;
 
-    let genesStatus = props.grameneSuggestionsStatus === 'loading' ? spinner : props.grameneSuggestionsStatus;
-    let siteStatus = props.sorghumSuggestionsStatus === 'loading' ? spinner : props.sorghumSuggestionsStatus;
-    return (
-      <div className="search-suggestions">
-        <Tab.Container id="controlled-search-tabs" activeKey={props.suggestionsTab} onSelect={k => props.doChangeSuggestionsTab(k)}>
-          <Row>
-            <Col>
-              <Nav variant="tabs">
-                <Nav.Item>
-                  <Nav.Link eventKey="gramene">
-                    <div className="suggestions-tab">Genes {genesStatus}</div>
-                  </Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="sorghumbase">
-                    <div className="suggestions-tab">Website {siteStatus}</div>
-                  </Nav.Link>
-                </Nav.Item>
-                {/*<Nav.Item>*/}
-                {/*  <Nav.Link eventKey="germplasm" disabled>*/}
-                {/*    <div className="suggestions-tab">Germplasm</div>*/}
-                {/*  </Nav.Link>*/}
-                {/*</Nav.Item>*/}
-              </Nav>
-            </Col>
-          </Row>
-          <Row>
-            <Col>
-              <Tab.Content>
-                <Tab.Pane eventKey="gramene">
-                  <GrameneSummary/>
-                </Tab.Pane>
-                <Tab.Pane eventKey="sorghumbase">
-                  <SorghumSummary/>
-                </Tab.Pane>
-                {/*<Tab.Pane eventKey="germplasm">*/}
-                {/*  <p>placeholder</p>*/}
-                {/*</Tab.Pane>*/}
-              </Tab.Content>
-            </Col>
-          </Row>
-        </Tab.Container>
-      </div>
-    );
-  }
-  return null;
+  const spinner = <img src="/static/images/dna_spinner.svg"/>;
+  const genesStatus = props.grameneSuggestionsStatus === 'loading' ? spinner : props.grameneSuggestionsStatus;
+  const siteStatus  = props.sorghumSuggestionsStatus === 'loading' ? spinner : props.sorghumSuggestionsStatus;
+
+  return (
+    <div className="search-suggestions">
+      <Tab.Container
+        id="controlled-search-tabs"
+        activeKey={props.suggestionsTab}
+        onSelect={k => props.doChangeSuggestionsTab(k)}
+      >
+        <Row>
+          <Col>
+            <Nav variant="tabs">
+              <Nav.Item>
+                <Nav.Link eventKey="gramene">
+                  <div className="suggestions-tab">Genes {genesStatus}</div>
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="sorghumbase">
+                  <div className="suggestions-tab">Website {siteStatus}</div>
+                </Nav.Link>
+              </Nav.Item>
+            </Nav>
+          </Col>
+        </Row>
+        <Row>
+          <Col>
+            <Tab.Content>
+              <Tab.Pane eventKey="gramene">
+                <GrameneSummary/>
+              </Tab.Pane>
+              <Tab.Pane eventKey="sorghumbase">
+                <Typeahead/>
+              </Tab.Pane>
+            </Tab.Content>
+          </Col>
+        </Row>
+      </Tab.Container>
+    </div>
+  );
 };
 
 const Results = connect(
@@ -120,19 +109,16 @@ const Results = connect(
   'selectGrameneSuggestionsStatus',
   'selectSorghumSuggestionsStatus',
   'doChangeSuggestionsTab',
-  'doAcceptSorghumSuggestion',
   ResultsCmp
 );
 
-const Searcher = (store) => {
-    return (
-        <Provider store={store}>
-          <div>
-            <SearchBar/>
-            <Results/>
-          </div>
-        </Provider>
-    )
-};
+const Searcher = (store) => (
+  <Provider store={store}>
+    <div>
+      <SearchBar/>
+      <Results/>
+    </div>
+  </Provider>
+);
 
 export default Searcher;

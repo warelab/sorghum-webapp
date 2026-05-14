@@ -5,6 +5,7 @@ flask
 termcolor
 coloredlogs
 redis
+typesense
 #litter_getter
 
 # needs to be converted into an installable module before uncommenting

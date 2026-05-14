@@ -22,6 +22,8 @@ import HomeSection from './components/homePosts'
 import PostsList from './components/postsList'
 import EventsList from './components/eventsList'
 import PeopleList from './components/peopleList'
+import AbstractDetail from './components/abstractDetail'
+import ProjectDetail from './components/projectDetail'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -144,4 +146,16 @@ cache.getAll().then(initialData => {
 
   element = document.getElementById('sb-people-list');
   element && render(<PeopleList />, element) && console.log('rendered sb-people-list')
+
+  element = document.getElementById('sb-abstract');
+  if (element) {
+    const slug = element.getAttribute('data-slug') || '';
+    render(<AbstractDetail slug={slug} />, element) && console.log('rendered sb-abstract');
+  }
+
+  element = document.getElementById('sb-project');
+  if (element) {
+    const slug = element.getAttribute('data-slug') || '';
+    render(<ProjectDetail slug={slug} />, element) && console.log('rendered sb-project');
+  }
 })
