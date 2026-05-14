@@ -13,60 +13,8 @@
       </div>
     </div>
   </div>
-</div><!--page title end-->
-<div class="container pt90">
-  <div class="input-group mb-3">
-    <div class="input-group-prepend">
-      <span class="input-group-text" id="inputGroup-sizing-default">Search</span>
-    </div>
-    <input id="abstracts_search" onchange="myDataTable.search(this.value)" type="text" class="form-control" aria-label="Default" aria-describedby="inputGroup-sizing-default">
-  </div>
-    <table id="abstracts_tbl" class="table table-hover table-bordered">
-        <thead class="thead-light"></thead>
-        <tbody></tbody>
-    </table>
 </div>
-{% endblock %}
-{% block script_below_content %}
-var tableData = [
-{% for ab in abstracts %}
-{ "conference": {{ ((ab.conference ~ ' ' ~ ab.year) | trim) | tojson | safe }},
-  "author": {{ ab.author | tojson | safe }},
-  "title": {{ ab.title | tojson | safe }},
-  "orgs": {{ ab.organizations | tojson | safe }},
-  "orgstr": {{ ab.organizations | tojson | safe }}.map(function(o){return o.post_title;}).join(' '),
-  "slug": {{ ab.slug | tojson | safe }},
-  "id": {{ ab.id }},
-  "type": {{ ab.type | tojson | safe }},
-  "content": {{ (ab.content | striptags) | tojson | safe }}
-},
-{% endfor %}
-];
 
-var myDataTable = FathGrid("abstracts_tbl",{
-editable:false,filterable:true,showGrouping:false,
-sortBy: [1],
-columns:[
-{name:'author',header:'Presenting Author',editable:false, filterable:false },
-{name:'title',editable:false,header:'Title', filterable:false,html:function(item){return `<span class="sb-link"><a href="/abstract/${item.slug}">${item.title}</a></span>`}},
-{name:'orgs',header:'Institution',editable:false, filterable:false, value:item => item.orgs.map(o=>o.post_title).join(' '),
-html:item => {lis = item.orgs.map(o => `<li>${o.post_title}</li>`).join('');return `<ul class="list-unstyled sb-link">${lis}</ul>`}},
-{name:'type',editable:false,header:'Presentation', filterable:false},
-{name:'conference',header:'Conference',editable:false, filterable:false},
-{name:'id',visible:false,editable:false,header:'CMS',html:function(item){return `<a class="btn-link btn" target=_blank href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`}, filterable:false},
-{name:'orgstr',visible:false,editable:false,filterable:true,header:'idx'},
-{name:'content',visible:false,editable:false,filterable:true,header:'abstract'}
-],
-data:tableData});
+<div id="sb-abstracts"></div>
 
-// Honor ?q= from the URL: seed the input and apply the FathGrid filter.
-(function applyUrlQuery(){
-  var q = new URLSearchParams(window.location.search).get('q');
-  if (!q) return;
-  var input = document.getElementById('abstracts_search');
-  if (input) input.value = q;
-  if (window.myDataTable && typeof window.myDataTable.search === 'function') {
-    window.myDataTable.search(q);
-  }
-})();
 {% endblock %}

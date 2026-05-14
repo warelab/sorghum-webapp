@@ -25,6 +25,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .. import app
 from .. import wordpress_api as api
@@ -49,7 +51,7 @@ wp_cache_page = flask.Blueprint("wp_cache_page", __name__)
 # Builder entries are typically registered from their owning controller
 # module after import (see controllers/people.py).
 RESOURCES = {
-    "posts":                {"path": "posts", "params": {"categories_exclude": "8,17"}},
+    "posts":                {"path": "posts", "params": {"categories_exclude": "8,17", "_embed": "wp:featuredmedia,author"}},
     "publications":         {"path": "scientific_paper"},
     "tags":                 {"path": "tags"},
     "projects":             {"path": "project"},
@@ -62,6 +64,7 @@ RESOURCES = {
     "sicna_tags":           {"path": "tags", "params": {"search": "sicna"}},
     "events":               {"path": "event"},
     "resource_links":       {"path": "resource-link"},
+    "post_categories":      {"path": "categories", "params": {"per_page": 50}},
 }
 
 _redis_client = None
@@ -102,14 +105,44 @@ def _resource_lock(resource):
         return lock
 
 
+_wp_session_singleton = None
+
+
+def _wp_session():
+    """Shared requests.Session with retry-on-failure mounted. Necessary
+    because the WP REST API occasionally returns a 5xx or the local DNS
+    resolver flakes for a moment, and the 8-way parallel fetch in
+    _fetch_all_from_wp turns a single transient blip into a 500 on the
+    cache route."""
+    global _wp_session_singleton
+    if _wp_session_singleton is not None:
+        return _wp_session_singleton
+    s = requests.Session()
+    retry = Retry(
+        total=5,
+        connect=5,
+        read=3,
+        backoff_factor=0.5,  # waits 0.5, 1, 2, 4, 8s between retries
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(["GET", "HEAD"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=16, pool_maxsize=16)
+    s.mount("http://", adapter)
+    s.mount("https://", adapter)
+    _wp_session_singleton = s
+    return s
+
+
 def _fetch_all_from_wp(resource_entry):
     base_url = app.config["WP_BASE_URL"].rstrip("/") + "/" + resource_entry["path"]
     fixed = resource_entry.get("params", {})
     auth = getattr(api, "authenticator", None) if api else None
     per_page = 100
+    session = _wp_session()
 
     params = {"per_page": per_page, "page": 1, "skip_cache": 1, **fixed}
-    r = requests.get(base_url, params=params, auth=auth, timeout=60)
+    r = session.get(base_url, params=params, auth=auth, timeout=60)
     r.raise_for_status()
     total = int(r.headers.get("X-WP-Total", 0))
     total_pages = int(r.headers.get("X-WP-TotalPages", 1))
@@ -118,7 +151,7 @@ def _fetch_all_from_wp(resource_entry):
     if total_pages > 1:
         def fetch_page(p):
             pp = {"per_page": per_page, "page": p, "skip_cache": 1, **fixed}
-            resp = requests.get(base_url, params=pp, auth=auth, timeout=60)
+            resp = session.get(base_url, params=pp, auth=auth, timeout=60)
             resp.raise_for_status()
             return resp.json()
 

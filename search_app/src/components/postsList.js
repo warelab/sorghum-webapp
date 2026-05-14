@@ -1,23 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
+import Pagination from './pagination'
 
-const WP_BASE =
-  'https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2'
+// Posts listing is now powered by Typesense via /api/posts/search:
+// - one request per page, returning hit summaries (title/excerpt/url/date)
+// - supports ?q= for full-text search and ?categories=<slug,slug> filtering
+// - sorts by relevance when q is set, by date desc otherwise
+//
+// We still need a category slug -> id lookup so that human-friendly slugs in
+// the URL (e.g. categories=news) can be translated into the numeric IDs that
+// the posts collection is indexed against. The list lives in wp_cache
+// (`post_categories` resource); we mirror it into money-clip for cross-page
+// reuse.
 
-const FIFTEEN_MIN = 1000 * 60 * 15
 const ONE_DAY = 1000 * 60 * 60 * 24
 
-// Per-page post lists (short TTL: posts change).
-const postsCache = getConfiguredCache({ maxAge: FIFTEEN_MIN, version: 1 })
+const categoriesCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'postCategories' })
 
-// Category slug -> id lookups (longer TTL: terms are stable).
-const categoryCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1 })
-
-// Category IDs we always want to filter out (mirrors the previous Flask logic).
-// 8 = "faq", 17 = "Sorghumbase CMS Tutorials".
-const EXCLUDE_IDS = [8, 17]
-
-const DEFAULT_PER_PAGE = 9
+const CATEGORIES_URL = '/api/wp_cache/post_categories'
+const PER_PAGE = 30
 
 function readQuery() {
   const params = new URLSearchParams(window.location.search)
@@ -26,9 +27,8 @@ function readQuery() {
     ? rawCats.split(',').map((s) => s.trim()).filter(Boolean)
     : []
   const page = parseInt(params.get('page'), 10) || 1
-  const perPage = parseInt(params.get('show'), 10) || DEFAULT_PER_PAGE
   const q = (params.get('q') || '').trim()
-  return { categories, page, perPage, q }
+  return { categories, page, q }
 }
 
 function categoryHeading(categories) {
@@ -45,173 +45,97 @@ function bannerUrl(categories) {
   return 'https://content.sorghumbase.org/wordpress/wp-content/uploads/2018/05/k-state-sorghum-field-1920x1000.jpg'
 }
 
-function lookupCategoryIds(slugs) {
-  if (!slugs.length) return Promise.resolve([])
-  const key = `slugs:${slugs.slice().sort().join(',')}`
-  return categoryCache.get(key).then((cached) => {
-    if (cached) return cached
-    const url = `${WP_BASE}/categories?slug=${slugs.join(',')}&per_page=50`
-    return fetch(url, { headers: { Accept: 'application/json' } })
+function loadAllCategories() {
+  return categoriesCache.get('all').then((cached) => {
+    if (cached && cached.length) return cached
+    return fetch(CATEGORIES_URL, { headers: { Accept: 'application/json' } })
       .then((r) => {
         if (!r.ok) throw new Error(`categories ${r.status}`)
         return r.json()
       })
       .then((rows) => {
-        const ids = rows.map((c) => c.id)
-        categoryCache.set(key, ids)
-        return ids
+        if (rows && rows.length) categoriesCache.set('all', rows)
+        return rows
       })
   })
 }
 
-function buildPostsUrl({ categoryIds, page, perPage, q }) {
+function lookupCategoryIds(slugs) {
+  if (!slugs.length) return Promise.resolve([])
+  return loadAllCategories().then((cats) => {
+    const wanted = new Set(slugs)
+    return (cats || [])
+      .filter((c) => c && wanted.has(c.slug))
+      .map((c) => c.id)
+  })
+}
+
+function fetchPostsPage({ categoryIds, page, q }) {
   const params = new URLSearchParams()
-  if (categoryIds.length) params.set('categories', categoryIds.join(','))
-  params.set('categories_exclude', EXCLUDE_IDS.join(','))
-  // WP's `search` orders by relevance internally, so only force date order
-  // when there is no query.
-  if (!q) {
-    params.set('orderby', 'date')
-    params.set('order', 'desc')
-  }
-  params.set('per_page', String(perPage))
   params.set('page', String(page))
-  params.set('_embed', 'wp:featuredmedia,author')
-  if (q) params.set('search', q)
-  return `${WP_BASE}/posts?${params.toString()}`
-}
-
-function fetchPostsPage({ categoryIds, page, perPage, q }) {
-  const cacheKey = `posts:${categoryIds.join(',')}|p=${page}|n=${perPage}|q=${q || ''}`
-  return postsCache.get(cacheKey).then((cached) => {
-    if (cached) return cached
-    const url = buildPostsUrl({ categoryIds, page, perPage })
-    return fetch(url, { headers: { Accept: 'application/json' } }).then((r) => {
-      if (!r.ok) throw new Error(`posts ${r.status}`)
-      const total = parseInt(r.headers.get('X-WP-Total') || '0', 10)
-      const totalPages = parseInt(r.headers.get('X-WP-TotalPages') || '1', 10)
-      return r.json().then((rows) => {
-        const value = { posts: rows.map(normalizePost), total, totalPages }
-        // Skip caching empty search results so a transient WP error isn't
-        // sticky for 15 minutes.
-        if (rows.length || !q) postsCache.set(cacheKey, value)
-        return value
-      })
-    })
+  params.set('per_page', String(PER_PAGE))
+  if (q) params.set('q', q)
+  if (categoryIds.length) params.set('categories', categoryIds.join(','))
+  return fetch(`/api/posts/search?${params.toString()}`, {
+    headers: { Accept: 'application/json' },
+  }).then((r) => {
+    if (!r.ok) throw new Error(`posts/search ${r.status}`)
+    return r.json()
   })
 }
 
-function normalizePost(raw) {
-  const emb = raw._embedded || {}
-  const media = emb['wp:featuredmedia'] && emb['wp:featuredmedia'][0]
-  const author = emb['author'] && emb['author'][0]
-  return {
-    id: raw.id,
-    slug: raw.slug,
-    title: raw.title && raw.title.rendered,
-    excerpt: raw.excerpt && raw.excerpt.rendered,
-    date: raw.date,
-    featuredUrl: media && media.source_url,
-    authorName: author && author.name,
-  }
-}
-
-function formatDate(iso) {
-  if (!iso) return ''
-  const d = new Date(iso)
+function formatDate(epochOrIso) {
+  if (!epochOrIso) return ''
+  const d = typeof epochOrIso === 'number'
+    ? new Date(epochOrIso * 1000)
+    : new Date(epochOrIso)
   if (isNaN(d)) return ''
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-function pageHref({ categories, page, perPage, q }) {
+function pageHref({ categories, page, q }) {
   const params = new URLSearchParams()
   if (categories.length) params.set('categories', categories.join(','))
-  params.set('page', String(page))
-  if (perPage !== DEFAULT_PER_PAGE) params.set('show', String(perPage))
+  if (page > 1) params.set('page', String(page))
   if (q) params.set('q', q)
-  return `${window.location.pathname}?${params.toString()}`
+  const qs = params.toString()
+  return qs ? `${window.location.pathname}?${qs}` : window.location.pathname
 }
 
-const Pagination = ({ categories, page, perPage, totalPages, onNavigate, q }) => {
-  if (totalPages <= 1) return null
-  const items = []
-  const click = (target) => (e) => {
-    e.preventDefault()
-    onNavigate(target)
-  }
-  const linkTo = (p) => pageHref({ categories, page: p, perPage, q })
-
-  items.push(
-    <li className="page-item" key="prev">
-      <a className="page-link" href={linkTo(Math.max(1, page - 1))} onClick={click(Math.max(1, page - 1))}>
-        Previous
-      </a>
-    </li>,
-  )
-  for (let i = 1; i <= totalPages; i++) {
-    items.push(
-      <li className={`page-item ${i === page ? 'active' : ''}`} key={i}>
-        <a className="page-link" href={linkTo(i)} onClick={click(i)}>
-          {i}
-        </a>
-      </li>,
-    )
-  }
-  items.push(
-    <li className="page-item" key="next">
-      <a className="page-link" href={linkTo(Math.min(totalPages, page + 1))} onClick={click(Math.min(totalPages, page + 1))}>
-        Next
-      </a>
-    </li>,
-  )
-
+const PostCard = ({ hit }) => {
+  const title = hit.title_highlight || hit.title
+  const excerpt = hit.excerpt_highlight || hit.excerpt
+  const date = formatDate(hit.date)
   return (
-    <nav aria-label="Page navigation" className="mb70">
-      <ul className="pagination justify-content-end">{items}</ul>
-    </nav>
-  )
-}
-
-const PostCard = ({ post }) => (
-  <div className="col-lg-4 mb30">
-    <div className="entry-card">
-      <a href={`/post/${post.slug}`} className="entry-thumb">
-        {post.featuredUrl && <img src={post.featuredUrl} alt="" className="img-fluid mb20" />}
-        <span className="thumb-hover ti-back-right"></span>
-      </a>
-      <div className="entry-content">
-        <h5 className="text-capitalize" dangerouslySetInnerHTML={{ __html: post.title || '' }} />
-        <ul className="post-meta list-inline" style={{ fontSize: 'smaller' }}>
-          {post.authorName && (
-            <li className="list-inline-item">
-              <i className="fa fa-user-circle-o"></i>
-              {post.authorName}
-            </li>
-          )}
-          <li className="list-inline-item">
-            <i className="fa fa-calendar-o"></i>
-            {formatDate(post.date)}
-          </li>
-        </ul>
-        <p dangerouslySetInnerHTML={{ __html: post.excerpt || '' }} />
-        <div className="text-right">
-          <a href={`/post/${post.slug}`} className="btn-link btn">
-            Read More
-          </a>
+    <div className="col-lg-4 col-md-6 mb30">
+      <div className="entry-card">
+        <div className="entry-content">
+          <h5 className="text-capitalize">
+            <a href={hit.url} dangerouslySetInnerHTML={{ __html: title }} />
+          </h5>
+          <ul className="post-meta list-inline" style={{ fontSize: 'smaller' }}>
+            {date && (
+              <li className="list-inline-item">
+                <i className="fa fa-calendar-o"></i> {date}
+              </li>
+            )}
+          </ul>
+          {excerpt && <p dangerouslySetInnerHTML={{ __html: excerpt }} />}
+          <div className="text-right">
+            <a href={hit.url} className="btn-link btn">Read More</a>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-)
+  )
+}
 
 const PostsList = () => {
   const [query, setQuery] = useState(readQuery)
-  const [state, setState] = useState({ posts: null, totalPages: 1, error: null })
+  const [state, setState] = useState({ hits: null, totalPages: 1, found: 0, error: null })
 
-  // Stable derived values for effect deps.
   const catsKey = useMemo(() => query.categories.join(','), [query.categories])
 
-  // Keep state in sync with URL when the user uses Back/Forward.
   useEffect(() => {
     const onPop = () => setQuery(readQuery())
     window.addEventListener('popstate', onPop)
@@ -220,25 +144,30 @@ const PostsList = () => {
 
   useEffect(() => {
     let cancelled = false
-    setState((s) => ({ ...s, posts: null, error: null }))
+    setState((s) => ({ ...s, hits: null, error: null }))
     lookupCategoryIds(query.categories)
-      .then((categoryIds) => fetchPostsPage({ categoryIds, page: query.page, perPage: query.perPage, q: query.q }))
+      .then((categoryIds) => fetchPostsPage({ categoryIds, page: query.page, q: query.q }))
       .then((res) => {
         if (cancelled) return
-        setState({ posts: res.posts, totalPages: res.totalPages, error: null })
+        setState({
+          hits: res.hits || [],
+          totalPages: res.total_pages || 1,
+          found: res.found || 0,
+          error: null,
+        })
       })
       .catch((e) => {
         if (cancelled) return
-        setState({ posts: [], totalPages: 1, error: e })
+        setState({ hits: [], totalPages: 1, found: 0, error: e })
       })
     return () => {
       cancelled = true
     }
-  }, [catsKey, query.page, query.perPage, query.q])
+  }, [catsKey, query.page, query.q])
 
   const navigate = (page) => {
     const next = { ...query, page }
-    window.history.pushState({}, '', pageHref({ categories: next.categories, page: next.page, perPage: next.perPage, q: next.q }))
+    window.history.pushState({}, '', pageHref(next))
     setQuery(next)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -265,27 +194,26 @@ const PostsList = () => {
         <div className="container mb30">
           {query.q && (
             <p className="mb20" style={{ color: '#666' }}>
-              Showing posts matching <strong>{query.q}</strong>.{' '}
-              <a href={pageHref({ categories: query.categories, page: 1, perPage: query.perPage, q: '' })}>
+              {state.found} post{state.found === 1 ? '' : 's'} matching <strong>{query.q}</strong>.{' '}
+              <a href={pageHref({ categories: query.categories, page: 1, q: '' })}>
                 Clear search
               </a>
             </p>
           )}
           <div className="row">
             {state.error && <div className="col-lg-12">Unable to load posts.</div>}
-            {!state.error && !state.posts && <div className="col-lg-12">&nbsp;</div>}
-            {state.posts && state.posts.length === 0 && (
+            {!state.error && !state.hits && <div className="col-lg-12">&nbsp;</div>}
+            {state.hits && state.hits.length === 0 && (
               <div className="col-lg-12">No matching posts.</div>
             )}
-            {state.posts && state.posts.map((p) => <PostCard post={p} key={p.id} />)}
+            {state.hits && state.hits.map((h) => <PostCard hit={h} key={h.id} />)}
           </div>
           <Pagination
-            categories={query.categories}
             page={query.page}
-            perPage={query.perPage}
             totalPages={state.totalPages}
             onNavigate={navigate}
-            q={query.q}
+            buildHref={(p) => pageHref({ ...query, page: p })}
+            className="mb70"
           />
         </div>
       </div>

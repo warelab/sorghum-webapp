@@ -1,33 +1,61 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
+import { expectedCount } from '../utils/typesense_counts'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
 const eventsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1 })
 
 const EVENTS_URL = '/api/wp_cache/events'
+const TYPESENSE_COLLECTION = 'events'
 
 const BANNER_URL =
   'https://content.sorghumbase.org/wordpress/wp-content/uploads/2018/06/sorghum_panicle-e1644529666393.jpg'
 
-function readPast() {
+// `?past=YYYY` → past events for that calendar year.
+// `?past=` (any other truthy value) → past view, latest year auto-picked.
+// no `past=` → upcoming view.
+function readUrl() {
   const params = new URLSearchParams(window.location.search)
-  return params.get('past') ? true : false
+  const pastRaw = params.get('past')
+  let selectedYear = null
+  if (pastRaw) {
+    if (/^\d{4}$/.test(pastRaw)) selectedYear = parseInt(pastRaw, 10)
+    else selectedYear = 'latest'
+  }
+  return {
+    selectedYear,
+    eventSlug: (params.get('event') || '').trim(),
+  }
+}
+
+function startYear(e) {
+  const d = parseDate(e.startDate)
+  return d ? d.getFullYear() : null
+}
+
+function fetchAndCache() {
+  return fetch(EVENTS_URL, { headers: { Accept: 'application/json' } })
+    .then((r) => {
+      if (!r.ok) throw new Error(`events ${r.status}`)
+      return r.json()
+    })
+    .then((rows) => {
+      const events = rows.map(normalizeEvent)
+      eventsCache.set('all', events)
+      return events
+    })
 }
 
 function loadEvents() {
   return eventsCache.get('all').then((cached) => {
-    if (cached) return cached
-    return fetch(EVENTS_URL, { headers: { Accept: 'application/json' } })
-      .then((r) => {
-        if (!r.ok) throw new Error(`events ${r.status}`)
-        return r.json()
-      })
-      .then((rows) => {
-        const events = rows.map(normalizeEvent)
-        eventsCache.set('all', events)
-        return events
-      })
+    if (!cached || !cached.length) return fetchAndCache()
+    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
+      if (expected !== null && expected !== cached.length) {
+        return fetchAndCache()
+      }
+      return cached
+    })
   })
 }
 
@@ -79,13 +107,18 @@ function splitEvents(events) {
   return { past, future }
 }
 
-const EventCard = ({ event }) => {
-  const [open, setOpen] = useState(false)
+const EventCard = ({ event, defaultOpen, anchorRef }) => {
+  const [open, setOpen] = useState(!!defaultOpen)
   const startStr = formatDate(event.startDate)
   const endStr = formatDate(event.endDate)
   const accordionId = `accordion${event.id}`
   const collapseId = `collapse${event.id}`
   const headingId = `heading${event.id}`
+
+  // Open when the parent flags this card as focused (slug match from URL).
+  useEffect(() => {
+    if (defaultOpen) setOpen(true)
+  }, [defaultOpen])
 
   const toggle = (e) => {
     e.preventDefault()
@@ -115,8 +148,9 @@ const EventCard = ({ event }) => {
   )
 
   return (
-    <div className="vtimeline-point">
+    <div className="vtimeline-point" ref={anchorRef}>
       <div id={String(event.id)} style={{ position: 'absolute', top: '-90px' }}></div>
+      <div id={`event-${event.slug}`} style={{ position: 'absolute', top: '-90px' }}></div>
       <div className="vtimeline-icon">
         <i className="fa fa-calendar"></i>
       </div>
@@ -167,12 +201,16 @@ const EventCard = ({ event }) => {
 }
 
 const EventsList = () => {
-  const [past, setPast] = useState(readPast)
+  const [{ selectedYear, eventSlug }, setUrlState] = useState(readUrl)
   const [events, setEvents] = useState(null)
   const [error, setError] = useState(null)
+  const focusedRef = useRef(null)
+  // Track whether we've already auto-scrolled for the current `eventSlug` so
+  // switching tabs doesn't keep yanking the viewport.
+  const scrolledForSlugRef = useRef(null)
 
   useEffect(() => {
-    const onPop = () => setPast(readPast())
+    const onPop = () => setUrlState(readUrl())
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -191,30 +229,86 @@ const EventsList = () => {
     }
   }, [])
 
-  const { displayed, toggleHref, toggleLabel, heading } = useMemo(() => {
+  // When ?event=<slug> is present, override the view selection to match the
+  // target event's date so the card actually shows up in the timeline.
+  const focusedEvent = useMemo(() => {
+    if (!events || !eventSlug) return null
+    return events.find((e) => e && e.slug === eventSlug) || null
+  }, [events, eventSlug])
+
+  // Years that have past events, descending. Derived from data.
+  const pastYears = useMemo(() => {
+    if (!events) return []
+    const { past } = splitEvents(events)
+    const set = new Set()
+    for (const e of past) {
+      const y = startYear(e)
+      if (y) set.add(y)
+    }
+    return Array.from(set).sort((a, b) => b - a)
+  }, [events])
+
+  // Resolve the effective year given the URL state, focused event, and the
+  // set of years that actually have events.
+  const effectiveYear = useMemo(() => {
+    if (focusedEvent) {
+      const d = parseDate(focusedEvent.startDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      if (d && d >= today) return null // upcoming
+      const y = startYear(focusedEvent)
+      return y || (pastYears[0] || null)
+    }
+    if (selectedYear === null) return null
+    if (selectedYear === 'latest') return pastYears[0] || null
+    // explicit numeric year — fall back to the latest if the URL year has
+    // no events (e.g. someone typed in a year that pre-dates the archive).
+    if (pastYears.includes(selectedYear)) return selectedYear
+    return pastYears[0] || null
+  }, [focusedEvent, selectedYear, pastYears])
+
+  const isUpcoming = effectiveYear === null
+
+  const { displayed, heading } = useMemo(() => {
     if (!events) {
       return {
         displayed: [],
-        toggleHref: past ? '/events' : '/events?past=true',
-        toggleLabel: past ? 'View upcoming events' : 'View past events',
-        heading: past ? 'Past Events' : 'Upcoming Events',
+        heading: isUpcoming ? 'Upcoming Events' : `Past Events · ${effectiveYear}`,
       }
     }
     const { past: pastEvents, future: futureEvents } = splitEvents(events)
-    const sortedFuture = [...futureEvents].sort((a, b) => {
-      const cmp = (a.startDate || '').localeCompare(b.startDate || '')
-      return past ? -cmp : cmp
-    })
-    const sortedPast = [...pastEvents].sort(
-      (a, b) => -(a.startDate || '').localeCompare(b.startDate || ''),
-    )
-    return {
-      displayed: past ? sortedPast : sortedFuture,
-      toggleHref: past ? '/events' : '/events?past=true',
-      toggleLabel: past ? 'View upcoming events' : 'View past events',
-      heading: past ? 'Past Events' : 'Upcoming Events',
+    if (isUpcoming) {
+      const sortedFuture = [...futureEvents].sort((a, b) =>
+        (a.startDate || '').localeCompare(b.startDate || ''),
+      )
+      return { displayed: sortedFuture, heading: 'Upcoming Events' }
     }
-  }, [events, past])
+    const yearEvents = pastEvents
+      .filter((e) => startYear(e) === effectiveYear)
+      .sort((a, b) => -(a.startDate || '').localeCompare(b.startDate || ''))
+    return { displayed: yearEvents, heading: `Past Events · ${effectiveYear}` }
+  }, [events, isUpcoming, effectiveYear])
+
+  const buttonClass = (active) =>
+    `btn btn-sm mr5 mb5 ${active ? 'btn-primary' : 'btn-outline-secondary'}`
+
+  // Scroll the focused card into view once after the displayed list renders.
+  // The sticky navbar floats over content, so offset by its height so the
+  // event title isn't tucked behind it.
+  useEffect(() => {
+    if (!focusedEvent || !focusedRef.current) return
+    if (scrolledForSlugRef.current === focusedEvent.slug) return
+    scrolledForSlugRef.current = focusedEvent.slug
+    requestAnimationFrame(() => {
+      const el = focusedRef.current
+      if (!el) return
+      const nav = document.querySelector('nav.navbar')
+      const navH = nav ? nav.getBoundingClientRect().height : 0
+      const padding = 16 // breathing room under the navbar
+      const top = el.getBoundingClientRect().top + window.scrollY - navH - padding
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+    })
+  }, [focusedEvent, displayed])
 
   return (
     <>
@@ -234,16 +328,43 @@ const EventsList = () => {
           </div>
         </div>
       </div>
-      <div className="pt10 title">
-        <a href={toggleHref} className="nav-link" style={{ float: 'right' }}>
-          {toggleLabel}
-        </a>
+      <div className="container pt20 pb10">
+        <div className="d-flex flex-wrap align-items-center" style={{ gap: '0.25rem' }}>
+          <a href="/events" className={buttonClass(isUpcoming)}>Upcoming</a>
+          {pastYears.map((year) => (
+            <a
+              key={year}
+              href={`/events?past=${year}`}
+              className={buttonClass(!isUpcoming && effectiveYear === year)}
+            >
+              {year}
+            </a>
+          ))}
+        </div>
       </div>
       <div className="container mb80">
         <div id="eventList" className="page-timeline">
           {error && <div>Unable to load events.</div>}
           {!error && !events && <div>&nbsp;</div>}
-          {events && displayed.map((e) => <EventCard event={e} key={e.id} />)}
+          {events && focusedEvent === null && eventSlug && (
+            <div style={{ color: '#9F3D34' }}>
+              No event matching <code>{eventSlug}</code>.
+            </div>
+          )}
+          {events && !displayed.length && (
+            <div style={{ color: '#888' }}>No events in this view.</div>
+          )}
+          {events && displayed.map((e) => {
+            const isFocused = focusedEvent && e.slug === focusedEvent.slug
+            return (
+              <EventCard
+                event={e}
+                key={e.id}
+                defaultOpen={isFocused}
+                anchorRef={isFocused ? focusedRef : null}
+              />
+            )
+          })}
         </div>
       </div>
     </>

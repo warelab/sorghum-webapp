@@ -23,7 +23,10 @@ import PostsList from './components/postsList'
 import EventsList from './components/eventsList'
 import PeopleList from './components/peopleList'
 import AbstractDetail from './components/abstractDetail'
+import AbstractsList from './components/abstractsList'
 import ProjectDetail from './components/projectDetail'
+import PaperDetail from './components/paperDetail'
+import PostDetail from './components/postDetail'
 import MDView from "gramene-mdview";
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
@@ -157,5 +160,22 @@ cache.getAll().then(initialData => {
   if (element) {
     const slug = element.getAttribute('data-slug') || '';
     render(<ProjectDetail slug={slug} />, element) && console.log('rendered sb-project');
+  }
+
+  element = document.getElementById('sb-paper');
+  if (element) {
+    const slug = element.getAttribute('data-slug') || '';
+    render(<PaperDetail slug={slug} />, element) && console.log('rendered sb-paper');
+  }
+
+  element = document.getElementById('sb-post');
+  if (element) {
+    const slug = element.getAttribute('data-slug') || '';
+    render(<PostDetail slug={slug} />, element) && console.log('rendered sb-post');
+  }
+
+  element = document.getElementById('sb-abstracts');
+  if (element) {
+    render(<AbstractsList />, element) && console.log('rendered sb-abstracts');
   }
 })

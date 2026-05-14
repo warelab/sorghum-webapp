@@ -5,6 +5,7 @@ const CATEGORY_LABELS = {
   papers: 'Publications',
   projects: 'Projects',
   abstracts: 'Conference Abstracts',
+  events: 'Events',
   resource_links: 'Resource Links',
 };
 
@@ -16,12 +17,13 @@ const CATEGORY_LISTING = {
   papers: '/publications',
   projects: '/projects',
   abstracts: '/abstracts',
+  events: '/events',
   resource_links: '/resource_links',
 };
 
 // Preserves the order in which categories appear in the dropdown.
 const CATEGORY_ORDER = [
-  'posts', 'papers', 'abstracts', 'projects', 'resource_links',
+  'posts', 'papers', 'abstracts', 'projects', 'events', 'resource_links',
 ];
 
 const renderSnippet = (highlight, fallback) => {

@@ -1,39 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { getConfiguredCache } from 'money-clip'
-import { expectedCount } from '../utils/typesense_counts'
-
-const FIFTEEN_MIN = 1000 * 60 * 15
-
-// Same shape and TTL as other wp_cache-backed lists so a recently-cached
-// /abstracts visit primes /abstract/<slug> with no extra fetch.
-const abstractsCache = getConfiguredCache({ maxAge: FIFTEEN_MIN, version: 1 })
-
-const ABSTRACTS_URL = '/api/wp_cache/conference_abstracts'
-const TYPESENSE_COLLECTION = 'abstracts'
-
-function fetchAndCache() {
-  return fetch(ABSTRACTS_URL, { headers: { Accept: 'application/json' } })
-    .then((r) => {
-      if (!r.ok) throw new Error(`abstracts ${r.status}`)
-      return r.json()
-    })
-    .then((rows) => {
-      if (rows && rows.length) abstractsCache.set('all', rows)
-      return rows
-    })
-}
-
-function loadAbstracts() {
-  return abstractsCache.get('all').then((cached) => {
-    if (!cached || !cached.length) return fetchAndCache()
-    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
-      if (expected !== null && expected !== cached.length) {
-        return fetchAndCache()
-      }
-      return cached
-    })
-  })
-}
+import { loadAbstracts } from '../utils/abstracts_cache'
 
 function formatPresenter(p) {
   if (!p) return ''

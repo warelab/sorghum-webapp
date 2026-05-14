@@ -1,11 +1,17 @@
 #!/usr/bin/python
 
-# from flask import request #, make_response
+"""
+/post/<slug> + /population/<slug> + /accession/<slug>
+
+`/post/<slug>` is now a thin Flask shell — rendering happens in the
+PostDetail React component (search_app/src/components/postDetail.js),
+which finds the post in the wp_cache-backed posts list. The other two
+routes (/population, /accession) still go to WordPress directly because
+they're rarely-visited admin pages.
+"""
 
 import flask
 from flask import request, render_template
-
-# import pandas as pd
 
 import wordpress_orm as wp
 from wordpress_orm import wp_session, exc
@@ -30,63 +36,15 @@ post_category_page = flask.Blueprint("post_category_page", __name__)
 population_page = flask.Blueprint("population_page", __name__)
 genome_page = flask.Blueprint("genome_page", __name__)
 
-@post_page.route('/post/<slug>')
+
+@post_page.route("/post/<slug>")
 def post(slug):
-	'''
-	This page displays a single blog post retrieved from WordPress.
-	'''
-	templateDict = navbar_template()
+    templateDict = navbar_template()
+    banner_media = local_banner("sorghum-grains_1920x1000")
+    templateDict["banner_url"] = banner_media.s.source_url
+    templateDict["slug"] = slug
+    return render_template("post.html", **templateDict)
 
-	#api = wp.API(url="http://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/")
-
-	with api.Session():
-		# get the post based on the slug
-		try:
-			post = api.post(slug=slug)
-		except exc.NoEntityFound:
-			# TODO return top level posts page
-			raise Exception("Return top level posts page, maybe with an alert of 'post not found'.")
-
-		team_request = api.UserRequest()
-		team_request.context = "edit"
-		team_request.per_page = 50
-		team_request.roles = ['team_member','former_team_member', 'editor']
-		team = team_request.get(class_object=SBUser)
-		teamDict = {}
-		for i in team:
-			teamDict[i.s.name] = 'SorghumBase Team'
-		if post.author.s.name not in teamDict:
-			teamDict[post.author.s.name] = post.author.s.name
-		templateDict['authors'] = teamDict
-
-		# Get the three latest "News" posts from WordPress.
-		# -------------------------------------------------
-		pr = api.PostRequest()
-		pr.categories = ['news']	# accepts category slug values, not display name
-		pr.order = "desc"			# descending order
-		pr.per_page = 3				# only get three newest
-		latest_posts = pr.get()
-
-		sorghum_grains_image = local_banner("sorghum-grains_1920x1000")
-
-		populate_footer_template(wp_api=api, template_dictionary=templateDict, photos_to_credit=[])
-
-		# pre-fetch relationships (premature optimization!)
-		for p in latest_posts:
-			p.categories
-
-
-	templateDict["post"] = post
-	templateDict["latest_posts"] = latest_posts
-	templateDict["sorghum_grains_image"] = sorghum_grains_image
-	templateDict["display_comments"] = False
-	templateDict["allow_new_comments"] = False
-	templateDict["author_gravatar_url"] = post.author.gravatar_url(size=140)
-
-	#for c in post.comments:
-	#	print(c)
-	#logger.debug(" ============= controller finished ============= ")
-	return render_template("post.html", **templateDict)
 
 @post_category_page.route('/posts/category/<slug>')
 def post_category(category_slug):

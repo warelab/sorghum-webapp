@@ -1,152 +1,19 @@
 {% extends "base.html" %}
-{% block page_title %}SorghumBase Post - {{ post.s.title }}{% endblock %}
+{% block page_title %}SorghumBase Post{% endblock %}
 {% block additional_header %}{% endblock %}
 {% block content %}
 
-<!-- place page content here -->
-
-{# Page is constructed in sections (rows). #}
-
-
-{# Section: Image slider #}
-
 <div class="page-titles-img title-space-md bg-parallax parallax-overlay mb70" data-jarallax='{"speed": 0.2}'
-     style='background-image: url("{{sorghum_grains_image.s.source_url}}")'>
+     style='background-image: url("{{banner_url}}")'>
     <div class="container">
         <div class="row">
             <div class=" col-md-8 ml-auto mr-auto">
                 <h1 class='text-uppercase'>Sorghumbase Articles</h1>
-
             </div>
         </div>
     </div>
-</div><!--page title end-->
-
-<div class="container pb50">
-    <div class="row justify-content-md-center">
-        <div class="col-md-9 mb40">
-            <article>
-
-                {% if post.s.featured_media %}
-                <img src='{{ post.featured_media.s.source_url }}' alt='' class='img-fluid mb30'>
-                {% endif %}
-
-                <div class="post-content">
-
-                    <h3>{{ post.s.title | safe}}</h3>
-
-                    <ul class="post-meta list-inline">
-                        <li class="list-inline-item">
-                            <i class="fa fa-user-circle-o"></i> {{ authors[post.author.s.name] | safe}}
-                        </li>
-                        <li class="list-inline-item">
-                            <i class="fa fa-calendar-o"></i> {{(post.s.date|str2datetime).strftime('%-d %B %Y')}}
-                        </li>
-<!--                        <li class="list-inline-item">-->
-<!--                            <i class="fa fa-tags"></i>-->
-<!--                            {% for category in post.categories %}-->
-<!--                            <a href="/posts?categories={{category.s.slug}}">{{ category.s.name | safe}} </a>-->
-<!--                            {% endfor %}-->
-<!--                        </li>-->
-                    </ul>
-                    {{ post.s.content | safe }}
-
-                    <!-- <ul class="list-inline share-buttons">
-                        <li class="list-inline-item">Share Post:</li>
-                        <li class="list-inline-item">
-                            <a href="#" class="social-icon-sm si-dark si-colored-facebook si-gray-round">
-                                <i class="fa fa-facebook"></i>
-                                <i class="fa fa-facebook"></i>
-                            </a>
-                        </li>
-                        <li class="list-inline-item">
-                            <a href="#" class="social-icon-sm si-dark si-colored-twitter si-gray-round">
-                                <i class="fa fa-twitter"></i>
-                                <i class="fa fa-twitter"></i>
-                            </a>
-                        </li>
-                        <li class="list-inline-item">
-                            <a href="#" class="social-icon-sm si-dark si-colored-linkedin si-gray-round">
-                                <i class="fa fa-linkedin"></i>
-                                <i class="fa fa-linkedin"></i>
-                            </a>
-                        </li>
-                    </ul> -->
-
-                    <hr class="mb40">
-
-                    <!-- <p>Tags:
-                      {% for tag in post.s.tags %}
-                        <a href="/search/{{tag}}">{{tag}} </a>
-                      {% endfor %}
-                    </p> -->
-
-<!--                    <h4 class="mb40 text-uppercase font500">Author</h4>-->
-<!--                    <div class="media mb40">-->
-<!--                        <div class="image-cropper" style="height:200px; width:200px;">-->
-<!--                            &lt;!&ndash; #<img src="{{ author_gravatar_url }}" srcset="{{ author_gravatar_url }} 2x"/> &ndash;&gt;-->
-<!--                            <img src="{{ post.author.s.avatar_urls['96'].replace(" 96", "128") }}" alt=""-->
-<!--                            class="img-fluid rounded-circle centered">-->
-<!--                        </div>-->
-<!--                        &lt;!&ndash;i class="d-flex mr-3 fa fa-user-circle fa-5x text-primary"></i&ndash;&gt;-->
-<!--                        <div class="media-body">-->
-<!--                          <a href="/search?={{post.author.s.name}}">-->
-<!--                            <h5 class="mt-0 font700">{{ post.author.s.name | safe}}</h5>-->
-<!--                          </a>-->
-<!--                            <p>{{post.author.s.job_title}}, {{post.author.s.organization}}</p>-->
-<!--                            <a href="{{post.author.s.url}}">{{post.author.s.url}}</a>-->
-<!--                            {{ post.author.s.description | safe}}-->
-<!--                        </div>-->
-<!--                    </div>-->
-
-                    {% if display_comments %}
-                    <hr class="mb40">
-                    <h4 class="mb40 text-uppercase font500">Comments</h4>
-
-                    {% for comment in post.comments %}
-                    <div class="media mb40">
-                        <i class="d-flex mr-3 fa fa-user-circle-o fa-3x"></i>
-                        <div class="media-body">
-                            <h5 class="mt-0 font400 clearfix">
-                                <a href="#" class="float-right">Reply</a>
-                                {{ comment.s.author_name | safe}} </h5>
-                            <!--ul class="post-meta list-inline">
-		                        <li class="list-inline-item">
-		                            <i class="fa fa-calendar-o"></i> <a href="#">{{(comment.s.date|str2datetime).strftime('%d %B %Y')}}</a>
-		                        </li>
-		                    </ul-->
-
-                            {{ comment.s.content | safe }}
-                        </div>
-                    </div>
-                    {% endfor %}
-                    {% endif %}
-
-                    {% if allow_new_comments %}
-                    <hr class="mb40">
-                    <h4 class="mb40 text-uppercase font500">Post a comment</h4>
-                    <form role="form">
-                        <div class="form-group">
-                            <label>Name</label>
-                            <input type="text" class="form-control" placeholder="John Doe">
-                        </div>
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" class="form-control" placeholder="john@doe.com">
-                        </div>
-                        <div class="form-group">
-                            <label>Comment</label>
-                            <textarea class="form-control" rows="5" placeholder="Comment"></textarea>
-                        </div>
-                        <div class="clearfix float-right">
-                            <button type="button" class="btn btn-primary btn-lg">Submit</button>
-                        </div>
-                    </form>
-                    {% endif %}
-
-                </div>
-            </article><!-- post article-->
-        </div>
-    </div>
 </div>
+
+<div id="sb-post" data-slug="{{slug}}"></div>
+
 {% endblock %}

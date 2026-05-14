@@ -40,16 +40,18 @@ typesense_page = flask.Blueprint("typesense_page", __name__)
 # render hits uniformly; category-specific extras live in the mapper below.
 
 _COMMON_FIELDS = [
-    {"name": "title",    "type": "string"},
-    {"name": "excerpt",  "type": "string", "optional": True},
-    {"name": "url",      "type": "string", "index": False, "optional": True},
-    {"name": "category", "type": "string", "facet": True},
-    {"name": "date",     "type": "int64",  "sort": True},
-    {"name": "tags",     "type": "string[]", "optional": True, "facet": True},
-    # Category-specific extras; only papers populate these today, but the
-    # field has to exist in the shared schema for `query_by` to accept it.
-    {"name": "authors",  "type": "string", "optional": True},
-    {"name": "journal",  "type": "string", "optional": True, "facet": True},
+    {"name": "title",      "type": "string"},
+    {"name": "excerpt",    "type": "string", "optional": True},
+    {"name": "url",        "type": "string", "index": False, "optional": True},
+    {"name": "category",   "type": "string", "facet": True},
+    {"name": "date",       "type": "int64",  "sort": True},
+    {"name": "tags",       "type": "string[]", "optional": True, "facet": True},
+    # Category-specific extras; only some collections populate each, but the
+    # field has to exist in the shared schema for `query_by`/`filter_by` to
+    # accept it. Optional means absence is fine.
+    {"name": "authors",    "type": "string",   "optional": True},
+    {"name": "journal",    "type": "string",   "optional": True, "facet": True},
+    {"name": "categories", "type": "int32[]",  "optional": True, "facet": True},
 ]
 
 _DEFAULT_SORT = "_text_match:desc,date:desc"
@@ -112,7 +114,9 @@ def _wp_slug(item):
 
 
 def _map_post(item):
-    return {
+    raw_cats = item.get("categories") or []
+    cats = [int(c) for c in raw_cats if isinstance(c, int) or (isinstance(c, str) and c.isdigit())]
+    doc = {
         "id": _wp_id(item),
         "title": _wp_title(item),
         "excerpt": _wp_excerpt(item),
@@ -120,6 +124,9 @@ def _map_post(item):
         "category": "posts",
         "date": _wp_date(item),
     }
+    if cats:
+        doc["categories"] = cats
+    return doc
 
 
 def _map_paper(item):
@@ -167,6 +174,32 @@ def _map_abstract(item):
     }
 
 
+def _map_event(item):
+    slug = _wp_slug(item)
+    # `/events` is a timeline; linking to a specific event surfaces it via
+    # the `event=` query param, which the EventsList component reads to flip
+    # past/upcoming view, scroll, and auto-expand the card.
+    return {
+        "id": _wp_id(item),
+        "title": _wp_title(item),
+        "excerpt": _wp_excerpt(item),
+        "url": f"/events?event={slug}" if slug else "/events",
+        "category": "events",
+        "date": _wp_date(item),
+    }
+
+
+def _map_tag(item):
+    name = (item.get("name") or "").strip()
+    return {
+        "id": str(item.get("id") or ""),
+        "title": name,
+        "url": "",
+        "category": "tags",
+        "date": 0,
+    }
+
+
 def _map_resource_link(item):
     # ACF field name varies; fall back to the listing page if no external URL.
     acf = item.get("acf") or {}
@@ -187,20 +220,27 @@ def _map_resource_link(item):
     }
 
 
-# Maps wp_cache RESOURCES key -> (typesense collection, mapper, query_by).
+# Maps wp_cache RESOURCES key -> entry describing how to index and query.
 # query_by must reference only fields that actually exist on this collection's
 # schema, otherwise multi_search returns an error for that sub-query and we
 # silently lose the whole category. Papers carry extra author/journal fields;
 # the others only have the common title/excerpt fields.
+# `typeahead` controls whether this collection participates in /api/typeahead.
+# Collections kept out of the typeahead still get indexed + counted so the
+# client-side cache invalidation pattern works the same for them.
+# `query_by_only` is a hint for tags-style collections that have no body text.
 _QB_COMMON = {"query_by": "title,excerpt", "query_by_weights": "3,1"}
 _QB_PAPERS = {"query_by": "title,authors,journal,excerpt", "query_by_weights": "4,3,2,1"}
+_QB_TITLE  = {"query_by": "title", "query_by_weights": "1"}
 
 COLLECTIONS = {
-    "posts":                ("posts",          _map_post,           _QB_COMMON),
-    "publications":         ("papers",         _map_paper,          _QB_PAPERS),
-    "projects":             ("projects",       _map_project,        _QB_COMMON),
-    "conference_abstracts": ("abstracts",      _map_abstract,       _QB_COMMON),
-    "resource_links":       ("resource_links", _map_resource_link,  _QB_COMMON),
+    "posts":                {"collection": "posts",          "mapper": _map_post,           "qb": _QB_COMMON, "typeahead": True},
+    "publications":         {"collection": "papers",         "mapper": _map_paper,          "qb": _QB_PAPERS, "typeahead": True},
+    "projects":             {"collection": "projects",       "mapper": _map_project,        "qb": _QB_COMMON, "typeahead": True},
+    "conference_abstracts": {"collection": "abstracts",      "mapper": _map_abstract,       "qb": _QB_COMMON, "typeahead": True},
+    "resource_links":       {"collection": "resource_links", "mapper": _map_resource_link,  "qb": _QB_COMMON, "typeahead": True},
+    "events":               {"collection": "events",         "mapper": _map_event,          "qb": _QB_COMMON, "typeahead": True},
+    "tags":                 {"collection": "tags",           "mapper": _map_tag,            "qb": _QB_TITLE,  "typeahead": False},
 }
 
 
@@ -298,18 +338,43 @@ def client_status():
 # ---------------------------------------------------------------------------
 
 def ensure_collection(client, collection_name):
+    """Create the collection if missing; if it exists, add any schema fields
+    that have been declared in `_COMMON_FIELDS` since this collection was
+    first created. The latter prevents `filter_by`/`query_by` against newly
+    added fields (e.g. `categories`) from failing on long-lived collections.
+    """
+    existing = None
     try:
-        client.collections[collection_name].retrieve()
-        return
+        existing = client.collections[collection_name].retrieve()
     except ObjectNotFound:
         pass
     except Exception as e:
         logger.warning("typesense: retrieve %s failed (%s); attempting create", collection_name, e)
+
+    if existing is None:
+        try:
+            client.collections.create(_schema_for(collection_name))
+            logger.info("typesense: created collection %s", collection_name)
+        except ObjectAlreadyExists:
+            pass
+        return
+
+    have = {f.get("name") for f in (existing.get("fields") or [])}
+    missing = [f for f in _COMMON_FIELDS if f["name"] not in have]
+    if not missing:
+        return
     try:
-        client.collections.create(_schema_for(collection_name))
-        logger.info("typesense: created collection %s", collection_name)
-    except ObjectAlreadyExists:
-        pass
+        client.collections[collection_name].update({"fields": missing})
+        logger.info(
+            "typesense: added fields %s to collection %s",
+            [f["name"] for f in missing], collection_name,
+        )
+    except Exception as e:
+        logger.warning(
+            "typesense: failed to extend schema for %s (%s); "
+            "delete the collection and re-warm to recover",
+            collection_name, e,
+        )
 
 
 def sync_resource(resource_name, items):
@@ -318,15 +383,16 @@ def sync_resource(resource_name, items):
     No-ops if Typesense is unreachable or the resource has no mapping.
     Called from wp_cache after a successful refill.
     """
-    mapping = COLLECTIONS.get(resource_name)
-    if not mapping:
+    entry = COLLECTIONS.get(resource_name)
+    if not entry:
         return
     if not isinstance(items, list):
         return
     client = get_client()
     if not client:
         return
-    collection_name, mapper, _qb = mapping
+    collection_name = entry["collection"]
+    mapper = entry["mapper"]
     try:
         ensure_collection(client, collection_name)
     except Exception as e:
@@ -414,6 +480,75 @@ def typeahead_status():
     return flask.jsonify(client_status())
 
 
+@typesense_page.route("/api/posts/search")
+def posts_search():
+    """Paginated posts search. Used by /posts to serve list pages from
+    Typesense (relevance ordering when `q` is set, date descending otherwise)
+    with optional `categories` filter."""
+    q = (request.args.get("q") or "").strip()
+    page = max(1, int(request.args.get("page") or 1))
+    per_page = max(1, min(int(request.args.get("per_page") or 20), 100))
+    cats_raw = (request.args.get("categories") or "").strip()
+    category_ids = []
+    if cats_raw:
+        for piece in cats_raw.split(","):
+            piece = piece.strip()
+            if piece.isdigit():
+                category_ids.append(int(piece))
+
+    client = get_client()
+    if not client:
+        return flask.jsonify({"error": "search index unavailable",
+                              "reason": _client_reason}), 503
+
+    params = {
+        "q": q or "*",
+        "query_by": "title,excerpt" if q else "title",
+        "query_by_weights": "3,1" if q else "1",
+        "page": page,
+        "per_page": per_page,
+        "include_fields": "id,title,excerpt,url,category,date,categories",
+        "highlight_fields": "title,excerpt",
+        "sort_by": "_text_match:desc,date:desc" if q else "date:desc",
+    }
+    if category_ids:
+        joined = ",".join(str(c) for c in category_ids)
+        params["filter_by"] = f"categories:=[{joined}]"
+
+    try:
+        result = client.collections["posts"].documents.search(params)
+    except Exception as e:
+        logger.warning("typesense: posts search failed (%s)", e)
+        return flask.jsonify({"error": "search backend error",
+                              "reason": str(e)}), 502
+
+    hits = []
+    for h in result.get("hits", []):
+        doc = h.get("document") or {}
+        hl = h.get("highlight") or {}
+        hits.append({
+            "id": doc.get("id"),
+            "title": doc.get("title"),
+            "excerpt": doc.get("excerpt"),
+            "url": doc.get("url"),
+            "date": doc.get("date"),
+            "categories": doc.get("categories") or [],
+            "title_highlight": (hl.get("title") or {}).get("snippet"),
+            "excerpt_highlight": (hl.get("excerpt") or {}).get("snippet"),
+        })
+
+    found = result.get("found", 0)
+    return flask.jsonify({
+        "q": q,
+        "categories": category_ids,
+        "page": page,
+        "per_page": per_page,
+        "found": found,
+        "total_pages": max(1, (found + per_page - 1) // per_page) if found else 0,
+        "hits": hits,
+    })
+
+
 @typesense_page.route("/api/typesense/counts")
 def typesense_counts():
     """Return num_documents per collection. Used by React components to
@@ -425,7 +560,8 @@ def typesense_counts():
         return flask.jsonify({"error": "search index unavailable",
                               "reason": _client_reason}), 503
     counts = {}
-    for collection_name, _mapper, _qb in COLLECTIONS.values():
+    for entry in COLLECTIONS.values():
+        collection_name = entry["collection"]
         try:
             meta = client.collections[collection_name].retrieve()
             counts[collection_name] = int(meta.get("num_documents", 0))
@@ -449,7 +585,11 @@ def typeahead():
 
     searches = []
     collections_in_order = []
-    for collection_name, _mapper, qb in COLLECTIONS.values():
+    for entry in COLLECTIONS.values():
+        if not entry.get("typeahead"):
+            continue
+        collection_name = entry["collection"]
+        qb = entry["qb"]
         collections_in_order.append(collection_name)
         searches.append({
             "collection": collection_name,
