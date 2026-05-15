@@ -11,12 +11,19 @@ shows a checkbox per candidate. The admin selects rows and submits the
 form to POST /update_publications/publish, which applies the cached
 enrichment to each chosen draft, sets status=publish, and PUTs the
 result back to WordPress. No WordPress writes happen on GET.
+
+This controller is Redis-only by design. The wp_cache layer falls back
+to an in-process dict when Redis is unreachable, but the multi-step
+GET-then-POST flow here needs cross-worker visibility (enrichment from
+worker A, publish from worker B). Rather than silently degrade and
+serve stale or empty results from a per-worker memory cache, every
+endpoint here raises a 503 with a clear message when Redis is down.
 '''
 
 import json
 import logging
 import os
-import threading
+import uuid
 
 import flask
 from flask import request, render_template, redirect
@@ -45,14 +52,22 @@ PUBMED_BATCH = 100
 ENRICHMENT_HASH = "wp_cache:pubmed_enrichment"
 ENRICHMENT_TTL_SECONDS = 24 * 3600
 
-# In-process fallback if Redis is unavailable.
-_mem_enrichments = {}
-_mem_lock = threading.Lock()
+# Single-use Redis keys carry publish-run error details across the
+# POST -> redirect -> GET handoff (across uWSGI workers).
+PUBLISH_RUN_PREFIX = "wp_cache:publish_run:"
+PUBLISH_RUN_TTL_SECONDS = 600
 
-# Detailed error strings from the most recent publish run, shown once on
-# the next GET. Counts also flow via query params; this carries the text.
-_last_publish_errors = []
-_last_publish_lock = threading.Lock()
+
+def _require_redis():
+    ''' Return the Redis client or abort 503. Update-publications is a
+    rarely-used admin tool — there is no graceful degradation here. '''
+    rds = _get_redis()
+    if rds is None:
+        flask.abort(503, description=(
+            "/update_publications requires Redis (cross-worker state for "
+            "PubMed enrichment + publish errors). Redis appears to be down."
+        ))
+    return rds
 
 
 def _ensure_wp_auth():
@@ -69,39 +84,46 @@ def _ensure_wp_auth():
 
 
 def _cache_get(pubmed_id):
-    rds = _get_redis()
-    if rds:
-        try:
-            raw = rds.hget(ENRICHMENT_HASH, pubmed_id)
-            if raw:
-                return json.loads(raw)
-        except Exception as e:
-            logger.warning("update_publications: redis hget failed (%s); using memory", e)
-    with _mem_lock:
-        return _mem_enrichments.get(pubmed_id)
+    rds = _require_redis()
+    raw = rds.hget(ENRICHMENT_HASH, pubmed_id)
+    if raw:
+        return json.loads(raw)
+    return None
 
 
 def _cache_set(pubmed_id, payload):
-    rds = _get_redis()
-    if rds:
-        try:
-            rds.hset(ENRICHMENT_HASH, pubmed_id, json.dumps(payload))
-            rds.expire(ENRICHMENT_HASH, ENRICHMENT_TTL_SECONDS)
-        except Exception as e:
-            logger.warning("update_publications: redis hset failed (%s); using memory", e)
-    with _mem_lock:
-        _mem_enrichments[pubmed_id] = payload
+    rds = _require_redis()
+    rds.hset(ENRICHMENT_HASH, pubmed_id, json.dumps(payload))
+    rds.expire(ENRICHMENT_HASH, ENRICHMENT_TTL_SECONDS)
 
 
 def _cache_del(pubmed_id):
-    rds = _get_redis()
-    if rds:
-        try:
-            rds.hdel(ENRICHMENT_HASH, pubmed_id)
-        except Exception:
-            pass
-    with _mem_lock:
-        _mem_enrichments.pop(pubmed_id, None)
+    rds = _require_redis()
+    rds.hdel(ENRICHMENT_HASH, pubmed_id)
+
+
+def _stash_publish_errors(errors):
+    ''' Write the publish-run error list to Redis under a one-shot token.
+    Returns the token so the caller can hand it back via the redirect. '''
+    if not errors:
+        return None
+    rds = _require_redis()
+    token = uuid.uuid4().hex
+    rds.setex(PUBLISH_RUN_PREFIX + token, PUBLISH_RUN_TTL_SECONDS, json.dumps(errors))
+    return token
+
+
+def _consume_publish_errors(token):
+    ''' Read-and-delete the error list keyed by `token`. Returns [] if the
+    token is missing or expired. '''
+    if not token:
+        return []
+    rds = _require_redis()
+    raw = rds.get(PUBLISH_RUN_PREFIX + token)
+    if not raw:
+        return []
+    rds.delete(PUBLISH_RUN_PREFIX + token)
+    return json.loads(raw)
 
 
 def _serialize_enrichment(paper, status, error=None):
@@ -265,11 +287,16 @@ def _apply_edits(payload, fields):
 
 @update_publications_page.route('/update_publications')
 def update_publications():
+    # Fail loudly before touching WP if Redis is unreachable; the page
+    # depends on shared state across uWSGI workers.
+    _require_redis()
+
     force_update = valueFromRequest(key="force_update", request=request, boolean=True) or False
     force_refresh = valueFromRequest(key="force_refresh", request=request, boolean=True) or False
 
     published = valueFromRequest(key="published", request=request, integer=True)
     error_count = valueFromRequest(key="errors", request=request, integer=True)
+    run_token = valueFromRequest(key="run", request=request) or ""
 
     already_published = _existing_published_by_pubmed_id()
 
@@ -331,17 +358,14 @@ def update_publications():
     templateDict["force_update"] = force_update
     templateDict["last_published"] = published
     templateDict["last_errors"] = error_count
-
-    with _last_publish_lock:
-        global _last_publish_errors
-        templateDict["last_error_details"] = _last_publish_errors
-        _last_publish_errors = []
+    templateDict["last_error_details"] = _consume_publish_errors(run_token)
 
     return render_template("update_publications.html", **templateDict)
 
 
 @update_publications_page.route('/update_publications/publish', methods=['POST'])
 def publish_selected():
+    _require_redis()
     _ensure_wp_auth()
     if getattr(api, "authenticator", None) is None:
         flask.abort(503, description=(
@@ -447,8 +471,6 @@ def publish_selected():
                 published,
             )
 
-    with _last_publish_lock:
-        global _last_publish_errors
-        _last_publish_errors = errors
-
-    return redirect(f"/update_publications?published={published}&errors={len(errors)}")
+    token = _stash_publish_errors(errors)
+    suffix = f"&run={token}" if token else ""
+    return redirect(f"/update_publications?published={published}&errors={len(errors)}{suffix}")
