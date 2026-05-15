@@ -377,27 +377,38 @@ def ensure_collection(client, collection_name):
         )
 
 
-def sync_resource(resource_name, items):
+def sync_resource(resource_name, items, prune=True):
     """Upsert `items` into the Typesense collection mapped to `resource_name`.
 
-    No-ops if Typesense is unreachable or the resource has no mapping.
-    Called from wp_cache after a successful refill.
+    Returns a status dict so callers (e.g. update_publications) can report
+    what happened:
+        {"ok": bool, "collection": str | None, "count": int, "failed": int,
+         "error": str | None, "skipped": "no_mapping" | "not_a_list" | "no_client" | None}
+
+    `prune=True` (default) deletes docs whose IDs aren't present in `items` —
+    appropriate when `items` is the full list from WordPress. Callers doing an
+    incremental upsert of just a few new docs (e.g. update_publications after
+    publishing a draft) should pass `prune=False`.
     """
     entry = COLLECTIONS.get(resource_name)
     if not entry:
-        return
+        return {"ok": False, "collection": None, "count": 0, "failed": 0,
+                "error": None, "skipped": "no_mapping"}
     if not isinstance(items, list):
-        return
+        return {"ok": False, "collection": entry["collection"], "count": 0,
+                "failed": 0, "error": None, "skipped": "not_a_list"}
     client = get_client()
     if not client:
-        return
+        return {"ok": False, "collection": entry["collection"], "count": 0,
+                "failed": 0, "error": _client_reason, "skipped": "no_client"}
     collection_name = entry["collection"]
     mapper = entry["mapper"]
     try:
         ensure_collection(client, collection_name)
     except Exception as e:
         logger.warning("typesense: ensure_collection(%s) failed (%s)", collection_name, e)
-        return
+        return {"ok": False, "collection": collection_name, "count": 0,
+                "failed": 0, "error": f"ensure_collection: {e}", "skipped": None}
 
     docs = []
     for raw in items:
@@ -416,7 +427,8 @@ def sync_resource(resource_name, items):
             client.collections[collection_name].documents.delete({"filter_by": "id:!=__none__"})
         except Exception:
             pass
-        return
+        return {"ok": True, "collection": collection_name, "count": 0,
+                "failed": 0, "error": None, "skipped": None}
 
     t0 = time.time()
     try:
@@ -427,7 +439,8 @@ def sync_resource(resource_name, items):
         )
     except Exception as e:
         logger.warning("typesense: import to %s failed (%s)", collection_name, e)
-        return
+        return {"ok": False, "collection": collection_name, "count": 0,
+                "failed": len(docs), "error": f"import: {e}", "skipped": None}
 
     failed = 0
     if isinstance(result, list):
@@ -438,6 +451,13 @@ def sync_resource(resource_name, items):
         "typesense: synced %s -> %s (%d docs, %d failed, %.2fs)",
         resource_name, collection_name, len(docs), failed, time.time() - t0,
     )
+
+    status = {"ok": failed == 0, "collection": collection_name,
+              "count": len(docs) - failed, "failed": failed,
+              "error": None, "skipped": None}
+
+    if not prune:
+        return status
 
     # Drop docs that disappeared upstream.
     try:
@@ -464,6 +484,8 @@ def sync_resource(resource_name, items):
                 logger.info("typesense: pruned %d stale docs from %s", len(stale), collection_name)
     except Exception as e:
         logger.debug("typesense: stale-prune skipped for %s (%s)", collection_name, e)
+
+    return status
 
 
 # ---------------------------------------------------------------------------

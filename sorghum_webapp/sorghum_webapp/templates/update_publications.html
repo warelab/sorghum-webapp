@@ -18,7 +18,45 @@
 
   {% if last_published is not none or last_errors is not none %}
   <div class="alert {% if last_errors and last_errors > 0 %}alert-warning{% else %}alert-success{% endif %}" role="alert">
-    Last run: <strong>{{ last_published or 0 }}</strong> published, <strong>{{ last_errors or 0 }}</strong> errors.
+    <div>
+      Last run: <strong>{{ last_published or 0 }}</strong> published,
+      <strong>{{ last_errors or 0 }}</strong> errors{% if last_summary %},
+      <strong>{{ last_summary.new_tags_created or 0 }}</strong> new tags
+      &middot; {{ last_summary.duration_seconds }}s{% endif %}.
+    </div>
+
+    {% if last_summary and last_summary.cache_steps %}
+    <ul class="mb0 mt10" style="font-size: 0.92em;">
+      {% for step in last_summary.cache_steps %}
+        {% set redis_ok = step.redis_ok %}
+        {% set ts_ok = step.typesense_ok %}
+        {% set ok = redis_ok and ts_ok %}
+        <li>
+          <span style="color: {% if ok %}#155724{% else %}#856404{% endif %};">
+            {% if ok %}&#10003;{% else %}&#9888;{% endif %}
+          </span>
+          <strong>{{ step.resource }}</strong>
+          {% if step.method == "patch" %}
+            &mdash; patched {{ step.added }} record(s);
+            wp_cache now {{ step.redis_total }} item(s),
+            typesense
+            {% if ts_ok %}+{{ step.typesense_count }} doc(s) in <code>{{ step.typesense_collection }}</code>{% else %}sync failed{% endif %}.
+          {% elif step.method == "full_refresh" %}
+            &mdash; cache was cold; refilled from WordPress ({{ step.redis_total }} item(s)).
+          {% elif step.method == "noop" %}
+            &mdash; nothing to patch.
+          {% endif %}
+          {% if step.redis_error %}
+            <br><code>redis: {{ step.redis_error }}</code>
+          {% endif %}
+          {% if step.typesense_error %}
+            <br><code>typesense: {{ step.typesense_error }}</code>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
     {% if last_error_details %}
     <ul class="mb0 mt10">
       {% for line in last_error_details %}

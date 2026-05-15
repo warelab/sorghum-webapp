@@ -23,6 +23,8 @@ endpoint here raises a 503 with a clear message when Redis is down.
 import json
 import logging
 import os
+import re
+import time
 import uuid
 
 import flask
@@ -38,7 +40,13 @@ from .. import wordpress_api as api
 from . import valueFromRequest
 from .navbar import navbar_template
 from .local_media import local_banner
-from .wp_cache import _get_redis, _invalidate as _wp_cache_invalidate, _get_or_refresh as _wp_cache_get
+from .wp_cache import (
+    _get_redis,
+    _invalidate as _wp_cache_invalidate,
+    _get_or_refresh as _wp_cache_get,
+    _read_cache as _wp_cache_read,
+    _write_cache as _wp_cache_write,
+)
 
 logger = logging.getLogger("sorghumbase")
 
@@ -102,28 +110,213 @@ def _cache_del(pubmed_id):
     rds.hdel(ENRICHMENT_HASH, pubmed_id)
 
 
-def _stash_publish_errors(errors):
-    ''' Write the publish-run error list to Redis under a one-shot token.
-    Returns the token so the caller can hand it back via the redirect. '''
-    if not errors:
+def _stash_publish_run(payload):
+    ''' Stash the publish-run summary + error list under a one-shot Redis
+    token. Returns the token so the caller can hand it back via the
+    redirect. Pass `payload = {"errors": [...], "summary": {...}}`. '''
+    if not payload:
         return None
     rds = _require_redis()
     token = uuid.uuid4().hex
-    rds.setex(PUBLISH_RUN_PREFIX + token, PUBLISH_RUN_TTL_SECONDS, json.dumps(errors))
+    rds.setex(PUBLISH_RUN_PREFIX + token, PUBLISH_RUN_TTL_SECONDS, json.dumps(payload))
     return token
 
 
-def _consume_publish_errors(token):
-    ''' Read-and-delete the error list keyed by `token`. Returns [] if the
-    token is missing or expired. '''
+def _consume_publish_run(token):
+    ''' Read-and-delete the publish-run blob keyed by `token`. Returns
+    `{"errors": [], "summary": None}` if the token is missing or expired. '''
+    empty = {"errors": [], "summary": None}
     if not token:
-        return []
+        return empty
     rds = _require_redis()
     raw = rds.get(PUBLISH_RUN_PREFIX + token)
     if not raw:
-        return []
+        return empty
     rds.delete(PUBLISH_RUN_PREFIX + token)
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except Exception:
+        return empty
+
+
+def _refresh_wp_cache(resource):
+    ''' Invalidate Redis for `resource` and immediately refill it, which
+    also re-syncs the matching Typesense collection (see
+    wp_cache._do_fetch_and_store). Equivalent to hitting
+    /api/wp_cache/<resource>/meta?force=1 over HTTP. Used only as a
+    fallback when an incremental patch isn't possible. '''
+    try:
+        _wp_cache_invalidate(resource)
+        _wp_cache_get(resource)
+    except Exception as e:
+        logger.warning(
+            "update_publications: refresh of wp_cache:%s failed (%s); "
+            "the cron warm will catch up within %s seconds",
+            resource, e, app.config.get("WP_CACHE_TTL", "n/a"),
+        )
+
+
+def _patch_wp_cache(resource, new_records):
+    ''' Upsert `new_records` into the cached list in Redis at
+    wp_cache:<resource>:data, then upsert just those records into the
+    matching Typesense collection (without pruning others).
+
+    Falls back to a full refill if the cache is cold — without a baseline
+    list to merge into, we can't construct the upserted state.
+
+    Returns a status dict describing what happened, suitable for showing
+    to the admin on the next page render. '''
+    status = {
+        "resource": resource,
+        "method": "patch",        # "patch" | "full_refresh" | "noop"
+        "added": len(new_records or []),
+        "redis_ok": False,
+        "redis_total": 0,
+        "redis_error": None,
+        "typesense_ok": False,
+        "typesense_collection": None,
+        "typesense_count": 0,
+        "typesense_failed": 0,
+        "typesense_error": None,
+    }
+    if not new_records:
+        status["method"] = "noop"
+        return status
+
+    ttl = int(app.config.get("WP_CACHE_TTL", 3600))
+    try:
+        items, meta = _wp_cache_read(resource, ttl)
+    except Exception as e:
+        status["redis_error"] = f"read: {e}"
+        items, meta = None, None
+
+    if items is None:
+        logger.info(
+            "update_publications: wp_cache:%s was cold; falling back to full refresh",
+            resource,
+        )
+        status["method"] = "full_refresh"
+        try:
+            _wp_cache_invalidate(resource)
+            items, meta = _wp_cache_get(resource)
+            status["redis_ok"] = True
+            status["redis_total"] = len(items or [])
+            # The full refresh path runs its own Typesense sync via
+            # wp_cache._do_fetch_and_store, but it prunes — that's the right
+            # call when we're starting from cold. Record that we deferred to it.
+            status["typesense_ok"] = True
+            status["typesense_collection"] = resource  # collection name may differ; informational only
+        except Exception as e:
+            logger.warning("update_publications: full refresh of %s failed (%s)", resource, e)
+            status["redis_error"] = f"full refresh: {e}"
+        return status
+
+    by_id = {r.get("id"): r for r in items if r.get("id") is not None}
+    for r in new_records:
+        rid = r.get("id")
+        if rid is None:
+            continue
+        by_id[rid] = r
+    merged = list(by_id.values())
+
+    new_meta = dict(meta or {})
+    new_meta["count"] = len(merged)
+    new_meta["fetched_at"] = time.time()
+    new_meta["last_patch"] = {
+        "added_or_updated": len(new_records),
+        "at": new_meta["fetched_at"],
+    }
+
+    try:
+        _wp_cache_write(resource, merged, new_meta, ttl)
+        status["redis_ok"] = True
+        status["redis_total"] = len(merged)
+    except Exception as e:
+        logger.warning("update_publications: redis write for wp_cache:%s failed (%s)", resource, e)
+        status["redis_error"] = f"write: {e}"
+        # Don't proceed to Typesense if Redis is out of sync — caller will see
+        # the failure and can run the manual /meta?force=1 recovery.
+        return status
+
+    # Typesense incremental upsert (no prune).
+    try:
+        from . import typesense_index
+        ts = typesense_index.sync_resource(resource, new_records, prune=False)
+        if ts:
+            status["typesense_ok"] = bool(ts.get("ok"))
+            status["typesense_collection"] = ts.get("collection")
+            status["typesense_count"] = ts.get("count") or 0
+            status["typesense_failed"] = ts.get("failed") or 0
+            status["typesense_error"] = ts.get("error") or ts.get("skipped")
+    except Exception as e:
+        logger.warning("update_publications: typesense incremental sync for %s failed (%s)", resource, e)
+        status["typesense_error"] = str(e)
+
+    logger.info(
+        "update_publications: patched wp_cache:%s with %d record(s); list size now %d "
+        "(typesense ok=%s count=%d failed=%d)",
+        resource, len(new_records), len(merged),
+        status["typesense_ok"], status["typesense_count"], status["typesense_failed"],
+    )
+    return status
+
+
+def _wp_slug(name):
+    ''' Approximate WordPress's tag-slug generation: lowercase, non-alnum
+    runs collapse to single hyphens, trim leading/trailing hyphens. Good
+    enough for the cached tags list since lookups in the publications UI
+    use the numeric id. '''
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+
+
+def _paper_record_for_cache(paper, payload, tag_ids):
+    ''' Build a wp_cache:publications-shaped dict from the in-memory
+    payload + the freshly published paper. Mirrors the WP REST shape that
+    /wp-json/wp/v2/scientific_paper returns. Consumers are
+    publicationBrowser.js, paperDetail.js, and the papers Typesense
+    indexer (typesense_index._map_paper). '''
+    iso = payload.get("publication_date") or payload.get("date") or ""
+    return {
+        "id": int(payload["wp_id"]),
+        "slug": (paper.s.slug or "") if paper else "",
+        "status": "publish",
+        "type": "scientific_paper",
+        "title": {"rendered": payload.get("title") or ""},
+        "content": {"rendered": (paper.s.content if paper else "") or "", "protected": False},
+        "excerpt": {"rendered": "", "protected": False},
+        "date": iso,
+        "date_gmt": iso,
+        "modified": "",
+        "modified_gmt": "",
+        # Pods top-level fields (see wordpress_orm_extensions/scientific_paper.py)
+        "paper_authors": payload.get("paper_authors") or "",
+        "abstract": payload.get("abstract") or "",
+        "source_url": payload.get("source_url") or "",
+        "doi": payload.get("doi") or "",
+        "journal": payload.get("journal") or "",
+        "publication_date": payload.get("publication_date") or "",
+        "keywords": payload.get("keywords") or "",
+        "pubmed_id": payload.get("pubmed_id") or "",
+        "affiliations": payload.get("affiliations") or [],
+        "funding_agencies": payload.get("funding_agencies") or [],
+        "funding": [],
+        "posts": [],
+        "tags": [int(t) for t in (tag_ids or []) if str(t).isdigit()],
+    }
+
+
+def _tag_record_for_cache(tag_id, name):
+    ''' Build a wp_cache:tags-shaped dict for a freshly created WP tag. '''
+    return {
+        "id": int(tag_id),
+        "count": 0,
+        "description": "",
+        "link": "",
+        "name": name,
+        "slug": _wp_slug(name),
+        "taxonomy": "post_tag",
+        "meta": [],
+    }
 
 
 def _serialize_enrichment(paper, status, error=None):
@@ -358,7 +551,9 @@ def update_publications():
     templateDict["force_update"] = force_update
     templateDict["last_published"] = published
     templateDict["last_errors"] = error_count
-    templateDict["last_error_details"] = _consume_publish_errors(run_token)
+    blob = _consume_publish_run(run_token)
+    templateDict["last_error_details"] = blob.get("errors") or []
+    templateDict["last_summary"] = blob.get("summary")
 
     return render_template("update_publications.html", **templateDict)
 
@@ -372,6 +567,7 @@ def publish_selected():
             "WordPress basic auth not configured; set SB_WP_USERNAME and SB_WP_PASSWORD"
         ))
 
+    run_started_at = time.time()
     selected = request.form.getlist("pubmed_ids")
     edits = _collect_edits(request.form)
     published = 0
@@ -383,6 +579,12 @@ def publish_selected():
     existing_tag_names = _existing_tag_names()  # None if snapshot unavailable
     new_tags_created = False
     published_this_run = set()  # catches within-batch pubmed_id collisions
+
+    # Records collected during the loop so we can patch wp_cache (Redis)
+    # and Typesense incrementally at the end, instead of refilling from
+    # WordPress.
+    new_paper_records = []
+    new_tag_records = []
 
     with api.Session():
         for pmid in selected:
@@ -422,16 +624,23 @@ def publish_selected():
                 paper.s.affiliations = payload["affiliations"]
                 paper.s.funding_agencies = payload["funding_agencies"]
 
+                tag_ids = []
                 if payload["keywords"] and payload["keywords"] != "No keywords in Pubmed":
-                    tag_ids = []
                     for kw in [w.strip() for w in payload["keywords"].split(",") if w.strip()]:
                         kw_lc = kw.lower()
-                        if existing_tag_names is not None and kw_lc not in existing_tag_names:
+                        was_new = (
+                            existing_tag_names is not None
+                            and kw_lc not in existing_tag_names
+                        )
+                        if was_new:
                             new_tags_created = True
                             existing_tag_names.add(kw_lc)
                         tag = Tag(api=api)
                         tag.s.name = kw
-                        tag_ids.append(str(tag.post))
+                        tag_id_str = str(tag.post)
+                        tag_ids.append(tag_id_str)
+                        if was_new and tag_id_str.isdigit():
+                            new_tag_records.append(_tag_record_for_cache(tag_id_str, kw))
                     if tag_ids:
                         paper.s.tags = ", ".join(tag_ids)
 
@@ -446,6 +655,7 @@ def publish_selected():
                 paper.s.status = "publish"
 
                 paper.update()
+                new_paper_records.append(_paper_record_for_cache(paper, payload, tag_ids))
                 _cache_del(pmid)
                 published += 1
                 published_this_run.add(pmid)
@@ -453,24 +663,29 @@ def publish_selected():
                 logger.exception("update_publications: publish failed for %s", pmid)
                 errors.append(f"{pmid}: {e}")
 
+    cache_steps = []
     if published > 0:
-        _wp_cache_invalidate("publications")
-        # Only invalidate the tags cache if the publish run actually
-        # created at least one new tag (or if we couldn't load the tag
-        # snapshot and have to be conservative).
-        if existing_tag_names is None or new_tags_created:
-            _wp_cache_invalidate("tags")
-            logger.info(
-                "update_publications: invalidated wp_cache:publications and "
-                "wp_cache:tags after publishing %d paper(s)", published,
-            )
-        else:
-            logger.info(
-                "update_publications: invalidated wp_cache:publications after "
-                "publishing %d paper(s); no new tags so leaving wp_cache:tags",
-                published,
-            )
+        # Incremental update: take the records we just built in-memory and
+        # merge them into the Redis cache + upsert into Typesense. No
+        # WordPress refetch.
+        #
+        # Browser money-clip caches (publicationsRaw, tagsRaw) drop
+        # themselves on the next page load because the shared loaders
+        # compare the locally cached array length against the Typesense
+        # count -- which has just changed.
+        cache_steps.append(_patch_wp_cache("publications", new_paper_records))
+        if new_tag_records:
+            cache_steps.append(_patch_wp_cache("tags", new_tag_records))
 
-    token = _stash_publish_errors(errors)
+    summary = {
+        "started_at": run_started_at,
+        "duration_seconds": round(time.time() - run_started_at, 2),
+        "selected": len(selected),
+        "papers_published": published,
+        "papers_failed": len(errors),
+        "new_tags_created": len(new_tag_records),
+        "cache_steps": cache_steps,
+    }
+    token = _stash_publish_run({"errors": errors, "summary": summary})
     suffix = f"&run={token}" if token else ""
     return redirect(f"/update_publications?published={published}&errors={len(errors)}{suffix}")
