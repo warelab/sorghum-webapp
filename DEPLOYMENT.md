@@ -1,6 +1,6 @@
 # Deployment
 
-A single shell script — [`scripts/deploy.sh`](sorghum_webapp/scripts/deploy.sh) — provisions a fresh Debian/Ubuntu host with the Flask app, Redis, Typesense, the cron warm, and a systemd unit running Gunicorn. The script is idempotent: re-running it deploys a new commit and reloads the service.
+A single shell script — [`scripts/deploy.sh`](sorghum_webapp/scripts/deploy.sh) — provisions a fresh Rocky Linux 9 host (also RHEL 9 / AlmaLinux 9) with the Flask app, Redis, Typesense, the cron warm, and a systemd unit running Gunicorn. The script is idempotent: re-running it deploys a new commit and reloads the service.
 
 ## Architecture
 
@@ -35,11 +35,12 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 
 ## Prerequisites
 
-- Target host: Debian 11+ or Ubuntu 22.04+
+- Target host: Rocky Linux 9 (RHEL 9 and AlmaLinux 9 also supported — anything with `dnf`, `systemd`, and the Docker CE / nodesource RPM repos)
 - Root or passwordless `sudo` on the host
-- Outbound HTTPS to `github.com`, `content.sorghumbase.org`, `pypi.org`, `registry.npmjs.org`, and Docker Hub
+- Outbound HTTPS to `github.com`, `content.sorghumbase.org`, `pypi.org`, `registry.npmjs.org`, `download.docker.com`, `rpm.nodesource.com`, and Docker Hub
+- EPEL available (the script enables `epel-release` itself)
 - An SSH key on the host that can clone the repo (if `REPO_URL` uses SSH)
-- The four secrets below in your local environment when you invoke the script
+- The three secrets below in your local environment when you invoke the script
 
 ## Required environment variables
 
@@ -91,20 +92,21 @@ sudo -E bash /path/to/sorghum-webapp/scripts/deploy.sh
 
 ## What the script does
 
-1. `apt install` python3, venv, build-essential, redis-server, cron, git
-2. Installs Node 20 LTS (needed by Parcel to build `search_app/`)
-3. Installs Docker (for Typesense)
-4. Creates the `sorghum` system user; adds it to the `docker` group
-5. Clones the repo to `/opt/sorghum-webapp` (or `git pull` if it's already there)
-6. Creates a Python venv and installs `requirements.txt` + `gunicorn`
-7. `npm ci && npm run build` in `search_app/` — produces the bundle at `sorghum_webapp/sorghum_webapp/static/search/`
-8. Writes `/etc/sorghum-webapp/sorghum.env` (mode 640, `root:sorghum`) containing the secrets
-9. Writes `/etc/systemd/system/sorghum-webapp.service` and enables it
-10. Writes `/etc/cron.d/sorghum-webapp-warm` with the 30-min warm
-11. Starts Typesense via `docker compose up -d typesense`
-12. Starts the Gunicorn service
-13. Runs `warm_wp_cache.sh` once to populate Redis and Typesense
-14. Smoke-checks `/api/typeahead/_status` and `/api/typesense/counts`
+1. Verifies the host is Rocky / RHEL / AlmaLinux (refuses to run otherwise).
+2. `dnf install` python3, python3-pip, python3-devel, gcc, make, git, curl, redis, cronie; enables and starts `redis` and `crond`.
+3. Adds the nodesource repo and installs Node 20 LTS (needed by Parcel to build `search_app/`).
+4. Adds the Docker CE repo and installs `docker-ce` + the compose plugin; enables and starts `docker`.
+5. Creates the `sorghum` system user; adds it to the `docker` group.
+6. Clones the repo to `/opt/sorghum-webapp` (or `git pull` if it's already there).
+7. Creates a Python venv and installs `requirements.txt` + `gunicorn`.
+8. `npm ci && npm run build` in `search_app/` — produces the bundle at `sorghum_webapp/sorghum_webapp/static/search/`.
+9. Writes `/etc/sorghum-webapp/sorghum.env` (mode 640, `root:sorghum`) containing the secrets.
+10. Writes `/etc/systemd/system/sorghum-webapp.service` and enables it.
+11. Writes `/etc/cron.d/sorghum-webapp-warm` with the 30-min warm.
+12. Starts Typesense via `docker compose up -d typesense`.
+13. Starts the Gunicorn service.
+14. Runs `warm_wp_cache.sh` once to populate Redis and Typesense.
+15. Smoke-checks `/api/typeahead/_status` and `/api/typesense/counts`.
 
 ## Verifying the deploy
 
@@ -196,6 +198,41 @@ Apache modules needed: `proxy`, `proxy_http`, `headers`, `ssl`, `http2`.
 
 If the internal host is reachable only from the Apache host, set `GUNICORN_BIND` to the private interface IP and `FORWARDED_ALLOW_IPS` to the Apache host's IP when running `deploy.sh`.
 
+## Rocky-specific things to know
+
+### SELinux
+
+Rocky 9 ships with SELinux in **enforcing** mode. The default setup works:
+
+- Gunicorn runs as a normal systemd-managed service and is **not** confined by an SELinux domain unless you give it one, so binding to port 8000 and reading the venv / app code on `/opt/sorghum-webapp` works without extra rules.
+- Redis listens on localhost and is reached over loopback — no SELinux interaction.
+- Typesense runs inside a Docker container; container-bridge networking is allowed by default.
+
+**If you re-locate the app outside `/opt/`** (e.g. under `/home/sorghum/`), SELinux may refuse systemd's reads. Either move it back under `/opt/`, or relabel:
+```sh
+semanage fcontext -a -t bin_t '/home/sorghum/sorghum-webapp/venv/bin(/.*)?'
+restorecon -Rv /home/sorghum/sorghum-webapp/
+```
+
+To temporarily diagnose any SELinux denial, watch the audit log while reproducing:
+```sh
+ausearch -m AVC -ts recent
+```
+
+### firewalld
+
+Rocky 9 starts with firewalld active. By default the script binds Gunicorn to `127.0.0.1:8000`, which doesn't need any port opening. If you set `GUNICORN_BIND=10.0.0.5:8000` so the public Apache box can reach it, open port 8000 to that specific source:
+
+```sh
+sudo firewall-cmd --permanent \
+  --add-rich-rule='rule family="ipv4" source address="<apache-host-IP>" port port="8000" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+### Docker CE vs Podman
+
+Rocky 9 ships Podman, not Docker. The script installs Docker CE from the upstream repo because `docker-compose.yml` uses Docker Compose v2 syntax and our examples assume `docker compose ...`. If your sysadmin prefers Podman, install `podman` + `podman-compose` and swap the `docker compose up -d typesense` call in the script for `podman-compose up -d typesense` — everything else is identical.
+
 ## Troubleshooting
 
 ### `systemctl status sorghum-webapp` shows the service failed at startup
@@ -222,11 +259,13 @@ curl -s http://127.0.0.1:8000/api/typeahead/_status | python3 -m json.tool
 
 ### `warm_wp_cache.sh` reports `FAILED tags` (or similar)
 
-Almost always a transient WordPress / DNS issue. The wp_cache layer already retries 5x on connect errors. If it persists, hit WordPress directly to confirm it's reachable:
+Almost always a transient WordPress / DNS issue. The wp_cache layer already retries 5x on connect errors. If it persists, hit WordPress directly to confirm it's reachable from the box:
 
 ```sh
 curl -sI 'https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags?per_page=1'
 ```
+
+If that times out from inside the host but works from your laptop, check firewalld and any outbound proxy rules on the box.
 
 ### Stale cache after a content update in WordPress
 

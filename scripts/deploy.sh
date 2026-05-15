@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-# Provision-or-deploy the sorghum-webapp on a Debian/Ubuntu host with
-# Gunicorn + systemd + Redis + Typesense (Docker).
+# Provision-or-deploy the sorghum-webapp on a Rocky Linux 9 host (also
+# works on RHEL 9 / AlmaLinux 9) with Gunicorn + systemd + Redis +
+# Typesense (Docker CE).
 #
 # Idempotent: safe to re-run.
-#   First run -> installs system packages, creates the service user,
-#                clones the repo, writes systemd + cron, brings everything up.
+#   First run -> installs system packages, adds Docker CE + nodesource
+#                repos, creates the service user, clones the repo,
+#                writes systemd + cron, brings everything up.
 #   Re-runs   -> git pull, pip install, npm run build, systemctl reload.
 #
 # Run as root or with passwordless sudo on the target host.
@@ -71,19 +73,37 @@ sudo_() {
 }
 
 # ---------------------------------------------------------------------------
+# 0. Distro sanity check
+# ---------------------------------------------------------------------------
+check_distro() {
+    if [ ! -r /etc/os-release ]; then
+        die "cannot read /etc/os-release; this script targets Rocky/RHEL/Alma 9."
+    fi
+    # shellcheck disable=SC1091
+    . /etc/os-release
+    case "${ID:-}${ID_LIKE:-}" in
+        *rhel*|*rocky*|*almalinux*|*centos*) : ;;
+        *) die "unsupported distro ID=${ID}; this script targets Rocky/RHEL/Alma 9." ;;
+    esac
+    log "distro: ${PRETTY_NAME:-$ID $VERSION_ID}"
+}
+
+# ---------------------------------------------------------------------------
 # 1. System packages
 # ---------------------------------------------------------------------------
 install_packages() {
-    log "apt: ensuring base packages"
-    sudo_ apt-get update -qq
-    sudo_ env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-        python3 python3-venv python3-dev build-essential \
+    log "dnf: ensuring base packages"
+    sudo_ dnf -q -y install epel-release || true
+    sudo_ dnf -q -y install \
+        python3 python3-pip python3-devel \
+        gcc make \
         git curl ca-certificates \
-        redis-server \
-        cron
+        redis \
+        cronie
 
-    log "ensuring redis is enabled + running"
-    sudo_ systemctl enable --now redis-server
+    log "ensuring redis + crond are enabled and running"
+    sudo_ systemctl enable --now redis
+    sudo_ systemctl enable --now crond
 }
 
 install_node() {
@@ -91,18 +111,23 @@ install_node() {
         log "node $(node -v) already installed"
         return
     fi
-    log "installing node 20 LTS (for parcel build)"
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo_ -E bash -
-    sudo_ env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs
+    log "installing node 20 LTS via nodesource (for parcel build)"
+    # Disable the Rocky-shipped nodejs module so the nodesource RPM wins.
+    sudo_ dnf -q -y module disable nodejs >/dev/null 2>&1 || true
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo_ -E bash -
+    sudo_ dnf -q -y install nodejs
 }
 
 install_docker() {
     if command -v docker >/dev/null; then
         log "docker $(docker --version) already installed"
     else
-        log "installing docker"
-        sudo_ env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-            docker.io docker-compose-plugin
+        log "installing docker-ce + compose plugin"
+        sudo_ dnf -q -y install dnf-plugins-core
+        if [ ! -f /etc/yum.repos.d/docker-ce.repo ]; then
+            sudo_ dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        fi
+        sudo_ dnf -q -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
         sudo_ systemctl enable --now docker
     fi
 }
@@ -202,8 +227,8 @@ write_systemd_unit() {
     sudo_ tee "$SYSTEMD_UNIT" >/dev/null <<EOF
 [Unit]
 Description=Sorghum webapp (Gunicorn)
-After=network.target redis-server.service docker.service
-Wants=redis-server.service
+After=network.target redis.service docker.service
+Wants=redis.service
 
 [Service]
 Type=notify
@@ -288,6 +313,7 @@ verify() {
 # Main
 # ---------------------------------------------------------------------------
 log "starting deploy (user=${APP_USER}, dir=${APP_DIR}, branch=${GIT_BRANCH})"
+check_distro
 install_packages
 install_node
 install_docker
