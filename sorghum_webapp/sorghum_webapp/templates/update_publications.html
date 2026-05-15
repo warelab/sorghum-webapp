@@ -68,24 +68,42 @@
   {% endif %}
 
   <p>
-    Draft scientific papers seeded with only a PubMed ID. Enriched data
-    below was pulled from PubMed and cached server-side (keyed by
-    pubmed_id); ticking rows and clicking <em>Publish Selected</em> applies
-    that cached data to each draft and sets its status to <code>publish</code>.
-    No WordPress writes happen on this page load.
+    Provide a list of PubMed IDs to enrich. Metadata is pulled from
+    PubMed and cached server-side (keyed by pubmed_id); ticking rows and
+    clicking <em>Publish Selected</em> looks up the matching draft in
+    WordPress, applies the cached data, and sets status to <code>publish</code>.
+    No WordPress queries happen until you submit a publish.
   </p>
 
-  <div class="mb20">
-    <a class="btn btn-sm btn-outline-secondary" href="/update_publications?force_refresh=true">Re-fetch from PubMed</a>
-    {% if force_update %}
-    <a class="btn btn-sm btn-outline-secondary" href="/update_publications">Drafts with empty content only</a>
-    {% else %}
-    <a class="btn btn-sm btn-outline-secondary" href="/update_publications?force_update=true">Include drafts that already have content</a>
+  <form method="GET" action="/update_publications" class="mb20">
+    <div class="input-group">
+      <input type="text" name="pmids" class="form-control"
+             placeholder="PubMed IDs (comma, space, or newline separated)"
+             value="{{ pmids_value }}" autofocus>
+      <div class="input-group-append">
+        <button type="submit" class="btn btn-outline-secondary">Look up</button>
+        {% if pmids_mode %}
+        <a class="btn btn-outline-secondary" href="/update_publications">Clear</a>
+        {% endif %}
+      </div>
+    </div>
+    {% if pmids_mode %}
+    <small class="text-muted">
+      Rows whose PubMed ID has no matching draft in WordPress can be
+      reviewed here but will be rejected at publish with a clear
+      "<em>create the draft first</em>" message.
+    </small>
     {% endif %}
+  </form>
+
+  {% if pmids_mode %}
+  <div class="mb20">
+    <a class="btn btn-sm btn-outline-secondary" href="/update_publications?pmids={{ pmids_value | urlencode }}&force_refresh=true">Re-fetch these from PubMed</a>
     <span class="ml20">
-      {{ ready_count }} ready / {{ rows|length }} total candidates
+      {{ ready_count }} ready / {{ rows|length }} total
     </span>
   </div>
+  {% endif %}
 
   {% if rows %}
   <form method="POST" action="/update_publications/publish">
