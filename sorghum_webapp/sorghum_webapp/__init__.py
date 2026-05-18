@@ -240,27 +240,28 @@ def create_app(debug=False, log_level=None):#, conf=dict()):
 	elif app.config["USING_UWSGI"]:
 
 		#
-		# Must be in production. Look for deployment configuration file.
+		# Production mode. Look for a per-host configuration file. Under
+		# uWSGI we read its path from `uwsgi.opt['flask-config-file']`;
+		# under Gunicorn (or any other WSGI server) we fall back to the
+		# `SERVER_CONFIG_FILE` env var. Either is optional -- without
+		# it, only default.cfg is loaded.
 		#
-		try:
-			import uwsgi
-			# The uWSGI configuration file defines a key value pair to point
-			# to a particular configuration file in this module under "configuration_files".
-			# The key is 'flask_config_file', and the value is the name of the configuration
-			# file.
-			# NOTE: For Python 3, the value from the uwsgi.opt dict below must be decoded, e.g.
-			# config_file = uwsgi.opt['flask-config-file'].decode("utf-8")
-		except ImportError:
-			print("Trying to run in production mode, but not running under uWSGI.\n"
-				  "You might try running again with the '--debug' (or '-d') flag.")
-			sys.exit(1)
-
-		# read configuration file specified in uWSGI parameters
 		config_filename = None
 		try:
-			config_filename = uwsgi.opt['flask-config-file'].decode("utf-8")
-		except KeyError:
-			print("No Flask configuration file was found (this is ok, it's optional.)")
+			import uwsgi
+		except ImportError:
+			uwsgi = None
+		if uwsgi is not None:
+			try:
+				config_filename = uwsgi.opt['flask-config-file'].decode("utf-8")
+			except KeyError:
+				print("No Flask configuration file was found in uwsgi.opt "
+				      "(this is ok, it's optional.)")
+		else:
+			config_filename = os.environ.get("SERVER_CONFIG_FILE")
+			if not config_filename:
+				print("Not running under uWSGI; using default.cfg only "
+				      "(set SERVER_CONFIG_FILE env for per-host overrides).")
 		if config_filename:
 			server_config_file = _app_setup_utils.getConfigFile(config_filename)
 

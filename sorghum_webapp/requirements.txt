@@ -6,6 +6,7 @@ termcolor
 coloredlogs
 redis
 typesense
+python-dateutil
 #litter_getter
 
 # needs to be converted into an installable module before uncommenting
