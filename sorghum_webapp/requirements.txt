@@ -7,9 +7,11 @@ coloredlogs
 redis
 typesense
 python-dateutil
-#litter_getter
+zeep
+pymed
 
-# needs to be converted into an installable module before uncommenting
+# wordpress_orm is *not* pip-installable (no setup.py yet); deploy.sh
+# clones it and registers via a .pth file in the venv's site-packages.
 #wordpress_orm
 
 # asset management

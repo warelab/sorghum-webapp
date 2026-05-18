@@ -1,12 +1,27 @@
-from litter_getter import pubmed
-import xml.etree.ElementTree as ET
+import logging
+import os
 import re
+import xml.etree.ElementTree as ET
 from pprint import pprint
 
-pubmed.connect('4310661ddba8abf80e4be5c7c0850ae71d09')
+from pymed import PubMed
+try:
+    from lxml import etree as _lxml_etree
+except ImportError:  # pymed depends on lxml, but defend against odd installs.
+    _lxml_etree = None
 
+logger = logging.getLogger("sorghumbase")
 
-import re
+# NCBI requires a tool name + contact email on every request. Override via
+# env if you want them per-host; defaults are good enough for the
+# unauthenticated 3-req/sec tier we operate in.
+_PUBMED_TOOL = os.environ.get("PUBMED_TOOL", "sorghumbase")
+_PUBMED_EMAIL = os.environ.get("PUBMED_EMAIL", "contact@sorghumbase.org")
+_pubmed_client = PubMed(tool=_PUBMED_TOOL, email=_PUBMED_EMAIL)
+
+# Cap each ESearch+EFetch round-trip. PubMed accepts long OR-joined PMID
+# queries, but the URL gets unwieldy past a couple hundred IDs.
+_PUBMED_CHUNK = 200
 
 AFFILIATION_UNIT_HINTS = {
     "department", "dept", "division", "program", "center", "centre", "lab",
@@ -420,6 +435,73 @@ def parse_funding(article_root):
 
     return unique_agencies, unique_records
 
+def _extract_pmid(article):
+    """pymed sometimes joins multiple aliased PMIDs with newlines.
+    Take the first."""
+    pmid = getattr(article, "pubmed_id", "") or ""
+    return pmid.split("\n", 1)[0].strip()
+
+
+def _author_strings(authors):
+    """Render pymed's [{lastname, firstname, initials, ...}, ...] into the
+    list-of-strings that the old code joined with ', '."""
+    out = []
+    for a in authors or []:
+        if not isinstance(a, dict):
+            continue
+        last = (a.get("lastname") or "").strip()
+        first = (a.get("firstname") or "").strip()
+        initials = (a.get("initials") or "").strip()
+        if first and last:
+            out.append(f"{first} {last}")
+        elif last and initials:
+            out.append(f"{last} {initials}")
+        elif last:
+            out.append(last)
+        elif first:
+            out.append(first)
+    return out
+
+
+def _refs_from_pymed(ids):
+    """Mirrors the shape of litter_getter.pubmed.PubMedFetch.get_content():
+    one dict per input id (or None if PubMed didn't return one), with keys
+    abstract, authors, title, doi, xml. The xml value is the raw
+    <PubmedArticle> element as a bytes blob so the existing
+    `ET.fromstring(refs[num]['xml'])` call still works.
+
+    Queries PubMed in <=_PUBMED_CHUNK-sized batches via OR-joined PMID
+    filters. Results come back in arbitrary order; we re-key by PMID
+    and lay them back into input order at the end."""
+    by_pmid = {}
+    for start in range(0, len(ids), _PUBMED_CHUNK):
+        batch = [str(i) for i in ids[start:start + _PUBMED_CHUNK] if i]
+        if not batch:
+            continue
+        query = " OR ".join(f"{p}[PMID]" for p in batch)
+        try:
+            for article in _pubmed_client.query(query, max_results=len(batch)):
+                pmid = _extract_pmid(article)
+                if not pmid:
+                    continue
+                xml_blob = b""
+                if article.xml is not None and _lxml_etree is not None:
+                    try:
+                        xml_blob = _lxml_etree.tostring(article.xml)
+                    except Exception as e:
+                        logger.debug("pymed: tostring failed for pmid %s (%s)", pmid, e)
+                by_pmid[pmid] = {
+                    "abstract": article.abstract or "",
+                    "authors": _author_strings(article.authors),
+                    "title": article.title or "",
+                    "doi": (article.doi or "").split()[0] if article.doi else "",
+                    "xml": xml_blob,
+                }
+        except Exception as e:
+            logger.warning("pymed: query failed for batch starting at %d (%s)", start, e)
+    return [by_pmid.get(str(i)) for i in ids]
+
+
 def getMetaData(papersToFind):
     monthLUT = {
         'Jan': '01',
@@ -436,50 +518,42 @@ def getMetaData(papersToFind):
         'Dec': '12'
     }
 
-    ids = []
-    for paper in papersToFind:
-        ids.append(paper.s.pubmed_id)
+    ids = [p.s.pubmed_id for p in papersToFind]
+    refs = _refs_from_pymed(ids)
 
-    fetch = pubmed.PubMedFetch(id_list=ids)
-    refs = fetch.get_content()
+    for paper, ref in zip(papersToFind, refs):
+        if ref is None:
+            logger.warning("pymed: no metadata returned for pmid %s", paper.s.pubmed_id)
+            continue
+        paper.s.abstract = ref['abstract']
+        paper.s.paper_authors = ', '.join(ref['authors'])
+        paper.s.title = ref['title']
+        paper.s.source_url = "https://www.ncbi.nlm.nih.gov/pubmed/" + paper.s.pubmed_id
+        paper.s.doi = ref['doi']
 
-    for num, id in enumerate(refs):
-        papersToFind[num].s.abstract = refs[num]['abstract']
-        papersToFind[num].s.paper_authors = ', '.join(refs[num]['authors'])
-        papersToFind[num].s.title = refs[num]['title']
-        papersToFind[num].s.source_url = "https://www.ncbi.nlm.nih.gov/pubmed/" + papersToFind[num].s.pubmed_id
-        papersToFind[num].s.doi = refs[num]['doi']
-        papersToFind[num].s.abstract = refs[num]['abstract']
+        if not ref['xml']:
+            paper.s.affiliations = []
+            paper.s.funding_agencies = []
+            paper.s.keywords = 'No keywords in Pubmed'
+            continue
+        root = ET.fromstring(ref['xml'])
 
-        root = ET.fromstring(refs[num]["xml"])
-
-        # NEW: affiliations + funding
         raw_affiliations, parsed_affiliations = parse_affiliations(root)
         funding_agencies, funding_records = parse_funding(root)
 
-        papersToFind[num].s.affiliations = raw_affiliations
-#         papersToFind[num].s.affiliations_parsed = parsed_affiliations
+        paper.s.affiliations = raw_affiliations
+        paper.s.funding_agencies = funding_agencies
 
-        # convenience lists
-#         papersToFind[num].s.affiliation_institutions = dedupe_preserve_order(
-#             [x["institution"] for x in parsed_affiliations if x["institution"]]
-#         )
-#         papersToFind[num].s.affiliation_subunits = dedupe_preserve_order(
-#             [x["subunit"] for x in parsed_affiliations if x["subunit"]]
-#         )
-
-        papersToFind[num].s.funding_agencies = funding_agencies
-#         papersToFind[num].s.funding_records = funding_records
-#         papersToFind[num].s.grant_ids = dedupe_preserve_order(
-#             [x["grant_id"] for x in funding_records if x["grant_id"]]
-#         )
         day = "not a day"
-        if root[0].find('Article'):
-            if root[0].find('Article').find('Journal'):
+        if root[0].find('Article') is not None:
+            if root[0].find('Article').find('Journal') is not None:
                 journal = root[0].find('Article').find('Journal')
-                papersToFind[num].s.journal = journal.find('Title').text
-                pubDate = journal.find('JournalIssue').find('PubDate')
-                if pubDate:
+                title_elem = journal.find('Title')
+                if title_elem is not None:
+                    paper.s.journal = title_elem.text
+                issue = journal.find('JournalIssue')
+                pubDate = issue.find('PubDate') if issue is not None else None
+                if pubDate is not None:
                     yearElem = pubDate.find('Year')
                     monthElem = pubDate.find('Month')
                     dayElem = pubDate.find('Day')
@@ -511,18 +585,22 @@ def getMetaData(papersToFind):
                         day = '01'
                     break
 
-        papersToFind[num].s.publication_date = year + "-" + month + "-" + day
-        papersToFind[num].s.date = year + "-" + month.zfill(2) + "-" + day.zfill(2) + "T00:00:00"
-        print("set date", papersToFind[num].s.date, papersToFind[num].s.publication_date)
+        if day != "not a day":
+            paper.s.publication_date = year + "-" + month + "-" + day
+            paper.s.date = year + "-" + month.zfill(2) + "-" + day.zfill(2) + "T00:00:00"
+            print("set date", paper.s.date, paper.s.publication_date)
+        else:
+            paper.s.publication_date = ""
+            paper.s.date = ""
 
-        if root[0].find("KeywordList"):
+        if root[0].find("KeywordList") is not None:
             keywordlist = root[0].find("KeywordList").findall("Keyword")
             kwl = []
             for word in keywordlist:
                 if word.text:
                     kwl.append((word.text).strip())
-            papersToFind[num].s.keywords = ', '.join(kwl)
+            paper.s.keywords = ', '.join(kwl) if kwl else 'No keywords in Pubmed'
         else:
-            papersToFind[num].s.keywords = 'No keywords in Pubmed'
+            paper.s.keywords = 'No keywords in Pubmed'
 
     return papersToFind
