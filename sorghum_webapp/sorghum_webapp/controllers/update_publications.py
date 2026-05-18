@@ -85,10 +85,11 @@ def _require_redis():
 
 
 def _ensure_wp_auth():
-    ''' paper.update() PUTs to WordPress and requires authentication. The
-    global auth block in __init__.py only fires when SB_WP_* *and*
-    MANTIS_* are all configured; fill in basic auth from SB_WP_* on
-    demand so this endpoint works in dev environments. '''
+    ''' Creating a scientific_paper post requires authentication. The
+    global auth block in __init__.py sets it up when SB_WP_USERNAME /
+    SB_WP_PASSWORD are present in the environment; fill it in from the
+    same env vars on demand here so dev runs that bypassed the global
+    setup still work. '''
     if getattr(api, "authenticator", None) is not None:
         return
     username = os.environ.get("SB_WP_USERNAME")

@@ -7,7 +7,6 @@ coloredlogs
 redis
 typesense
 python-dateutil
-zeep
 pymed
 
 # wordpress_orm is *not* pip-installable (no setup.py yet); deploy.sh

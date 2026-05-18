@@ -38,10 +38,11 @@ _PEOPLE_GROUPS = (
 
 def _ensure_wp_auth():
     ''' UserRequest(context="edit") needs an authenticated session to return
-    role-filtered results. The global auth block in __init__.py only fires
-    when SB_WP_* *and* MANTIS_* are all configured; if MANTIS_* is missing
-    in this environment, wordpress_api.authenticator stays None and the
-    user list comes back empty. Fill it in from SB_WP_* on demand. '''
+    role-filtered results. The global auth block in __init__.py sets it
+    up when SB_WP_USERNAME / SB_WP_PASSWORD are present in the
+    environment; fill it in from the same env vars on demand here as a
+    safety net (and to make dev runs that bypassed the global setup
+    work). '''
     if getattr(wpapi, "authenticator", None) is not None:
         return
     username = os.environ.get("SB_WP_USERNAME")
