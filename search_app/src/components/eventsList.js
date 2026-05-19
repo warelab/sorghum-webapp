@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedCount } from '../utils/typesense_counts'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
-const eventsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1 })
+const eventsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2 })
 
 const EVENTS_URL = '/api/wp_cache/events'
-const TYPESENSE_COLLECTION = 'events'
+const RESOURCE = 'events'
 
 const BANNER_URL =
   'https://content.sorghumbase.org/wordpress/wp-content/uploads/2018/06/sorghum_panicle-e1644529666393.jpg'
@@ -38,23 +38,35 @@ function fetchAndCache() {
   return fetch(EVENTS_URL, { headers: { Accept: 'application/json' } })
     .then((r) => {
       if (!r.ok) throw new Error(`events ${r.status}`)
-      return r.json()
+      const ts = timestampFromResponse(r)
+      return r.json().then((rows) => {
+        const events = rows.map(normalizeEvent)
+        eventsCache.set('all', { data: events, fetched_at: ts })
+        return events
+      })
     })
-    .then((rows) => {
-      const events = rows.map(normalizeEvent)
-      eventsCache.set('all', events)
-      return events
-    })
+}
+
+function _unwrap(cached) {
+  if (!cached) return null
+  if (Array.isArray(cached)) {
+    return cached.length ? { data: cached, fetched_at: 0 } : null
+  }
+  if (cached.data && Array.isArray(cached.data) && cached.data.length) {
+    return { data: cached.data, fetched_at: cached.fetched_at || 0 }
+  }
+  return null
 }
 
 function loadEvents() {
   return eventsCache.get('all').then((cached) => {
-    if (!cached || !cached.length) return fetchAndCache()
-    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
-      if (expected !== null && expected !== cached.length) {
+    const local = _unwrap(cached)
+    if (!local) return fetchAndCache()
+    return expectedTimestamp(RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > local.fetched_at) {
         return fetchAndCache()
       }
-      return cached
+      return local.data
     })
   })
 }

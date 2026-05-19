@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedCount } from '../utils/typesense_counts'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
-// Bump the version any time the normalize() output shape changes so older
-// browsers with a populated IndexedDB don't render rows full of `undefined`.
-const projectsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2 })
+// Bump the version any time the cache shape changes. v2 -> v3: switched
+// from bare-array to {data, fetched_at} envelope for timestamp-based
+// staleness.
+const projectsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3 })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
-const TYPESENSE_COLLECTION = 'projects'
+const RESOURCE = 'projects'
 
 function titleCase(s) {
   return (s || '').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
@@ -37,26 +38,36 @@ function fetchAndCache() {
   return fetch(PROJECTS_URL, { headers: { Accept: 'application/json' } })
     .then((r) => {
       if (!r.ok) throw new Error(`projects ${r.status}`)
-      return r.json()
+      const ts = timestampFromResponse(r)
+      return r.json().then((rows) => {
+        const projects = rows.map(normalize)
+        projects.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
+        if (projects.length) projectsCache.set('all', { data: projects, fetched_at: ts })
+        return projects
+      })
     })
-    .then((rows) => {
-      const projects = rows.map(normalize)
-      projects.sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))
-      if (projects.length) projectsCache.set('all', projects)
-      return projects
-    })
+}
+
+function _unwrap(cached) {
+  if (!cached) return null
+  if (Array.isArray(cached)) {
+    return cached.length ? { data: cached, fetched_at: 0 } : null
+  }
+  if (cached.data && Array.isArray(cached.data) && cached.data.length) {
+    return { data: cached.data, fetched_at: cached.fetched_at || 0 }
+  }
+  return null
 }
 
 function loadProjects() {
   return projectsCache.get('all').then((cached) => {
-    if (!cached || !cached.length) return fetchAndCache()
-    // Compare cached length to Typesense's view of the world. If they
-    // disagree, the local cache is stale — drop it and refetch.
-    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
-      if (expected !== null && expected !== cached.length) {
+    const local = _unwrap(cached)
+    if (!local) return fetchAndCache()
+    return expectedTimestamp(RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > local.fetched_at) {
         return fetchAndCache()
       }
-      return cached
+      return local.data
     })
   })
 }

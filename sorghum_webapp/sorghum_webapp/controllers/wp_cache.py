@@ -328,6 +328,35 @@ def list_resources():
     return flask.jsonify(sorted(RESOURCES.keys()))
 
 
+@wp_cache_page.route("/api/wp_cache/_timestamps")
+def list_timestamps():
+    """Returns {resource_name: fetched_at_epoch_seconds} for every
+    registered resource. Reads meta blobs directly from Redis -- no WP
+    traffic, no cache refill, cheap.
+
+    Used by client-side caches to detect when their local copy is
+    behind the server's. A resource that's never been warmed reports 0.
+    """
+    rds = _get_redis()
+    out = {}
+    for resource in RESOURCES.keys():
+        ts = 0
+        if rds is not None:
+            try:
+                raw = rds.get(f"wp_cache:{resource}:meta")
+                if raw:
+                    meta = json.loads(raw)
+                    ts = float(meta.get("fetched_at", 0) or 0)
+            except Exception:
+                pass
+        else:
+            cached = _mem_cache.get(resource)
+            if cached:
+                ts = float((cached[1] or {}).get("fetched_at", 0) or 0)
+        out[resource] = ts
+    return flask.jsonify(out)
+
+
 @wp_cache_page.route("/api/wp_cache/<resource>")
 def cache_resource(resource):
     if resource not in RESOURCES:

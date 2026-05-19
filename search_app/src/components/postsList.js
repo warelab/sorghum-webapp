@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 import Pagination from './pagination'
 
 // Posts listing is now powered by Typesense via /api/posts/search:
@@ -11,13 +12,14 @@ import Pagination from './pagination'
 // the URL (e.g. categories=news) can be translated into the numeric IDs that
 // the posts collection is indexed against. The list lives in wp_cache
 // (`post_categories` resource); we mirror it into money-clip for cross-page
-// reuse.
+// reuse, with a timestamp-based freshness check.
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
-const categoriesCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'postCategories' })
+const categoriesCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3, name: 'postCategories' })
 
 const CATEGORIES_URL = '/api/wp_cache/post_categories'
+const CATEGORIES_RESOURCE = 'post_categories'
 const PER_PAGE = 30
 
 function readQuery() {
@@ -45,18 +47,39 @@ function bannerUrl(categories) {
   return 'https://content.sorghumbase.org/wordpress/wp-content/uploads/2018/05/k-state-sorghum-field-1920x1000.jpg'
 }
 
-function loadAllCategories() {
-  return categoriesCache.get('all').then((cached) => {
-    if (cached && cached.length) return cached
-    return fetch(CATEGORIES_URL, { headers: { Accept: 'application/json' } })
-      .then((r) => {
-        if (!r.ok) throw new Error(`categories ${r.status}`)
-        return r.json()
-      })
-      .then((rows) => {
-        if (rows && rows.length) categoriesCache.set('all', rows)
+function fetchAndCacheCategories() {
+  return fetch(CATEGORIES_URL, { headers: { Accept: 'application/json' } })
+    .then((r) => {
+      if (!r.ok) throw new Error(`categories ${r.status}`)
+      const ts = timestampFromResponse(r)
+      return r.json().then((rows) => {
+        if (rows && rows.length) categoriesCache.set('all', { data: rows, fetched_at: ts })
         return rows
       })
+    })
+}
+
+function _unwrap(cached) {
+  if (!cached) return null
+  if (Array.isArray(cached)) {
+    return cached.length ? { data: cached, fetched_at: 0 } : null
+  }
+  if (cached.data && Array.isArray(cached.data) && cached.data.length) {
+    return { data: cached.data, fetched_at: cached.fetched_at || 0 }
+  }
+  return null
+}
+
+function loadAllCategories() {
+  return categoriesCache.get('all').then((cached) => {
+    const local = _unwrap(cached)
+    if (!local) return fetchAndCacheCategories()
+    return expectedTimestamp(CATEGORIES_RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > local.fetched_at) {
+        return fetchAndCacheCategories()
+      }
+      return local.data
+    })
   })
 }
 

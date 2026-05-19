@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedCount } from '../utils/typesense_counts'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
@@ -8,31 +8,43 @@ const ONE_DAY = 1000 * 60 * 60 * 24
 // projects in a *normalized* shape (dropping fields like project_description,
 // awardees, project_images) which is fine for the table but not enough for
 // the detail page. So we cache the raw payload here.
-const projectsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1, name: 'projectsRaw' })
+const projectsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'projectsRaw' })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
-const TYPESENSE_COLLECTION = 'projects'
+const RESOURCE = 'projects'
 
 function fetchAndCache() {
   return fetch(PROJECTS_URL, { headers: { Accept: 'application/json' } })
     .then((r) => {
       if (!r.ok) throw new Error(`projects ${r.status}`)
-      return r.json()
+      const ts = timestampFromResponse(r)
+      return r.json().then((rows) => {
+        if (rows && rows.length) projectsRawCache.set('all', { data: rows, fetched_at: ts })
+        return rows
+      })
     })
-    .then((rows) => {
-      if (rows && rows.length) projectsRawCache.set('all', rows)
-      return rows
-    })
+}
+
+function _unwrap(cached) {
+  if (!cached) return null
+  if (Array.isArray(cached)) {
+    return cached.length ? { data: cached, fetched_at: 0 } : null
+  }
+  if (cached.data && Array.isArray(cached.data) && cached.data.length) {
+    return { data: cached.data, fetched_at: cached.fetched_at || 0 }
+  }
+  return null
 }
 
 function loadProjects() {
   return projectsRawCache.get('all').then((cached) => {
-    if (!cached || !cached.length) return fetchAndCache()
-    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
-      if (expected !== null && expected !== cached.length) {
+    const local = _unwrap(cached)
+    if (!local) return fetchAndCache()
+    return expectedTimestamp(RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > local.fetched_at) {
         return fetchAndCache()
       }
-      return cached
+      return local.data
     })
   })
 }

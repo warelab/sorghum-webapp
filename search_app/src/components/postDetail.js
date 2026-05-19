@@ -1,36 +1,48 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedCount } from '../utils/typesense_counts'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
 const ONE_DAY = 1000 * 60 * 60 * 24
 
 // Raw payload cache (full posts list, including embedded author + featured
 // media via `_embed` on the WP REST call — see wp_cache.py RESOURCES).
-const postsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 1, name: 'postsRaw' })
+const postsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'postsRaw' })
 
 const POSTS_URL = '/api/wp_cache/posts'
-const TYPESENSE_COLLECTION = 'posts'
+const RESOURCE = 'posts'
 
 function fetchAndCache() {
   return fetch(POSTS_URL, { headers: { Accept: 'application/json' } })
     .then((r) => {
       if (!r.ok) throw new Error(`posts ${r.status}`)
-      return r.json()
+      const ts = timestampFromResponse(r)
+      return r.json().then((rows) => {
+        if (rows && rows.length) postsRawCache.set('all', { data: rows, fetched_at: ts })
+        return rows
+      })
     })
-    .then((rows) => {
-      if (rows && rows.length) postsRawCache.set('all', rows)
-      return rows
-    })
+}
+
+function _unwrap(cached) {
+  if (!cached) return null
+  if (Array.isArray(cached)) {
+    return cached.length ? { data: cached, fetched_at: 0 } : null
+  }
+  if (cached.data && Array.isArray(cached.data) && cached.data.length) {
+    return { data: cached.data, fetched_at: cached.fetched_at || 0 }
+  }
+  return null
 }
 
 function loadPosts() {
   return postsRawCache.get('all').then((cached) => {
-    if (!cached || !cached.length) return fetchAndCache()
-    return expectedCount(TYPESENSE_COLLECTION).then((expected) => {
-      if (expected !== null && expected !== cached.length) {
+    const local = _unwrap(cached)
+    if (!local) return fetchAndCache()
+    return expectedTimestamp(RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > local.fetched_at) {
         return fetchAndCache()
       }
-      return cached
+      return local.data
     })
   })
 }
