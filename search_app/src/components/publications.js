@@ -86,8 +86,8 @@ function StatusBar({ status, totalPapers, progress }) {
         : 0;
       pct = 20 + fetchFraction * 80;
       color = '#00A14B';
-      text = totalPapers
-        ? `Updating ${totalPapers} papers… (${progress.loaded} of ${progress.total} loaded)`
+      text = progress.total
+        ? `Updating papers… (${progress.loaded} of ${progress.total} loaded)`
         : 'Updating papers…';
       break;
     }
