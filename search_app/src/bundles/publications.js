@@ -42,6 +42,12 @@ const sorghumPublications = createAsyncResourceBundle({
     });
   }
 });
+// createAsyncResourceBundle stores `lastSuccess` (Date.now() ms) on a
+// successful fetch but doesn't expose a selector for it. Add one.
+sorghumPublications.selectSorghumPublicationsLastSuccess = (state) => {
+  const s = state.sorghumPublications;
+  return s ? s.lastSuccess : null;
+};
 // loadPublications already compares the server's fetched_at against the
 // money-clip stamp internally; we just need the reactor to call it again
 // whenever the tally bundle reports a newer timestamp than the last
@@ -89,6 +95,10 @@ const sorghumTags = createAsyncResourceBundle({
     return lookup;
   }),
 });
+sorghumTags.selectSorghumTagsLastSuccess = (state) => {
+  const s = state.sorghumTags;
+  return s ? s.lastSuccess : null;
+};
 sorghumTags.reactSorghumTags = createSelector(
   'selectSorghumTagsShouldUpdate',
   'selectSorghumTagsTally',
