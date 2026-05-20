@@ -17,8 +17,9 @@ import { getConfiguredCache } from 'money-clip'
 // copy around for much longer than the redux-bundler stale window.
 export default getConfiguredCache({
   maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
-  // Bumped when bundle persistence semantics change. Old entries (e.g.
-  // sorghumTags / sorghumPublications stored when those bundles had
-  // persist:true) shouldn't hydrate the new shape on boot.
-  version: 2
+  // Bumped when bundle persistence semantics change. Old entries from
+  // bundles whose persist:true was removed (sorghumTags, sorghumPublications,
+  // sorghumFundedProjects, sorghumWorkingGroups, sorghumConference,
+  // sorghumAbstracts) shouldn't hydrate the new shape on boot.
+  version: 3
 })

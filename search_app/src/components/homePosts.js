@@ -1,40 +1,52 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
+import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const WP_BASE =
-  'https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2'
-
-const FIFTEEN_MIN = 1000 * 60 * 15
+const ONE_DAY = 1000 * 60 * 60 * 24
 
 const homePostsCache = getConfiguredCache({
-  maxAge: FIFTEEN_MIN,
-  version: 1,
+  maxAge: ONE_DAY,
+  version: 2,
+  name: 'homePosts',
 })
 
+const HOME_POSTS_URL = '/api/wp_cache/home_posts'
+const RESOURCE = 'home_posts'
+
 const SECTIONS = {
-  news: { categoryId: 2, heading: 'Latest Community News', link: '/posts?categories=news' },
-  highlights: { categoryId: 1022, heading: 'Recent Research', link: '/posts?categories=research-highlights' },
-  topics: { categoryId: 3092, heading: 'Special Topics', link: '/posts?categories=topics' },
+  news:       { heading: 'Latest Community News', link: '/posts?categories=news' },
+  highlights: { heading: 'Recent Research',       link: '/posts?categories=research-highlights' },
+  topics:     { heading: 'Special Topics',        link: '/posts?categories=topics' },
 }
 
-function fetchPosts(categoryId) {
-  const url = `${WP_BASE}/posts?categories=${categoryId}&per_page=3&orderby=date&order=desc&_embed=wp:featuredmedia`
-  return fetch(url, { headers: { Accept: 'application/json' } }).then((r) => {
-    if (!r.ok) throw new Error(`wp posts ${r.status}`)
-    return r.json()
+function fetchAndCache() {
+  return fetch(HOME_POSTS_URL, { headers: { Accept: 'application/json' } }).then((r) => {
+    if (!r.ok) throw new Error(`home_posts ${r.status}`)
+    const ts = timestampFromResponse(r)
+    return r.json().then((data) => {
+      if (data) homePostsCache.set('all', { data, fetched_at: ts })
+      return data
+    })
   })
 }
 
-function normalizePost(raw) {
-  const media = raw._embedded && raw._embedded['wp:featuredmedia']
-  const featuredUrl = media && media[0] && media[0].source_url
-  return {
-    slug: raw.slug,
-    title: raw.title && raw.title.rendered,
-    excerpt: raw.excerpt && raw.excerpt.rendered,
-    date: raw.date,
-    featuredUrl,
-  }
+function loadHomePosts() {
+  return homePostsCache.get('all').then((cached) => {
+    const local = cached && cached.data ? cached : null
+    if (!local) return fetchAndCache()
+    return expectedTimestamp(RESOURCE).then((serverTs) => {
+      if (serverTs !== null && serverTs > (local.fetched_at || 0)) {
+        return fetchAndCache()
+      }
+      return local.data
+    })
+  })
+}
+
+let sharedPromise = null
+function loadHomePostsShared() {
+  if (!sharedPromise) sharedPromise = loadHomePosts().catch((e) => { sharedPromise = null; throw e })
+  return sharedPromise
 }
 
 function formatDate(iso) {
@@ -42,17 +54,6 @@ function formatDate(iso) {
   const d = new Date(iso)
   if (isNaN(d)) return ''
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
-}
-
-function loadSection(key) {
-  return homePostsCache.get(key).then((cached) => {
-    if (cached) return cached
-    return fetchPosts(SECTIONS[key].categoryId).then((raw) => {
-      const posts = raw.map(normalizePost)
-      homePostsCache.set(key, posts)
-      return posts
-    })
-  })
 }
 
 const PostCard = ({ post }) => (
@@ -93,9 +94,9 @@ const HomeSection = ({ sectionKey }) => {
 
   useEffect(() => {
     let cancelled = false
-    loadSection(sectionKey)
+    loadHomePostsShared()
       .then((data) => {
-        if (!cancelled) setPosts(data)
+        if (!cancelled) setPosts((data && data[sectionKey]) || [])
       })
       .catch((e) => {
         if (!cancelled) setError(e)

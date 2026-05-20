@@ -4,7 +4,6 @@ import { fetchAllCached } from '../utils/wp_fetch'
 const sorghumWorkingGroups = createAsyncResourceBundle({
   name: 'sorghumWorkingGroups',
   actionBaseType: 'SORGHUM_WORKING_GROUPS',
-  persist: true,
   getPromise: ({store}) => {
     return fetchAllCached(`/api/wp_cache/working_groups`)
       .then(groups => groups)

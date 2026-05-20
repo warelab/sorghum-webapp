@@ -502,11 +502,41 @@ def typeahead_status():
     return flask.jsonify(client_status())
 
 
+def _posts_search_from_wp_cache(category_ids, page, per_page):
+    """Fallback for /api/posts/search when Typesense is unavailable and the
+    request has no `q`. Pulls the full posts list from wp_cache (Redis),
+    maps + filters + paginates in-process. Identical hit shape to the
+    Typesense path, minus the `*_highlight` fields."""
+    from .wp_cache import _get_or_refresh
+    items, _meta = _get_or_refresh("posts")
+    docs = [_map_post(it) for it in (items or [])]
+    if category_ids:
+        wanted = set(category_ids)
+        docs = [d for d in docs if wanted.intersection(d.get("categories") or [])]
+    docs.sort(key=lambda d: d.get("date") or 0, reverse=True)
+    found = len(docs)
+    start = (page - 1) * per_page
+    page_docs = docs[start:start + per_page]
+    hits = [{
+        "id": d.get("id"),
+        "title": d.get("title"),
+        "excerpt": d.get("excerpt"),
+        "url": d.get("url"),
+        "date": d.get("date"),
+        "categories": d.get("categories") or [],
+        "title_highlight": None,
+        "excerpt_highlight": None,
+    } for d in page_docs]
+    return found, hits
+
+
 @typesense_page.route("/api/posts/search")
 def posts_search():
     """Paginated posts search. Used by /posts to serve list pages from
     Typesense (relevance ordering when `q` is set, date descending otherwise)
-    with optional `categories` filter."""
+    with optional `categories` filter. When Typesense is unavailable and
+    the caller didn't ask for full-text search, we fall back to filtering
+    the Redis-backed wp_cache posts list -- same data, no relevance ranking."""
     q = (request.args.get("q") or "").strip()
     page = max(1, int(request.args.get("page") or 1))
     per_page = max(1, min(int(request.args.get("per_page") or 20), 100))
@@ -520,8 +550,25 @@ def posts_search():
 
     client = get_client()
     if not client:
-        return flask.jsonify({"error": "search index unavailable",
-                              "reason": _client_reason}), 503
+        if q:
+            return flask.jsonify({"error": "search index unavailable",
+                                  "reason": _client_reason}), 503
+        try:
+            found, hits = _posts_search_from_wp_cache(category_ids, page, per_page)
+        except Exception as e:
+            logger.warning("wp_cache fallback for posts_search failed (%s)", e)
+            return flask.jsonify({"error": "search index unavailable",
+                                  "reason": _client_reason}), 503
+        return flask.jsonify({
+            "q": q,
+            "categories": category_ids,
+            "page": page,
+            "per_page": per_page,
+            "found": found,
+            "total_pages": max(1, (found + per_page - 1) // per_page) if found else 0,
+            "hits": hits,
+            "source": "wp_cache",
+        })
 
     params = {
         "q": q or "*",
@@ -569,28 +616,6 @@ def posts_search():
         "total_pages": max(1, (found + per_page - 1) // per_page) if found else 0,
         "hits": hits,
     })
-
-
-@typesense_page.route("/api/typesense/counts")
-def typesense_counts():
-    """Return num_documents per collection. Used by React components to
-    decide whether their money-clip local cache is stale: if the locally
-    cached list length doesn't match the count here, the client invalidates
-    and refetches from /api/wp_cache/<resource>."""
-    client = get_client()
-    if not client:
-        return flask.jsonify({"error": "search index unavailable",
-                              "reason": _client_reason}), 503
-    counts = {}
-    for entry in COLLECTIONS.values():
-        collection_name = entry["collection"]
-        try:
-            meta = client.collections[collection_name].retrieve()
-            counts[collection_name] = int(meta.get("num_documents", 0))
-        except Exception as e:
-            logger.debug("typesense_counts: %s unavailable (%s)", collection_name, e)
-            counts[collection_name] = None
-    return flask.jsonify(counts)
 
 
 @typesense_page.route("/api/typeahead")

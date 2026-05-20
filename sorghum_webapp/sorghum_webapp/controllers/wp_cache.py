@@ -56,7 +56,9 @@ RESOURCES = {
     "tags":                 {"path": "tags"},
     "projects":             {"path": "project"},
     "working_groups":       {"path": "working_group"},
-    "conferences":          {"path": "conference"},
+    # conferences is registered below as a builder so we can fold the
+    # featured-media + sponsor logo URLs into the payload server-side.
+    # "conferences":          {"path": "conference"},
     "conference_sessions":  {"path": "conference_session"},
     "conference_abstracts": {"path": "conference_abstract", "params": {"orderby": "date", "order": "asc"}},
     "conference_people":    {"path": "conference_person"},
@@ -66,6 +68,123 @@ RESOURCES = {
     "resource_links":       {"path": "resource-link"},
     "post_categories":      {"path": "categories", "params": {"per_page": 50}},
 }
+
+
+# Category IDs powering the three home-page post strips. Used by the
+# home_posts builder below; matched to the section keys the React
+# component (search_app/src/components/homePosts.js) expects.
+_HOME_POSTS_SECTIONS = (
+    ("news",       2),
+    ("highlights", 1022),
+    ("topics",     3092),
+)
+
+
+def _normalize_home_post(raw):
+    media = (raw.get("_embedded") or {}).get("wp:featuredmedia") or []
+    featured_url = media[0].get("source_url") if media else None
+    title = (raw.get("title") or {}).get("rendered")
+    excerpt = (raw.get("excerpt") or {}).get("rendered")
+    return {
+        "slug":         raw.get("slug"),
+        "title":        title,
+        "excerpt":      excerpt,
+        "date":         raw.get("date"),
+        "featuredUrl":  featured_url,
+    }
+
+
+def _build_home_posts():
+    """wp_cache builder for the home page's three post strips. One WP
+    REST call per section (3 posts each, with featured media embedded),
+    fetched in parallel. The returned dict shape matches what
+    homePosts.js renders, so the React side just consumes it directly."""
+    base_url = app.config["WP_BASE_URL"].rstrip("/") + "/posts"
+    auth = getattr(api, "authenticator", None) if api else None
+    session = _wp_session()
+
+    def fetch_section(item):
+        key, category_id = item
+        params = {
+            "categories": category_id,
+            "per_page": 3,
+            "orderby": "date",
+            "order": "desc",
+            "_embed": "wp:featuredmedia",
+            "skip_cache": 1,
+        }
+        resp = session.get(base_url, params=params, auth=auth, timeout=60)
+        resp.raise_for_status()
+        return key, [_normalize_home_post(p) for p in resp.json()]
+
+    payload = {}
+    with ThreadPoolExecutor(max_workers=len(_HOME_POSTS_SECTIONS)) as ex:
+        for key, posts in ex.map(fetch_section, _HOME_POSTS_SECTIONS):
+            payload[key] = posts
+    return payload
+
+
+RESOURCES["home_posts"] = {"builder": _build_home_posts}
+
+
+def _build_conferences():
+    """wp_cache builder for the conferences resource. Fetches the WP
+    conference list, then resolves featured-media + sponsor resource_image
+    IDs into URLs in a single batched media call. The client used to make
+    a second WP REST round trip from the browser to do this; baking the
+    URLs in server-side means the conference page renders without any
+    extra fetch (and WP is hit at most once per cache refill, not per
+    visitor)."""
+    conferences, _total = _fetch_all_from_wp({"path": "conference"})
+
+    media_ids = set()
+    for conf in conferences:
+        fm = conf.get("featured_media")
+        if fm:
+            media_ids.add(int(fm))
+        for sponsor in (conf.get("sponsors") or []):
+            ri = sponsor.get("resource_image")
+            if ri:
+                media_ids.add(int(ri))
+
+    media_by_id = {}
+    if media_ids:
+        base_url = app.config["WP_BASE_URL"].rstrip("/") + "/media"
+        auth = getattr(api, "authenticator", None) if api else None
+        session = _wp_session()
+        ids_csv = ",".join(str(i) for i in sorted(media_ids))
+        # WP per_page max is 100; we have far fewer images than that
+        # across all conferences combined.
+        resp = session.get(
+            base_url,
+            params={"include": ids_csv, "per_page": 100, "skip_cache": 1},
+            auth=auth, timeout=60,
+        )
+        resp.raise_for_status()
+        for m in resp.json():
+            media_by_id[m.get("id")] = m
+
+    def _featured_url(m):
+        # About-section hero uses the full-size variant; fall back to the
+        # bare source_url if a smaller upload skipped the full size.
+        try:
+            return m["media_details"]["sizes"]["full"]["source_url"]
+        except (KeyError, TypeError):
+            return m.get("source_url")
+
+    for conf in conferences:
+        fm = conf.get("featured_media")
+        if fm and media_by_id.get(fm):
+            conf["featured_image_url"] = _featured_url(media_by_id[fm])
+        for sponsor in (conf.get("sponsors") or []):
+            ri = sponsor.get("resource_image")
+            if ri and media_by_id.get(ri):
+                sponsor["resource_image_url"] = media_by_id[ri].get("source_url")
+
+    return conferences
+
+
+RESOURCES["conferences"] = {"builder": _build_conferences}
 
 _redis_client = None
 _redis_init_lock = threading.Lock()

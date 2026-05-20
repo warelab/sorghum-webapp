@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { Table, Accordion } from 'react-bootstrap'
 import { AgGridReact } from "ag-grid-react";
@@ -34,7 +34,7 @@ const About = ({conference, imgUrl}) => {
   </Accordion.Item>
 }
 
-const Sponsors = ({organizers, sponsors, media}) => {
+const Sponsors = ({organizers, sponsors}) => {
 
   return <Accordion.Item eventKey="sponsors">
     <Accordion.Header>
@@ -50,7 +50,7 @@ const Sponsors = ({organizers, sponsors, media}) => {
       {sponsors.map((sponsor,idx) => {
         return <div key={idx} className="col-lg-4 col-md-6  mb30">
           <a href={sponsor.resource_url} target="_blank" className="team-card-default">
-            <img src={media[sponsor.resource_image].source_url} style={{maxHeight:"200px",maxWidth:"200px"}} alt="" className="img-fluid centered"/>
+            <img src={sponsor.resource_image_url} style={{maxHeight:"200px",maxWidth:"200px"}} alt="" className="img-fluid centered"/>
           </a>
         </div>
       })}
@@ -250,46 +250,89 @@ const Abstracts = connect(
   'selectSicnaTags',
   AbstractsCmp
 )
+const ConferenceSwitcherCmp = ({sorghumConference, slug, onChange}) => {
+  if (!sorghumConference) return null;
+  // Most recent first. Conferences without start_date sort to the bottom.
+  const conferences = Object.values(sorghumConference).sort((a, b) => {
+    const da = a.start_date || '';
+    const db = b.start_date || '';
+    return db.localeCompare(da);
+  });
+  if (conferences.length < 2) return null;
+  return (
+    <div className="mb20" style={{maxWidth: 360}}>
+      <label htmlFor="conference-switcher" className="mr10" style={{fontWeight: 600}}>
+        Conference:
+      </label>
+      <select
+        id="conference-switcher"
+        className="form-control d-inline-block"
+        style={{width: 'auto', display: 'inline-block'}}
+        value={slug}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {conferences.map((c) => (
+          <option key={c.slug} value={c.slug}>
+            {(c.title && c.title.rendered) || c.slug}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+const ConferenceSwitcher = connect('selectSorghumConference', ConferenceSwitcherCmp);
+
 const ConferenceCmp = props => {
-  // if (!props.sorghumConference) return null;
   if (props.sorghumConference && props.sorghumConference.hasOwnProperty(props.slug)) {
     const conference = props.sorghumConference[props.slug];
-    if (conference.featured_media) {
-      let media_ids = [conference.featured_media];
-      conference.sponsors.forEach(sponsor => {
-        media_ids.push(sponsor.resource_image)
-      });
-      if (!props.sorghumMedia.hasOwnProperty(conference.featured_media)) {
-        props.doRequestMedia(media_ids);
-        return null;
-      } else {
-        const imgUrl = props.sorghumMedia[conference.featured_media].media_details.sizes.full.source_url;
-        return <div>
-          <Accordion defaultActiveKey={['about','abstracts']} flush alwaysOpen={true}>
-            <About conference={conference} imgUrl={imgUrl}/>
-            <Sponsors organizers={conference.organizers} sponsors={conference.sponsors} media={props.sorghumMedia}/>
-            <Agenda conference={conference}/>
-            <Abstracts conference={conference}/>
-          </Accordion>
-        </div>
-      }
-    }
-    return <code>loading...</code>
+    const imgUrl = conference.featured_image_url;
+    if (!imgUrl) return <code>loading...</code>
+    return <div>
+      <ConferenceSwitcher slug={props.slug} onChange={props.onSlugChange}/>
+      <Accordion defaultActiveKey={['about','abstracts']} flush alwaysOpen={true}>
+        <About conference={conference} imgUrl={imgUrl}/>
+        <Sponsors organizers={conference.organizers} sponsors={conference.sponsors}/>
+        <Agenda conference={conference}/>
+        <Abstracts conference={conference}/>
+      </Accordion>
+    </div>
   }
   return <code>invalid conference id '{props.slug}'</code>
 }
 
 const Conference = connect(
   'selectSorghumConference',
-  'selectSorghumMedia',
-  'doRequestMedia',
   ConferenceCmp
 )
+
+function readSlugFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('conference') || window.conference_slug;
+}
+
+const ConferenceRoot = () => {
+  const [slug, setSlug] = useState(() => window.conference_slug);
+
+  useEffect(() => {
+    const onPop = () => setSlug(readSlugFromUrl());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const onSlugChange = (next) => {
+    if (next === slug) return;
+    window.history.pushState({}, '', `/conferences?conference=${encodeURIComponent(next)}`);
+    setSlug(next);
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  };
+
+  return <Conference slug={slug} onSlugChange={onSlugChange}/>;
+};
 
 const ConferencePage = (store) => {
   return (
     <Provider store={store}>
-      <Conference slug={window.conference_slug}/>
+      <ConferenceRoot/>
     </Provider>
   )
 };

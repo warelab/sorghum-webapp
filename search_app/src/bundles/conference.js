@@ -1,11 +1,10 @@
 import { createAsyncResourceBundle, createSelector } from 'redux-bundler'
 import _ from 'lodash'
-import { fetchAll, fetchAllCached } from '../utils/wp_fetch'
+import { fetchAllCached } from '../utils/wp_fetch'
 
 const sorghumConference = createAsyncResourceBundle({
   name: 'sorghumConference',
   actionBaseType: 'SORGHUM_CONFERENCE',
-  persist: true,
   getPromise: ({store}) => {
     return fetchAllCached(`/api/wp_cache/conferences`)
       .then(conferences => _.keyBy(conferences, 'slug'))
@@ -49,7 +48,6 @@ sorghumSessions.reactSorghumSessions = createSelector(
 const sorghumAbstracts = createAsyncResourceBundle({
   name: 'sorghumAbstracts',
   actionBaseType: 'SORGHUM_ABSTRACTS',
-  persist: true,
   getPromise: ({store}) => {
     return fetchAllCached(`/api/wp_cache/conference_abstracts`)
       .then(abstracts => _.groupBy(abstracts,'session'))
@@ -122,43 +120,4 @@ sicnaTags.reactSicnaTags = createSelector(
   }
 );
 
-const sorghumDocs = {
-  name: 'sorghumDocs',
-  getReducer: () => {
-    const initialState = {
-      media: {}
-    };
-    const assignToState = (state, key, items) => {
-      let newState = {...state[key]};
-      items.forEach(item => {
-        newState[item.id] = item;
-      });
-      return newState;
-    };
-
-    const reducer = (state = initialState, {type, payload}) => {
-      switch (type) {
-        case 'SORGHUM_MEDIA_RECEIVED':
-          return {
-            ...state,
-            media: assignToState(state, 'media', payload)
-          };
-        default:
-          return state;
-      }
-    }
-    return reducer;
-  },
-  doRequestMedia: ids => ({dispatch, store}) => {
-    const media = store.selectSorghumMedia();
-    const idsToFetch = ids.filter(id => !media.hasOwnProperty(id));
-    if (idsToFetch.length > 0) {
-      return fetchAll(`https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/media?include=${idsToFetch.join(',')}`)
-        .then(media => {
-          dispatch({ type: 'SORGHUM_MEDIA_RECEIVED', payload: media });
-        });
-    }
-  },
-  selectSorghumMedia: state => state.sorghumDocs.media
-}
-export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumPeople,sorghumOrganizations,sicnaTags,sorghumDocs];
+export default [sorghumConference,sorghumSessions,sorghumAbstracts,sorghumPeople,sorghumOrganizations,sicnaTags];
