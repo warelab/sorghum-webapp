@@ -475,6 +475,59 @@ def _invalidate(resource):
     _mem_cache.pop(resource, None)
 
 
+def _refresh(resource):
+    """Refill the cache regardless of TTL freshness, *without* deleting
+    the existing entry first. The old payload stays in Redis until
+    _do_fetch_and_store overwrites it, so the change-detection path can
+    compare against it and preserve fetched_at when content is unchanged.
+
+    This exists because the cron warmer (warm_wp_cache.sh) hits each
+    resource with ?force=1 every 30 minutes. The old force path called
+    _invalidate -> _get_or_refresh, which deleted the cache before the
+    refill ran -- making every warm look like brand-new content and
+    bumping fetched_at on every cron tick, which in turn caused clients
+    to redownload unchanged payloads every 30 minutes.
+
+    Acquires the same cross-worker SET-NX lock as _get_or_refresh so we
+    don't race with a natural refill in another gunicorn worker."""
+    ttl = int(app.config.get("WP_CACHE_TTL", 3600))
+    rds = _get_redis()
+    if rds is None:
+        with _resource_lock(resource):
+            return _do_fetch_and_store(resource, ttl)
+
+    lock_key = f"wp_cache:{resource}:lock"
+    token = uuid.uuid4().hex
+    try:
+        acquired = rds.set(lock_key, token, nx=True, ex=_LOCK_TTL_SECONDS)
+    except Exception as e:
+        logger.warning("wp_cache: lock acquire failed (%s); refreshing unguarded", e)
+        return _do_fetch_and_store(resource, ttl)
+
+    if acquired:
+        try:
+            return _do_fetch_and_store(resource, ttl)
+        finally:
+            try:
+                rds.eval(_RELEASE_LOCK_LUA, 1, lock_key, token)
+            except Exception:
+                pass
+
+    # Another worker is already refilling. Wait for their write and use it
+    # rather than queueing a second redundant refill.
+    deadline = time.time() + _LOCK_WAIT_BUDGET
+    while time.time() < deadline:
+        time.sleep(_LOCK_POLL_SECONDS)
+        items, meta = _read_cache(resource, ttl)
+        if items is not None:
+            return items, meta
+    logger.warning(
+        "wp_cache: gave up waiting on lock for forced refresh of %s; refreshing unguarded",
+        resource,
+    )
+    return _do_fetch_and_store(resource, ttl)
+
+
 @wp_cache_page.route("/api/wp_cache/_resources")
 def list_resources():
     return flask.jsonify(sorted(RESOURCES.keys()))
@@ -514,8 +567,9 @@ def cache_resource(resource):
     if resource not in RESOURCES:
         flask.abort(404)
     if flask.request.args.get("force") == "1":
-        _invalidate(resource)
-    items, meta = _get_or_refresh(resource)
+        items, meta = _refresh(resource)
+    else:
+        items, meta = _get_or_refresh(resource)
     response = flask.jsonify(items)
     response.headers["X-Wp-Cache-Count"] = str(meta["count"])
     response.headers["X-Wp-Cache-Fetched-At"] = str(meta["fetched_at"])
@@ -527,6 +581,7 @@ def cache_resource_meta(resource):
     if resource not in RESOURCES:
         flask.abort(404)
     if flask.request.args.get("force") == "1":
-        _invalidate(resource)
-    _, meta = _get_or_refresh(resource)
+        _, meta = _refresh(resource)
+    else:
+        _, meta = _get_or_refresh(resource)
     return flask.jsonify(meta)
