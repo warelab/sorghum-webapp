@@ -302,10 +302,10 @@ warm_initial() {
 
 verify() {
     log "smoke checks:"
-    printf '  /api/typeahead/_status -> '
+    printf '  /api/typeahead/_status   -> '
     curl -fsS "http://${GUNICORN_BIND}/api/typeahead/_status" | head -c 200
-    printf '\n  /api/typesense/counts -> '
-    curl -fsS "http://${GUNICORN_BIND}/api/typesense/counts" | head -c 200
+    printf '\n  /api/wp_cache/_timestamps -> '
+    curl -fsS "http://${GUNICORN_BIND}/api/wp_cache/_timestamps" | head -c 400
     printf '\n'
 }
 
