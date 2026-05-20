@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
-const peopleCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3 })
+const peopleCache = getConfiguredCache({ maxAge: Infinity, version: 3 })
 
 const PEOPLE_URL = '/api/wp_cache/people'
 

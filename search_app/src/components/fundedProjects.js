@@ -2,11 +2,10 @@ import React, { useEffect, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
 // Bump the version any time the cache shape changes. v2 -> v3: switched
 // from bare-array to {data, fetched_at} envelope for timestamp-based
 // staleness.
-const projectsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3 })
+const projectsCache = getConfiguredCache({ maxAge: Infinity, version: 3 })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
 const RESOURCE = 'projects'

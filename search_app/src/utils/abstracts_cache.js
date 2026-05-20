@@ -6,10 +6,8 @@
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from './wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
 const abstractsCache = getConfiguredCache({
-  maxAge: ONE_DAY,
+  maxAge: Infinity,
   version: 2,
   name: 'abstractsRaw',
 })

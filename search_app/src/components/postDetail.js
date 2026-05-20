@@ -2,11 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
 // Raw payload cache (full posts list, including embedded author + featured
 // media via `_embed` on the WP REST call — see wp_cache.py RESOURCES).
-const postsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'postsRaw' })
+const postsRawCache = getConfiguredCache({ maxAge: Infinity, version: 2, name: 'postsRaw' })
 
 const POSTS_URL = '/api/wp_cache/posts'
 const RESOURCE = 'posts'

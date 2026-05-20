@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
-const eventsCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2 })
+const eventsCache = getConfiguredCache({ maxAge: Infinity, version: 2 })
 
 const EVENTS_URL = '/api/wp_cache/events'
 const RESOURCE = 'events'

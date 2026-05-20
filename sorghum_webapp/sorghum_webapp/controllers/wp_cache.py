@@ -281,23 +281,32 @@ def _fetch_all_from_wp(resource_entry):
     return items, total
 
 
-def _read_cache(resource, ttl):
+def _read_cache_raw(resource):
+    """Return (items, meta) for `resource` ignoring TTL, or (None, None)
+    if nothing is cached. Used by the refill path so it can compare the
+    pre-refill payload to the freshly-fetched one and decide whether to
+    bump fetched_at."""
     rds = _get_redis()
     if rds:
         try:
             data_raw = rds.get(f"wp_cache:{resource}:data")
             meta_raw = rds.get(f"wp_cache:{resource}:meta")
             if data_raw and meta_raw:
-                meta = json.loads(meta_raw)
-                if time.time() - meta.get("fetched_at", 0) < ttl:
-                    return json.loads(data_raw), meta
+                return json.loads(data_raw), json.loads(meta_raw)
         except Exception as e:
             logger.warning("wp_cache: redis read failed (%s); falling through", e)
     cached = _mem_cache.get(resource)
     if cached:
-        items, meta = cached
-        if time.time() - meta.get("fetched_at", 0) < ttl:
-            return items, meta
+        return cached
+    return None, None
+
+
+def _read_cache(resource, ttl):
+    items, meta = _read_cache_raw(resource)
+    if items is None or meta is None:
+        return None, None
+    if time.time() - meta.get("fetched_at", 0) < ttl:
+        return items, meta
     return None, None
 
 
@@ -341,15 +350,39 @@ def _do_fetch_and_store(resource, ttl):
         count = len(items)
     except TypeError:
         count = 0
+
+    # Compare the freshly-fetched payload to the previous cache contents.
+    # When they're identical, reuse the old fetched_at: clients gate their
+    # local money-clip refresh on /api/wp_cache/_timestamps, so reusing the
+    # timestamp lets them skip re-downloading data that didn't change.
+    fetched_at = time.time()
+    unchanged = False
+    try:
+        old_items, old_meta = _read_cache_raw(resource)
+        if old_items is not None and items == old_items:
+            unchanged = True
+            fetched_at = (old_meta or {}).get("fetched_at", fetched_at)
+            logger.info(
+                "wp_cache: %s content unchanged; keeping fetched_at=%s",
+                resource, fetched_at,
+            )
+    except Exception as e:
+        logger.warning(
+            "wp_cache: change-detection failed for %s (%s); treating as new",
+            resource, e,
+        )
+
     meta = {
         "count": count,
-        "fetched_at": time.time(),
+        "fetched_at": fetched_at,
         "fetch_seconds": round(time.time() - t0, 2),
     }
     if total is not None:
         meta["wp_total"] = total
     _write_cache(resource, items, meta, ttl)
-    _sync_typesense(resource, items)
+    # Skip Typesense resync when content is identical -- nothing to reindex.
+    if not unchanged:
+        _sync_typesense(resource, items)
     return items, meta
 
 

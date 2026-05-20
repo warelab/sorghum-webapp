@@ -5,10 +5,11 @@
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from './wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
+// Server-side change detection (wp_cache compares old vs new payload and
+// reuses fetched_at when unchanged) means the timestamp gate is the only
+// invalidator we need. No need to evict by age.
 const tagsRawCache = getConfiguredCache({
-  maxAge: ONE_DAY,
+  maxAge: Infinity,
   version: 2,
   name: 'tagsRaw',
 })

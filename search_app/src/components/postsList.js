@@ -14,9 +14,7 @@ import Pagination from './pagination'
 // (`post_categories` resource); we mirror it into money-clip for cross-page
 // reuse, with a timestamp-based freshness check.
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
-const categoriesCache = getConfiguredCache({ maxAge: ONE_DAY, version: 3, name: 'postCategories' })
+const categoriesCache = getConfiguredCache({ maxAge: Infinity, version: 3, name: 'postCategories' })
 
 const CATEGORIES_URL = '/api/wp_cache/post_categories'
 const CATEGORIES_RESOURCE = 'post_categories'

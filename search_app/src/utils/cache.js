@@ -16,7 +16,9 @@ import { getConfiguredCache } from 'money-clip'
 // endpoint to detect when local data is stale, so we can keep the browser
 // copy around for much longer than the redux-bundler stale window.
 export default getConfiguredCache({
-  maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+  // No age-based eviction: wp_cache's server-side change detection +
+  // /api/wp_cache/_timestamps is the source of truth for staleness.
+  maxAge: Infinity,
   // Bumped when bundle persistence semantics change. Old entries from
   // bundles whose persist:true was removed (sorghumTags, sorghumPublications,
   // sorghumFundedProjects, sorghumWorkingGroups, sorghumConference,

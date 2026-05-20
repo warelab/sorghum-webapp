@@ -2,10 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
 const homePostsCache = getConfiguredCache({
-  maxAge: ONE_DAY,
+  maxAge: Infinity,
   version: 2,
   name: 'homePosts',
 })

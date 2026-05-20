@@ -2,13 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
 
-const ONE_DAY = 1000 * 60 * 60 * 24
-
 // Separate cache instance from fundedProjects.js — the listing page stores
 // projects in a *normalized* shape (dropping fields like project_description,
 // awardees, project_images) which is fine for the table but not enough for
 // the detail page. So we cache the raw payload here.
-const projectsRawCache = getConfiguredCache({ maxAge: ONE_DAY, version: 2, name: 'projectsRaw' })
+const projectsRawCache = getConfiguredCache({ maxAge: Infinity, version: 2, name: 'projectsRaw' })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
 const RESOURCE = 'projects'
