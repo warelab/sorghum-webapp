@@ -406,19 +406,51 @@ def _create_paper_in_wp(payload, tag_ids):
         "source_url": payload.get("source_url") or "",
         "doi": payload.get("doi") or "",
         "journal": payload.get("journal") or "",
-        "publication_date": payload.get("publication_date") or "",
-        "date": payload.get("date") or "",
         "keywords": payload.get("keywords") or "",
         "pubmed_id": payload.get("pubmed_id") or "",
         "affiliations": payload.get("affiliations") or [],
         "funding_agencies": payload.get("funding_agencies") or [],
     }
+    # WP REST treats empty-string date fields as "Invalid date." instead of
+    # "use the default." Only include them when populated. (PubMed returns
+    # empty dates for some entries -- e.g. ahead-of-print articles where the
+    # JournalIssue PubDate lacks Year/Month/Day.)
+    pub_date = (payload.get("publication_date") or "").strip()
+    if pub_date:
+        body["publication_date"] = pub_date
+    post_date = (payload.get("date") or "").strip()
+    if post_date:
+        body["date"] = post_date
     int_tags = [int(t) for t in (tag_ids or []) if str(t).isdigit()]
     if int_tags:
         body["tags"] = int_tags
     auth = getattr(api, "authenticator", None)
     resp = requests.post(base_url, json=body, auth=auth, timeout=60)
-    resp.raise_for_status()
+    if not resp.ok:
+        # raise_for_status() drops WP's error body, which is where the
+        # actual diagnostic lives (rest_invalid_param + the offending
+        # field, Pods validation messages, etc.). Pull what we can out
+        # of the response and put it in the exception message so the
+        # admin UI can show it.
+        detail = ""
+        try:
+            j = resp.json()
+            code = j.get("code") or ""
+            msg = j.get("message") or ""
+            params = (j.get("data") or {}).get("params") or {}
+            param_msgs = "; ".join(f"{k}: {v}" for k, v in params.items())
+            parts = [p for p in (code, msg, param_msgs) if p]
+            if parts:
+                detail = " — " + " | ".join(parts)
+        except ValueError:
+            # Not JSON; surface a truncated body.
+            body_text = (resp.text or "").strip()
+            if body_text:
+                detail = " — " + body_text[:300]
+        raise requests.HTTPError(
+            f"{resp.status_code} {resp.reason} for url: {resp.url}{detail}",
+            response=resp,
+        )
     return resp.json()
 
 
