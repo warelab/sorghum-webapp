@@ -18,7 +18,7 @@
   },
   showViews: true,
   views: {
-    userLists: 'off',
+    userLists: 'on',
     expression: 'disabled',
     export: 'off',
     taxonomy: 'hidden',
