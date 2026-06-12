@@ -1,13 +1,2 @@
-/* The sidebar section has a fixed height (calc(100vh - offset)) but no overflow
-   rule, so when its menu items exceed the window height they get clipped. Let
-   the section scroll instead. */
-.mdview-sidebar {
-    overflow-y: auto;
-}
-
-.mdview h2 {
-    scroll-margin-top: 100px;
-}
-.mdview h3 {
-    scroll-margin-top: 100px;
-}
+/* The sidebar/layout fixes now live upstream in gramene-mdview's
+   css/mdview.css (>= 2.1.0). */

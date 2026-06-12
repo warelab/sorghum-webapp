@@ -16,7 +16,7 @@
     "axios": "^0.21.1",
     "formik": "^3.0.0-next.8",
     "gramene-alerts": "^1.0.3",
-    "gramene-mdview": "^2.0.8",
+    "gramene-githubdocs": "^1.2.0",
     "gramene-search": "^2.6.0",
     "gramene-videos": "^1.0.6",
     "he": "^1.2.0",

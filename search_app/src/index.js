@@ -27,7 +27,7 @@ import AbstractsList from './components/abstractsList'
 import ProjectDetail from './components/projectDetail'
 import PaperDetail from './components/paperDetail'
 import PostDetail from './components/postDetail'
-import MDView from "gramene-mdview";
+import GithubDocs from 'gramene-githubdocs'
 import Alerts from 'gramene-alerts';
 import VideoGallery from 'gramene-videos';
 import "../css/style.css"
@@ -43,26 +43,31 @@ const Alerter = () => (
   </div>
 );
 
-const Notes = () => (
-  <MDView
+// GithubDocs sizes its full-height layout to `100vh - offset`, where offset must
+// be the height of the page chrome (navbar + banner) above the mount point.
+// Measure it from the element's actual position so a long sidebar/body fits the
+// viewport and scrolls internally instead of running off the bottom of the page.
+const mdViewOffset = el => Math.ceil(el.getBoundingClientRect().top + window.scrollY);
+
+const Notes = (offset) => (
+  <GithubDocs
     org='warelab'
     repo='release-notes'
     path='sorghum'
     heading='Releases'
-    date='2026-01-31'
-    offset={200}
+    sort='date'
+    offset={offset}
   />
-
 )
-const Guides = () => (
-    <MDView
-        org='warelab'
-        repo='release-notes'
-        path='test'
-        heading='Guides'
-        date='2025-01-01'
-        offset={200}
-    />
+const Guides = (offset) => (
+  <GithubDocs
+    org='warelab'
+    repo='release-notes'
+    path='test'
+    heading='Guides'
+    sort='date'
+    offset={offset}
+  />
 )
 const Videos = (ids) => (
   <VideoGallery
@@ -106,13 +111,30 @@ cache.getAll().then(initialData => {
   // element && render(Feedback(), element) && console.log('rendered sorghumbase-feedback')
   //
   element = document.getElementById('sorghumbase-relnotes');
-  element && render(Notes(), element) && console.log('rendered sorghumbase-relnotes')
+  element && render(Notes(mdViewOffset(element)), element) && console.log('rendered sorghumbase-relnotes')
 
   element = document.getElementById('sorghumbase-guides');
-  element && render(Guides(), element) && console.log('rendered sorghumbase-guides')
+  element && render(Guides(mdViewOffset(element)), element) && console.log('rendered sorghumbase-guides')
 
   element = document.getElementById('sorghumbase-videos');
   element && config.playlistIds && render(Videos(config.playlistIds), element) && console.log('rendered sorghumbase-videos')
+
+  // Generic Markdown-from-GitHub docs browser. The page supplies the repo and
+  // location via data-* attributes; subdirectories become navigation levels.
+  element = document.getElementById('sb-github-docs');
+  if (element) {
+    render(
+      <GithubDocs
+        org={element.getAttribute('data-org')}
+        repo={element.getAttribute('data-repo')}
+        path={element.getAttribute('data-path') || ''}
+        branch={element.getAttribute('data-branch') || 'main'}
+        heading={element.getAttribute('data-heading') || 'Documentation'}
+        offset={mdViewOffset(element)}
+      />,
+      element
+    ) && console.log('rendered sb-github-docs')
+  }
 
   // element = document.getElementById('sorghumbase-institutions');
   // element && render(Institutions(store), element) && console.log('rendered sorghumbase-institutions')
