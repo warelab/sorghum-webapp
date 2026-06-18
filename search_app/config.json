@@ -30,6 +30,7 @@
     ontologyEnrichment: 'off'
   },
   "partialCompara": true,
+  "enable_tbrowse_expression_zone": true,
   details: {
     sequences: true,
     VEP: true,
