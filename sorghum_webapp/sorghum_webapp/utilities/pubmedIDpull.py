@@ -463,6 +463,42 @@ def _author_strings(authors):
     return out
 
 
+def _full_text(elem):
+    """Concatenate every text node under `elem`, including content
+    inside inline children. pymed's helpers.getContent uses .text only,
+    which silently truncates at the first child element -- abstracts
+    or titles containing <sup>/<sub>/<i>/<b>/<u> get cut off mid-sentence."""
+    if elem is None:
+        return ""
+    return "".join(elem.itertext())
+
+
+def _abstract_from_xml(article_xml):
+    """Build the abstract by walking every <AbstractText> under
+    article_xml. Preserves inline children and labels for structured
+    abstracts (BACKGROUND / METHODS / RESULTS / CONCLUSIONS / ...)."""
+    if article_xml is None:
+        return ""
+    parts = []
+    for at in article_xml.findall('.//AbstractText'):
+        text = _full_text(at).strip()
+        if not text:
+            continue
+        label = at.get('Label')
+        parts.append(f"{label}: {text}" if label else text)
+    return "\n".join(parts)
+
+
+def _title_from_xml(article_xml):
+    """Like _abstract_from_xml, but for ArticleTitle. Same .text
+    truncation bug applies in pymed when the title contains italics
+    (e.g. species names)."""
+    if article_xml is None:
+        return ""
+    t = article_xml.find('.//ArticleTitle')
+    return _full_text(t).strip()
+
+
 def _refs_from_pymed(ids):
     """Mirrors the shape of litter_getter.pubmed.PubMedFetch.get_content():
     one dict per input id (or None if PubMed didn't return one), with keys
@@ -490,10 +526,16 @@ def _refs_from_pymed(ids):
                         xml_blob = _lxml_etree.tostring(article.xml)
                     except Exception as e:
                         logger.debug("pymed: tostring failed for pmid %s (%s)", pmid, e)
+                # Pull abstract + title directly from the XML to bypass
+                # pymed's .text-only extraction (truncates at the first
+                # inline child like <sup>, <sub>, <i>, <b>). Fall back to
+                # pymed's value if the XML isn't available.
+                abstract_full = _abstract_from_xml(article.xml) if article.xml is not None else ""
+                title_full = _title_from_xml(article.xml) if article.xml is not None else ""
                 by_pmid[pmid] = {
-                    "abstract": article.abstract or "",
+                    "abstract": abstract_full or (article.abstract or ""),
                     "authors": _author_strings(article.authors),
-                    "title": article.title or "",
+                    "title": title_full or (article.title or ""),
                     "doi": (article.doi or "").split()[0] if article.doi else "",
                     "xml": xml_blob,
                 }
