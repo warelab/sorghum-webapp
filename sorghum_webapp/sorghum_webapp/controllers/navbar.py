@@ -15,7 +15,7 @@ def add_link(menu, label, link, links=[]):
 
 def news():
     menu = make_menu('News')
-    add_link(menu, 'News', '/posts?categories=news,research-highlights')
+    add_link(menu, 'News', '/posts?categories=news')
     add_link(menu, 'Release Notes', '/relnotes')
     add_link(menu, 'Newsletters', 'https://ftp.sorghumbase.org/outreach/newsletters/')
     add_link(menu, 'Meetings & Events', '/events')
