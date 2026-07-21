@@ -23,7 +23,7 @@
     export: 'off',
     taxonomy: 'hidden',
     taxTree: 'on',
-    attrTable: 'on',
+    attrTable: 'off',
     list: 'on',
     help: 'off',
     attribs: 'disabled',
