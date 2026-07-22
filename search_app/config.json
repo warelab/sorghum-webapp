@@ -26,7 +26,7 @@
     attrTable: 'off',
     list: 'on',
     help: 'off',
-    attribs: 'disabled',
+    attribs: 'hidden',
     exprViz: 'off',
     ontologyEnrichment: 'off'
   },
