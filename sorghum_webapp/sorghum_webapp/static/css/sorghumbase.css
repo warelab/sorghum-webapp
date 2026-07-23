@@ -994,3 +994,55 @@ table {
 		min-width: 150px;
 	}
 }
+
+/* ===========================
+   Genes page "app shell" (desktop only)
+   Pin the navbar and footer on screen at all times and let the sidebar and the
+   results scroll independently in the region between them. Scoped to
+   body.genes-shell (set only on the /genes page) and to >= 992px, which is
+   exactly where the navbar is already fixed (#padding-behind-navbar: 79px).
+   Below 992px the navbar isn't fixed, so this reverts to normal page scroll.
+   =========================== */
+@media (min-width: 992px) {
+	body.genes-shell {
+		/* Lock the document; the two inner panes scroll instead of the page. */
+		height: 100vh;
+		overflow: hidden;
+		/* Chrome heights used to size the middle region. Update here if the
+		   navbar or footer height changes. */
+		--genes-nav-h: 80px;
+		--genes-footer-h: 72px;
+	}
+
+	/* Footer pinned to the bottom, above the scrolling panes (navbar is z 1030). */
+	body.genes-shell .footer-bottomAlt {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 1031;
+	}
+
+	/* The sidebar + results row fills the gap between the fixed navbar and
+	   footer. Anchored top/bottom so it never depends on document flow. */
+	body.genes-shell .search-views-layout {
+		position: fixed;
+		top: var(--genes-nav-h);
+		bottom: var(--genes-footer-h);
+		left: 0;
+		right: 0;
+		overflow: hidden;
+	}
+
+	/* Each pane scrolls on its own. The sidebar was sticky; make it a plain
+	   full-height scroll pane. */
+	body.genes-shell .sorghumbase-sidebar {
+		position: static;
+		height: 100%;
+		overflow-y: auto;
+	}
+	body.genes-shell .search-views-content {
+		height: 100%;
+		overflow-y: auto;
+	}
+}
