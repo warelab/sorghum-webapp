@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { slugsMatch } from '../utils/slug'
 
 // Separate cache instance from fundedProjects.js — the listing page stores
 // projects in a *normalized* shape (dropping fields like project_description,
@@ -70,7 +71,7 @@ const ProjectDetail = ({ slug }) => {
     loadProjects()
       .then((rows) => {
         if (cancelled) return
-        const match = (rows || []).find((p) => p && p.slug === slug)
+        const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
         if (!match) {
           setStatus('not_found')
           return

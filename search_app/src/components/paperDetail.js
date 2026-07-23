@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { loadPublications } from '../utils/publications_cache'
+import { slugsMatch } from '../utils/slug'
 
 // `slug` may be a real WP slug ("foo-bar-baz") OR a numeric post ID. Project
 // detail pages link with the ID because the project_publications records
 // don't carry a usable slug field.
 function findPaper(rows, slug) {
   if (!rows) return null
-  const direct = rows.find((p) => p && p.slug === slug)
+  const direct = rows.find((p) => p && slugsMatch(p.slug, slug))
   if (direct) return direct
   if (/^\d+$/.test(slug)) {
     const idNum = Number(slug)

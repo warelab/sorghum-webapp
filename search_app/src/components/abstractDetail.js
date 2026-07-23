@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { loadAbstracts } from '../utils/abstracts_cache'
+import { slugsMatch } from '../utils/slug'
 
 function formatPresenter(p) {
   if (!p) return ''
@@ -38,7 +39,7 @@ const AbstractDetail = ({ slug }) => {
     loadAbstracts()
       .then((rows) => {
         if (cancelled) return
-        const match = (rows || []).find((a) => a && a.slug === slug)
+        const match = (rows || []).find((a) => a && slugsMatch(a.slug, slug))
         if (!match) {
           setStatus('not_found')
           return

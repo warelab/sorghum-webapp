@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { slugsMatch } from '../utils/slug'
 
 // Raw payload cache (full posts list, including embedded author + featured
 // media via `_embed` on the WP REST call — see wp_cache.py RESOURCES).
@@ -73,7 +74,7 @@ const PostDetail = ({ slug }) => {
     loadPosts()
       .then((rows) => {
         if (cancelled) return
-        const match = (rows || []).find((p) => p && p.slug === slug)
+        const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
         if (!match) {
           setStatus('not_found')
           return
