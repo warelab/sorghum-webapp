@@ -1,6 +1,6 @@
 import React from 'react'
 import { Provider, connect } from 'redux-bundler-react'
-import { Status, Filters, Results, Views, Auth } from 'gramene-search'
+import { Status, Filters, Facets, Results, Views, Auth } from 'gramene-search'
 import HelpDemo from './HelpDemo'
 
 const ResultsOrHelpCmp = props => {
@@ -21,6 +21,7 @@ const GrameneSearchLayout = (store) => (
       <div className="sorghumbase-sidebar">
         <Status/>
         <Filters/>
+        <Facets/>
         <Views/>
         <Auth/>
       </div>
