@@ -2,6 +2,7 @@ import React from 'react'
 import { Provider, connect } from 'redux-bundler-react'
 import { Status, Filters, Facets, Results, Views, Auth } from 'gramene-search'
 import HelpDemo from './HelpDemo'
+import GeneSearchTour from '../tour/GeneSearchTour'
 
 const ResultsOrHelpCmp = props => {
   const views = (props.grameneViews && props.grameneViews.options) || [];
@@ -23,6 +24,7 @@ const GrameneSearchLayout = (store) => (
         <Filters/>
         <Facets/>
         <Views/>
+        <GeneSearchTour/>
         <Auth/>
       </div>
       <div className="search-views-content">

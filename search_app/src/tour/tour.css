@@ -1,0 +1,64 @@
+/* The tour's own scrolling is disabled (each step scrolls its own pane), so
+   make sure nothing in the page can paint over the tooltip. */
+#react-joyride-portal,
+.react-joyride__overlay,
+.react-joyride__spotlight {
+    z-index: 2000;
+}
+
+/* ── Table of contents, portaled into the Help / Demo view ─────────────── */
+
+.gene-search-tour-toc {
+    max-width: 820px;
+    margin: 0 0 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #dde5e3;
+    border-radius: 6px;
+    background: #f3f6f5;
+}
+
+.gene-search-tour-toc-title {
+    margin: 0 0 0.25rem;
+    color: #a03e34;
+}
+
+.gene-search-tour-toc-intro {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.gene-search-tour-toc-list {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.gene-search-tour-toc-list li {
+    margin-bottom: 2px;
+}
+
+.gene-search-tour-toc-list button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.gene-search-tour-toc-list button:hover {
+    background: #e7ecea;
+}
+
+.gene-search-tour-toc-name {
+    color: #a03e34;
+    font-weight: 600;
+    margin-right: 0.5rem;
+}
+
+.gene-search-tour-toc-blurb {
+    color: #666;
+    font-size: 0.85rem;
+}
