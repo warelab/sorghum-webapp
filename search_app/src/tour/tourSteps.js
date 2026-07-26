@@ -66,9 +66,52 @@ function openSearchBox() {
   if (box && !box.classList.contains('search-visible')) box.classList.add('search-visible')
 }
 
+const SEARCH_AREA_ID = 'gene-search-tour-search-area'
+
 function closeSearchBox() {
   const box = document.getElementById(SEARCH_BOX_ID)
   if (box) box.classList.remove('search-visible')
+  const area = document.getElementById(SEARCH_AREA_ID)
+  if (area && area.parentNode) area.parentNode.removeChild(area)
+}
+
+/**
+ * A measurement-only stand-in covering the whole open search overlay: the input
+ * row *and* the suggestions panel beneath it.
+ *
+ * Spotlighting the input alone lights an 80px strip and leaves the attached tab
+ * bar and results dimmed, so the search widget reads as cut in half. The two
+ * parts are separately positioned with no common box (#sorghumbase-searchbar is
+ * 0px tall because its children are absolutely positioned), so there is no real
+ * element to point at — hence this invisible one, sized to their union.
+ */
+function searchAreaBox() {
+  const input = document.querySelector('#sorghumbase-search-input')
+  if (!input) return null
+  const rects = [input.getBoundingClientRect()]
+  const suggestions = document.querySelector('.search-suggestions')
+  if (suggestions) {
+    const r = suggestions.getBoundingClientRect()
+    if (r.height > 0) rects.push(r)
+  }
+  const top = Math.min(...rects.map((r) => r.top))
+  const bottom = Math.max(...rects.map((r) => r.bottom))
+  const left = Math.min(...rects.map((r) => r.left))
+  const right = Math.max(...rects.map((r) => r.right))
+
+  let el = document.getElementById(SEARCH_AREA_ID)
+  if (!el) {
+    el = document.createElement('div')
+    el.id = SEARCH_AREA_ID
+    el.setAttribute('aria-hidden', 'true')
+    el.style.cssText = 'position:fixed;pointer-events:none;z-index:-1'
+    document.body.appendChild(el)
+  }
+  el.style.top = `${top}px`
+  el.style.left = `${left}px`
+  el.style.width = `${Math.max(0, right - left)}px`
+  el.style.height = `${Math.max(0, bottom - top)}px`
+  return el
 }
 
 /**
@@ -308,7 +351,9 @@ export default function buildSteps(getProps) {
         `press / — to open the search box from any page on the site.`
     },
     {
-      target: '#sorghumbase-search-input',
+      // The whole search overlay, so the highlight covers the input together
+      // with the suggestions it produces rather than just the input's own row.
+      target: () => searchAreaBox(),
       placement: 'bottom',
       title: 'Type what you are looking for',
       content:
@@ -322,6 +367,10 @@ export default function buildSteps(getProps) {
         callIfPresent(doChangeSuggestionsTab, 'gramene')
         callIfPresent(doChangeSuggestionsQuery, SEARCH_TERM)
         await waitForElement('#sorghumbase-search-input', { timeout: 8000 })
+        // Let the suggestions land first — the highlight is sized to the input
+        // and the panel together, so measuring before it opens would clip it.
+        await waitFor(() => findSuggestion(PATHWAY_LABEL), { timeout: 20000 })
+        searchAreaBox()
       }
     },
     {
