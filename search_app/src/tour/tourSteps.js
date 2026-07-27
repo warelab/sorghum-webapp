@@ -139,6 +139,20 @@ function findGeneCard(geneId) {
   return null
 }
 
+/**
+ * An element inside Expression visualization's *visible* genome tab.
+ *
+ * react-bootstrap Tabs mount every pane, so `.exprviz-hm-container` and
+ * `.exprviz-pc-container` also exist inside the hidden panes of the other
+ * genomes at 0x0. Matching one of those makes a step look ready and then fail
+ * to anchor, which silently skipped the heatmap. Scope to `.exprviz-view` too —
+ * the navbar's suggestions widget uses `.tab-pane` as well.
+ */
+function exprVizActive(selector) {
+  const pane = document.querySelector('.exprviz-view .tab-pane.active')
+  return pane ? pane.querySelector(selector) : null
+}
+
 /** Genome-level taxon ids are species*1000+n; study metadata is keyed by species. */
 function speciesTaxonId(tid) {
   const n = +tid
@@ -251,6 +265,13 @@ export default function buildSteps(getProps) {
     if (!mounted) return null
     if (!(await waitForExprVizReady())) return null
     callIfPresent(doSetExprVizActiveTaxon, taxon)
+    // Start from a clean, comparable state. vizMode and brushes are remembered
+    // per taxon, so a previous run of this chapter (which ends in parallel mode
+    // with an axis brushed) would otherwise skip the heatmap step entirely —
+    // the heatmap simply isn't rendered unless vizMode is 'heatmap' — and show
+    // a pre-filtered plot before the step that explains filtering.
+    callIfPresent(doSetExprVizVizMode, taxon, 'heatmap')
+    callIfPresent(doSetExprVizBrushes, taxon, {})
 
     // Study/sample metadata is fetched once the view is on.
     const studies = await waitFor(() => {
@@ -618,7 +639,7 @@ export default function buildSteps(getProps) {
       }
     },
     {
-      target: '.exprviz-hm-container',
+      target: () => exprVizActive('.exprviz-hm-container'),
       placement: 'top',
       title: 'Pick samples, then load',
       content:
@@ -630,13 +651,13 @@ export default function buildSteps(getProps) {
         const loaded = await loadExpressionForSorghum()
         if (!loaded) return false
         exprInfo = loaded
-        const ok = await waitForElement('.exprviz-hm-container', { timeout: 20000 })
-        if (!ok) return false
-        return revealTarget('.exprviz-hm-container', { block: 'start', settle: 800 })
+        const hm = await waitFor(() => exprVizActive('.exprviz-hm-container'), { timeout: 20000 })
+        if (!hm) return false
+        return revealTarget(hm, { block: 'start', settle: 800 })
       }
     },
     {
-      target: '.exprviz-pc-container',
+      target: () => exprVizActive('.exprviz-pc-container'),
       placement: 'top',
       title: 'Or read it as parallel coordinates',
       content:
@@ -647,13 +668,13 @@ export default function buildSteps(getProps) {
         const info = exprInfo
         if (!info) return false
         callIfPresent(doSetExprVizVizMode, info.taxon, 'parallel')
-        const ok = await waitForElement('.exprviz-pc-container', { timeout: 20000 })
-        if (!ok) return false
-        return revealTarget('.exprviz-pc-container', { block: 'start', settle: 800 })
+        const pc = await waitFor(() => exprVizActive('.exprviz-pc-container'), { timeout: 20000 })
+        if (!pc) return false
+        return revealTarget(pc, { block: 'start', settle: 800 })
       }
     },
     {
-      target: '.exprviz-pc-container',
+      target: () => exprVizActive('.exprviz-pc-container'),
       placement: 'top',
       title: 'Brush an axis to filter',
       content:
@@ -666,7 +687,9 @@ export default function buildSteps(getProps) {
         if (!info) return false
         brushTopOfFirstAxis(info.taxon, info.fields)
         await sleep(600)
-        return revealTarget('.exprviz-pc-container', { block: 'start', settle: 600 })
+        const pc = exprVizActive('.exprviz-pc-container')
+        if (!pc) return false
+        return revealTarget(pc, { block: 'start', settle: 600 })
       },
     },
     {
