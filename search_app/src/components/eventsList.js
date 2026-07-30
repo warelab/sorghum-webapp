@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 
-const eventsCache = getConfiguredCache({ maxAge: Infinity, version: 2 })
+// `name` is required: without it money-clip falls back to idb-keyval's default
+// store, which fundedProjects and peopleList also used — all three under the
+// key 'all'. Their differing `version` values then made every visit to one
+// page delete the others' entry (money-clip drops the key on a version
+// mismatch), so these caches silently evicted each other.
+const eventsCache = getConfiguredCache({ maxAge: Infinity, version: 2, name: 'eventsRaw' })
 
 const EVENTS_URL = '/api/wp_cache/events'
 const RESOURCE = 'events'
@@ -56,17 +62,17 @@ function _unwrap(cached) {
   return null
 }
 
-function loadEvents() {
-  return eventsCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+function loadEvents(onFresh) {
+  return eventsCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function normalizeEvent(raw) {
@@ -227,7 +233,9 @@ const EventsList = () => {
 
   useEffect(() => {
     let cancelled = false
-    loadEvents()
+    loadEvents((fresh) => {
+      if (!cancelled) setEvents(fresh)
+    })
       .then((data) => {
         if (!cancelled) setEvents(data)
       })

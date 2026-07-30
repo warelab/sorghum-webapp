@@ -35,7 +35,12 @@ const sorghumPublications = createAsyncResourceBundle({
   persist: false,
   getPromise: ({ store }) => {
     store.doSetPubProgress(0, 0);
-    return loadPublications().then((pubs) => {
+    // A getPromise resolves once, so `onFresh` can't deliver into this promise.
+    // Re-running the fetch is how newer data reaches the bundle: the second pass
+    // reads the money-clip entry that revalidation just refreshed and resolves
+    // from it immediately. It cannot loop — by then the cached stamp matches the
+    // server's, so staleWhileRevalidate finds nothing newer and never calls back.
+    return loadPublications(() => store.doFetchSorghumPublications()).then((pubs) => {
       if (pubs && pubs.length) store.doSetPubProgress(pubs.length, pubs.length);
       store.doResetPubProgress();
       return pubs;
@@ -48,10 +53,12 @@ sorghumPublications.selectSorghumPublicationsLastSuccess = (state) => {
   const s = state.sorghumPublications;
   return s ? s.lastSuccess : null;
 };
-// loadPublications already compares the server's fetched_at against the
-// money-clip stamp internally; we just need the reactor to call it again
-// whenever the tally bundle reports a newer timestamp than the last
-// successful publications fetch.
+// The reactor below only catches the server changing *while the page is open*:
+// it compares the tally against `lastSuccess`, the wall-clock time of our last
+// fetch, so an update that happened before this page load is already older than
+// lastSuccess and never triggers it. Detecting that case is the loader's job —
+// it compares the server's fetched_at against the money-clip stamp — which is
+// why the getPromise above passes an `onFresh` that re-runs the fetch.
 sorghumPublications.reactSorghumPublications = createSelector(
   'selectSorghumPublicationsShouldUpdate',
   'selectSorghumPublicationsTally',
@@ -89,7 +96,10 @@ const sorghumTags = createAsyncResourceBundle({
   name: 'sorghumTags',
   actionBaseType: 'SORGHUM_TAGS',
   persist: false,
-  getPromise: () => loadTags().then((tags) => {
+  // Same shape as sorghumPublications: re-run the fetch when revalidation lands
+  // newer tags, since a getPromise can only resolve once and the tally reactor
+  // can't see a server update that predates this page load.
+  getPromise: ({ store }) => loadTags(() => store.doFetchSorghumTags()).then((tags) => {
     const lookup = {};
     (tags || []).forEach((t) => { if (t && t.id) lookup[t.id] = t.name });
     return lookup;

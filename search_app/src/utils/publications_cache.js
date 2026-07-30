@@ -7,10 +7,12 @@
 // X-Wp-Cache-Fetched-At at the time the data was retrieved. On
 // subsequent reads we ask /api/wp_cache/_timestamps for the current
 // server value; if it's newer than what we stored, the local copy is
-// out of date and we refetch.
+// out of date and we refetch. That check now runs in the background
+// (see wp_cache_swr) so a warm cache resolves without waiting on it.
 
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from './wp_cache_timestamps'
+import { timestampFromResponse } from './wp_cache_timestamps'
+import { staleWhileRevalidate } from './wp_cache_swr'
 
 // Version bumped from 1 -> 2 because the cache shape changed
 // (bare array -> envelope). Old entries are dropped on first read.
@@ -37,17 +39,17 @@ function fetchAndCache() {
     })
 }
 
-export function loadPublications() {
-  return publicationsRawCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+export function loadPublications(onFresh) {
+  return publicationsRawCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 // money-clip may hand back either the new envelope or a stray pre-v2

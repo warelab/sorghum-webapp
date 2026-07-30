@@ -3,7 +3,8 @@
 // pattern).
 
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from './wp_cache_timestamps'
+import { timestampFromResponse } from './wp_cache_timestamps'
+import { staleWhileRevalidate } from './wp_cache_swr'
 
 // Server-side change detection (wp_cache compares old vs new payload and
 // reuses fetched_at when unchanged) means the timestamp gate is the only
@@ -31,17 +32,17 @@ function fetchAndCache() {
     })
 }
 
-export function loadTags() {
-  return tagsRawCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+export function loadTags(onFresh) {
+  return tagsRawCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function _unwrap(cached) {

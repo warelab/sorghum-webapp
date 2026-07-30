@@ -1,11 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 
 // Bump the version any time the cache shape changes. v2 -> v3: switched
 // from bare-array to {data, fetched_at} envelope for timestamp-based
 // staleness.
-const projectsCache = getConfiguredCache({ maxAge: Infinity, version: 3 })
+// Named store — see the note in eventsList.js; these three shared the default
+// store and the key 'all', and evicted one another.
+const projectsCache = getConfiguredCache({ maxAge: Infinity, version: 3, name: 'fundedProjectsRaw' })
 
 const PROJECTS_URL = '/api/wp_cache/projects'
 const RESOURCE = 'projects'
@@ -58,17 +61,17 @@ function _unwrap(cached) {
   return null
 }
 
-function loadProjects() {
-  return projectsCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+function loadProjects(onFresh) {
+  return projectsCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function reformatDates(a, b) {
@@ -204,10 +207,14 @@ const FundedProjects = () => {
   const [error, setError] = useState(null)
   const [searchValue, setSearchValue] = useState(readUrlQ)
   const initRef = useRef(false)
+  // plus codes already plotted, so revalidation doesn't re-geocode needlessly
+  const plottedRef = useRef('')
 
   useEffect(() => {
     let cancelled = false
-    loadProjects()
+    loadProjects((fresh) => {
+      if (!cancelled) setProjects(fresh)
+    })
       .then((d) => {
         if (!cancelled) setProjects(d)
       })
@@ -220,17 +227,40 @@ const FundedProjects = () => {
   }, [])
 
   useEffect(() => {
-    if (!projects || initRef.current) return
-    if (typeof window.FathGrid !== 'function') {
-      console.warn('FathGrid not loaded; skipping table init')
-      return
-    }
-    initRef.current = true
+    if (!projects) return
 
     const tableData = projects.map((p) => ({
       ...p,
       dates: reformatDates(p.start_date, p.end_date),
     }))
+
+    const places = {}
+    tableData.forEach((item) => (item.orgs || []).forEach((o) => {
+      if (o.plus_code) places[o.plus_code] = o
+    }))
+    const placesKey = Object.keys(places).sort().join(',')
+
+    // Already built, so this run is a revalidated list arriving via `onFresh`.
+    // Feed it to the existing grid instead of rebuilding, which would drop the
+    // user's sort and search term. Without this the table would keep showing
+    // the cached copy for the whole session.
+    if (initRef.current) {
+      const grid = window.myDataTable
+      if (grid && typeof grid.setData === 'function') grid.setData(tableData)
+      // Redraw the map only if the plotted locations actually changed — it
+      // constructs a fresh Map and re-geocodes every marker.
+      if (placesKey !== plottedRef.current) {
+        plottedRef.current = placesKey
+        initFundingMap(places)
+      }
+      return
+    }
+
+    if (typeof window.FathGrid !== 'function') {
+      console.warn('FathGrid not loaded; skipping table init')
+      return
+    }
+    initRef.current = true
 
     window.myDataTable = window.FathGrid('projects_tbl', {
       editable: false,
@@ -245,10 +275,7 @@ const FundedProjects = () => {
       window.myDataTable.search(searchValue)
     }
 
-    const places = {}
-    tableData.forEach((item) => (item.orgs || []).forEach((o) => {
-      if (o.plus_code) places[o.plus_code] = o
-    }))
+    plottedRef.current = placesKey
     initFundingMap(places)
   }, [projects])
 

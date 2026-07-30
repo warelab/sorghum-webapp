@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 import Pagination from './pagination'
 
 // Posts listing is now powered by Typesense via /api/posts/search:
@@ -12,7 +13,7 @@ import Pagination from './pagination'
 // the URL (e.g. categories=news) can be translated into the numeric IDs that
 // the posts collection is indexed against. The list lives in wp_cache
 // (`post_categories` resource); we mirror it into money-clip for cross-page
-// reuse, with a timestamp-based freshness check.
+// reuse, with a stale-while-revalidate freshness check.
 
 const categoriesCache = getConfiguredCache({ maxAge: Infinity, version: 3, name: 'postCategories' })
 
@@ -68,26 +69,46 @@ function _unwrap(cached) {
   return null
 }
 
-function loadAllCategories() {
-  return categoriesCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCacheCategories()
-    return expectedTimestamp(CATEGORIES_RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCacheCategories()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called with the newer category rows if revalidation finds a newer
+// copy on the server, so a cached list can be used immediately and corrected a
+// moment later.
+function loadAllCategories(onFresh) {
+  return categoriesCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: CATEGORIES_RESOURCE,
+      refetch: fetchAndCacheCategories,
+      onFresh,
+    }),
+  )
 }
 
-function lookupCategoryIds(slugs) {
+function idsForSlugs(cats, slugs) {
+  const wanted = new Set(slugs)
+  return (cats || [])
+    .filter((c) => c && wanted.has(c.slug))
+    .map((c) => c.id)
+}
+
+// `onFresh` receives the recomputed ids when a background category refresh
+// changes them.
+function lookupCategoryIds(slugs, onFresh) {
   if (!slugs.length) return Promise.resolve([])
-  return loadAllCategories().then((cats) => {
-    const wanted = new Set(slugs)
-    return (cats || [])
-      .filter((c) => c && wanted.has(c.slug))
-      .map((c) => c.id)
+  let delivered = null
+  const forward = typeof onFresh === 'function'
+    ? (cats) => {
+        const ids = idsForSlugs(cats, slugs)
+        // The category list can change without affecting these slugs; only tell
+        // the caller when the ids it already has are actually out of date.
+        const unchanged = delivered
+          && delivered.length === ids.length
+          && delivered.every((id, i) => id === ids[i])
+        if (!unchanged) onFresh(ids)
+      }
+    : undefined
+  return loadAllCategories(forward).then((cats) => {
+    delivered = idsForSlugs(cats, slugs)
+    return delivered
   })
 }
 
@@ -166,21 +187,43 @@ const PostsList = () => {
   useEffect(() => {
     let cancelled = false
     setState((s) => ({ ...s, hits: null, error: null }))
-    lookupCategoryIds(query.categories)
-      .then((categoryIds) => fetchPostsPage({ categoryIds, page: query.page, q: query.q }))
-      .then((res) => {
-        if (cancelled) return
-        setState({
-          hits: res.hits || [],
-          totalPages: res.total_pages || 1,
-          found: res.found || 0,
-          error: null,
+
+    const showError = (e) => {
+      if (cancelled) return
+      setState({ hits: [], totalPages: 1, found: 0, error: e })
+    }
+
+    // Two page queries can now be in flight at once: the one for the cached
+    // category ids and, if revalidation remaps a slug, one for the fresh ids.
+    // Only the most recently issued may write state — otherwise a slow first
+    // response could land last and overwrite the fresh results.
+    let seq = 0
+    const showPage = (categoryIds) => {
+      const mine = ++seq
+      return fetchPostsPage({ categoryIds, page: query.page, q: query.q })
+        .then((res) => {
+          if (cancelled || mine !== seq) return
+          setState({
+            hits: res.hits || [],
+            totalPages: res.total_pages || 1,
+            found: res.found || 0,
+            error: null,
+          })
         })
-      })
-      .catch((e) => {
-        if (cancelled) return
-        setState({ hits: [], totalPages: 1, found: 0, error: e })
-      })
+        .catch((e) => {
+          if (mine !== seq) return
+          showError(e)
+        })
+    }
+
+    // A background category refresh can change which ids these slugs map to, so
+    // re-run the page query when it does.
+    lookupCategoryIds(query.categories, (freshIds) => {
+      if (!cancelled) showPage(freshIds)
+    })
+      .then(showPage)
+      .catch(showError)
+
     return () => {
       cancelled = true
     }

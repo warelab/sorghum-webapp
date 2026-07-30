@@ -36,16 +36,21 @@ const AbstractDetail = ({ slug }) => {
 
   useEffect(() => {
     let cancelled = false
-    loadAbstracts()
+    const apply = (rows) => {
+      const match = (rows || []).find((a) => a && slugsMatch(a.slug, slug))
+      if (!match) {
+        setStatus('not_found')
+        return
+      }
+      setAbstract(match)
+      setStatus('ready')
+    }
+    loadAbstracts((fresh) => {
+      if (!cancelled) apply(fresh)
+    })
       .then((rows) => {
         if (cancelled) return
-        const match = (rows || []).find((a) => a && slugsMatch(a.slug, slug))
-        if (!match) {
-          setStatus('not_found')
-          return
-        }
-        setAbstract(match)
-        setStatus('ready')
+        apply(rows)
       })
       .catch(() => {
         if (!cancelled) setStatus('error')

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 
-const peopleCache = getConfiguredCache({ maxAge: Infinity, version: 3 })
+// Named store — see the note in eventsList.js; these three shared the default
+// store and the key 'all', and evicted one another.
+const peopleCache = getConfiguredCache({ maxAge: Infinity, version: 3, name: 'peopleRaw' })
 
 const PEOPLE_URL = '/api/wp_cache/people'
 

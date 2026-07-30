@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 import { slugsMatch } from '../utils/slug'
 
 // Raw payload cache (full posts list, including embedded author + featured
@@ -33,17 +34,17 @@ function _unwrap(cached) {
   return null
 }
 
-function loadPosts() {
-  return postsRawCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached post can render immediately and update in place a moment later.
+function loadPosts(onFresh) {
+  return postsRawCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function formatDate(iso) {
@@ -71,17 +72,18 @@ const PostDetail = ({ slug }) => {
 
   useEffect(() => {
     let cancelled = false
-    loadPosts()
-      .then((rows) => {
-        if (cancelled) return
-        const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
-        if (!match) {
-          setStatus('not_found')
-          return
-        }
-        setPost(match)
-        setStatus('ready')
-      })
+    const apply = (rows) => {
+      if (cancelled) return
+      const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
+      if (!match) {
+        setStatus('not_found')
+        return
+      }
+      setPost(match)
+      setStatus('ready')
+    }
+    loadPosts(apply)
+      .then(apply)
       .catch(() => {
         if (!cancelled) setStatus('error')
       })

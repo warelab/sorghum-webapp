@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 
 const homePostsCache = getConfiguredCache({
   maxAge: Infinity,
@@ -28,22 +29,42 @@ function fetchAndCache() {
   })
 }
 
-function loadHomePosts() {
-  return homePostsCache.get('all').then((cached) => {
-    const local = cached && cached.data ? cached : null
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > (local.fetched_at || 0)) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+function _unwrap(cached) {
+  if (!cached || !cached.data) return null
+  return { data: cached.data, fetched_at: cached.fetched_at || 0 }
 }
 
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+function loadHomePosts(onFresh) {
+  return homePostsCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
+}
+
+// Every mounted section shares one load, so `sharedPromise` can only ever
+// resolve once — fresh data can't be pushed back through it. Instead the single
+// revalidation fans out to the mounted sections through these listeners, which
+// leaves the memo's single-resolve contract untouched.
 let sharedPromise = null
+const freshListeners = new Set()
+
+function onSharedFresh(listener) {
+  freshListeners.add(listener)
+  return () => freshListeners.delete(listener)
+}
+
 function loadHomePostsShared() {
-  if (!sharedPromise) sharedPromise = loadHomePosts().catch((e) => { sharedPromise = null; throw e })
+  if (!sharedPromise) {
+    sharedPromise = loadHomePosts((fresh) => {
+      freshListeners.forEach((listener) => listener(fresh))
+    }).catch((e) => { sharedPromise = null; throw e })
+  }
   return sharedPromise
 }
 
@@ -92,6 +113,11 @@ const HomeSection = ({ sectionKey }) => {
 
   useEffect(() => {
     let cancelled = false
+    // Subscribe before kicking off the load: revalidation only ever reports back
+    // after the network round trip, so the cached copy below still lands first.
+    const unsubscribe = onSharedFresh((fresh) => {
+      if (!cancelled) setPosts((fresh && fresh[sectionKey]) || [])
+    })
     loadHomePostsShared()
       .then((data) => {
         if (!cancelled) setPosts((data && data[sectionKey]) || [])
@@ -101,6 +127,7 @@ const HomeSection = ({ sectionKey }) => {
       })
     return () => {
       cancelled = true
+      unsubscribe()
     }
   }, [sectionKey])
 

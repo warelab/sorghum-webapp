@@ -39,17 +39,21 @@ const PaperDetail = ({ slug }) => {
 
   useEffect(() => {
     let cancelled = false
-    loadPublications()
-      .then((rows) => {
-        if (cancelled) return
-        const match = findPaper(rows, slug)
-        if (!match) {
-          setStatus('not_found')
-          return
-        }
-        setPaper(match)
-        setStatus('ready')
-      })
+    // Shared by the initial resolve and by the `onFresh` callback, which fires
+    // later if the background revalidation finds a newer publications list.
+    // It keeps the `cancelled` guard for both paths.
+    const apply = (rows) => {
+      if (cancelled) return
+      const match = findPaper(rows, slug)
+      if (!match) {
+        setStatus('not_found')
+        return
+      }
+      setPaper(match)
+      setStatus('ready')
+    }
+    loadPublications(apply)
+      .then(apply)
       .catch(() => {
         if (!cancelled) setStatus('error')
       })

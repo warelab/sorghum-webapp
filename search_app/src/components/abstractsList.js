@@ -62,59 +62,94 @@ const AbstractsList = () => {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([loadAbstracts(), loadSicnaTags()])
+
+    // The table is built imperatively, so the two sources are held side by side
+    // here: each loader gets its own `onFresh`, and one revalidating must not
+    // discard what the other already handed over. A key is present in `latest`
+    // once that source has produced data, so the table waits for both.
+    const latest = {}
+
+    const render = () => {
+      if (!('abstracts' in latest) || !('tags' in latest)) return
+      const { abstracts, tags } = latest
+      const tagById = {}
+      ;(tags || []).forEach((t) => { if (t && t.id != null) tagById[t.id] = t })
+      const rows = (abstracts || []).map((a) => buildRow(a, tagById))
+      if (typeof window.FathGrid !== 'function') {
+        console.warn('FathGrid not loaded; cannot render abstracts table')
+        setStatus('error')
+        return
+      }
+      // Already built — feed the revalidated rows in rather than re-creating
+      // the grid, which would drop the current sort and search term.
+      if (initRef.current) {
+        const grid = window.myDataTable
+        if (grid && typeof grid.setData === 'function') grid.setData(rows)
+        return
+      }
+      initRef.current = true
+
+      window.myDataTable = window.FathGrid('abstracts_tbl', {
+        editable: false,
+        filterable: true,
+        showGrouping: false,
+        sortBy: [1],
+        columns: [
+          { name: 'author', header: 'Presenting Author', editable: false, filterable: false },
+          {
+            name: 'title', editable: false, header: 'Title', filterable: false,
+            html: (item) => `<span class="sb-link"><a href="/abstract/${item.slug}">${item.title}</a></span>`,
+          },
+          {
+            name: 'orgs', header: 'Institution', editable: false, filterable: false,
+            value: (item) => (item.orgs || []).map((o) => o.post_title).join(' '),
+            html: (item) => {
+              const lis = (item.orgs || []).map((o) => `<li>${o.post_title}</li>`).join('')
+              return `<ul class="list-unstyled sb-link">${lis}</ul>`
+            },
+          },
+          { name: 'type', editable: false, header: 'Presentation', filterable: false },
+          { name: 'conference', header: 'Conference', editable: false, filterable: false },
+          {
+            name: 'id', visible: false, editable: false, header: 'CMS', filterable: false,
+            html: (item) => `<a class="btn-link btn" target="_blank" href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`,
+          },
+          { name: 'orgstr', visible: false, editable: false, filterable: true, header: 'idx' },
+          { name: 'content', visible: false, editable: false, filterable: true, header: 'abstract' },
+        ],
+        data: rows,
+      })
+
+      // Honor ?q= from the URL.
+      const urlQ = new URLSearchParams(window.location.search).get('q') || ''
+      if (urlQ && window.myDataTable) {
+        const input = document.getElementById('abstracts_search')
+        if (input) input.value = urlQ
+        window.myDataTable.search(urlQ)
+      }
+      setStatus('ready')
+    }
+
+    Promise.all([
+      loadAbstracts((fresh) => {
+        if (cancelled) return
+        latest.abstracts = fresh
+        render()
+      }),
+      loadSicnaTags((fresh) => {
+        if (cancelled) return
+        latest.tags = fresh
+        render()
+      }),
+    ])
       .then(([abstracts, tags]) => {
         if (cancelled) return
-        const tagById = {}
-        ;(tags || []).forEach((t) => { if (t && t.id != null) tagById[t.id] = t })
-        const rows = (abstracts || []).map((a) => buildRow(a, tagById))
-        if (typeof window.FathGrid !== 'function') {
-          console.warn('FathGrid not loaded; cannot render abstracts table')
-          setStatus('error')
-          return
-        }
-        if (initRef.current) return
-        initRef.current = true
-
-        window.myDataTable = window.FathGrid('abstracts_tbl', {
-          editable: false,
-          filterable: true,
-          showGrouping: false,
-          sortBy: [1],
-          columns: [
-            { name: 'author', header: 'Presenting Author', editable: false, filterable: false },
-            {
-              name: 'title', editable: false, header: 'Title', filterable: false,
-              html: (item) => `<span class="sb-link"><a href="/abstract/${item.slug}">${item.title}</a></span>`,
-            },
-            {
-              name: 'orgs', header: 'Institution', editable: false, filterable: false,
-              value: (item) => (item.orgs || []).map((o) => o.post_title).join(' '),
-              html: (item) => {
-                const lis = (item.orgs || []).map((o) => `<li>${o.post_title}</li>`).join('')
-                return `<ul class="list-unstyled sb-link">${lis}</ul>`
-              },
-            },
-            { name: 'type', editable: false, header: 'Presentation', filterable: false },
-            { name: 'conference', header: 'Conference', editable: false, filterable: false },
-            {
-              name: 'id', visible: false, editable: false, header: 'CMS', filterable: false,
-              html: (item) => `<a class="btn-link btn" target="_blank" href="https://content.sorghumbase.org/wordpress/wp-admin/post.php?action=edit&post=${item.id}">edit</a>`,
-            },
-            { name: 'orgstr', visible: false, editable: false, filterable: true, header: 'idx' },
-            { name: 'content', visible: false, editable: false, filterable: true, header: 'abstract' },
-          ],
-          data: rows,
-        })
-
-        // Honor ?q= from the URL.
-        const urlQ = new URLSearchParams(window.location.search).get('q') || ''
-        if (urlQ && window.myDataTable) {
-          const input = document.getElementById('abstracts_search')
-          if (input) input.value = urlQ
-          window.myDataTable.search(urlQ)
-        }
-        setStatus('ready')
+        // A revalidation can land for one source while the other is still on
+        // the network, so don't overwrite fresher data with the cached copy it
+        // already replaced.
+        if (!('abstracts' in latest)) latest.abstracts = abstracts
+        if (!('tags' in latest)) latest.tags = tags
+        render()
       })
       .catch(() => {
         if (!cancelled) setStatus('error')

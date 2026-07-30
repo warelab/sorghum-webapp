@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { timestampFromResponse } from '../utils/wp_cache_timestamps'
+import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 import { slugsMatch } from '../utils/slug'
 
 // Separate cache instance from fundedProjects.js — the listing page stores
@@ -35,17 +36,17 @@ function _unwrap(cached) {
   return null
 }
 
-function loadProjects() {
-  return projectsRawCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached payload can render immediately and update in place a moment later.
+function loadProjects(onFresh) {
+  return projectsRawCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function stringList(value) {
@@ -68,17 +69,20 @@ const ProjectDetail = ({ slug }) => {
 
   useEffect(() => {
     let cancelled = false
-    loadProjects()
-      .then((rows) => {
-        if (cancelled) return
-        const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
-        if (!match) {
-          setStatus('not_found')
-          return
-        }
-        setProject(match)
-        setStatus('ready')
-      })
+    // Shared by the initial resolve and by the later `onFresh` push, so both
+    // honour the same `cancelled` guard.
+    const apply = (rows) => {
+      if (cancelled) return
+      const match = (rows || []).find((p) => p && slugsMatch(p.slug, slug))
+      if (!match) {
+        setStatus('not_found')
+        return
+      }
+      setProject(match)
+      setStatus('ready')
+    }
+    loadProjects(apply)
+      .then(apply)
       .catch(() => {
         if (!cancelled) setStatus('error')
       })

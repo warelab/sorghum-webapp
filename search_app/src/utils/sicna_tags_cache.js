@@ -3,7 +3,8 @@
 // /api/wp_cache/_timestamps for the sicna_tags resource.
 
 import { getConfiguredCache } from 'money-clip'
-import { expectedTimestamp, timestampFromResponse } from './wp_cache_timestamps'
+import { timestampFromResponse } from './wp_cache_timestamps'
+import { staleWhileRevalidate } from './wp_cache_swr'
 
 const sicnaTagsCache = getConfiguredCache({
   maxAge: Infinity,
@@ -28,17 +29,17 @@ function fetchAndCache() {
     })
 }
 
-export function loadSicnaTags() {
-  return sicnaTagsCache.get('all').then((cached) => {
-    const local = _unwrap(cached)
-    if (!local) return fetchAndCache()
-    return expectedTimestamp(RESOURCE).then((serverTs) => {
-      if (serverTs !== null && serverTs > local.fetched_at) {
-        return fetchAndCache()
-      }
-      return local.data
-    })
-  })
+// `onFresh` is called if revalidation finds a newer copy on the server, so a
+// cached list can render immediately and update in place a moment later.
+export function loadSicnaTags(onFresh) {
+  return sicnaTagsCache.get('all').then((cached) =>
+    staleWhileRevalidate({
+      cached: _unwrap(cached),
+      resource: RESOURCE,
+      refetch: fetchAndCache,
+      onFresh,
+    }),
+  )
 }
 
 function _unwrap(cached) {
