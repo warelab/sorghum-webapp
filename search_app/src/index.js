@@ -75,8 +75,33 @@ const Videos = (ids) => (
   />
 )
 
+// A cached async-resource entry whose payload is empty but which still carries a
+// lastSuccess stamp is poison: redux-bundler treats it as fresh and won't
+// refetch until staleAfter expires (24h for grameneMaps/grameneTaxonomy). That
+// happens when an upstream or proxy hiccup answers with an empty body, and it
+// leaves the genes page dead — "No genome found for {}", then a hard
+// "Bin count mismatch!" out of gramene-bins-client. The fetches now reject empty
+// payloads, but browsers that already stored one need to recover, so drop them
+// here and let the bundle fetch again. Cost of a false positive is one extra
+// request; cost of a false negative is a broken page.
+function hasEmptyPayload(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+  if (!Object.prototype.hasOwnProperty.call(entry, 'data')) return false;
+  const d = entry.data;
+  if (d === null || d === undefined) return true;
+  if (Array.isArray(d)) return d.length === 0;
+  if (typeof d === 'object') return Object.keys(d).length === 0;
+  return false;
+}
+
 cache.getAll().then(initialData => {
   if (initialData) {
+    Object.keys(initialData).forEach(key => {
+      if (hasEmptyPayload(initialData[key])) {
+        console.warn(`discarding empty cached "${key}" so it refetches`);
+        delete initialData[key];
+      }
+    });
     if (initialData.hasOwnProperty('searchUI')) initialData.searchUI.suggestions_query="";
     console.log('starting with locally cached data:', initialData)
   }
