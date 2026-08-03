@@ -6,6 +6,10 @@
   "ensemblSite": 'https://ensembl.sorghumbase.org',
   "ensemblRest": 'https://data.gramene.org/pansite-ensembl-108',
   "grameneData": 'https://data.sorghumbase.org/sorghum_v11',
+  // GXA instance the Expression tab's embedded atlas widget queries. The
+  // widget defaults to the auth_testing instance when this is absent, so it
+  // must be set explicitly per data release.
+  "atlasUrl": 'https://data.sorghumbase.org/sorghum_v11/gxa/',
   "targetTaxonId": 4558001,
   "ga": 'G-L5KXDCCZ16',
   "playlistIds": [
