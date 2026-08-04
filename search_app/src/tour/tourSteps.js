@@ -44,11 +44,11 @@ const PATHWAY_SUGGESTION = {
 export const TOUR_SECTIONS = [
   { start: 1, title: 'Run a search', blurb: 'Find genes by pathway, not by ID' },
   { start: 6, title: 'Read the results', blurb: 'Filters, distribution and the gene list' },
-  { start: 11, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs and the family tree' },
-  { start: 15, title: 'Refine the set', blurb: 'Count your results by category' },
-  { start: 17, title: 'Views', blurb: 'Read the same genes another way' },
-  { start: 19, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
-  { start: 23, title: 'Enrichment & export', blurb: 'Over-represented terms, and taking data with you' }
+  { start: 12, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs and the family tree' },
+  { start: 16, title: 'Refine the set', blurb: 'Count your results by category' },
+  { start: 18, title: 'Views', blurb: 'Read the same genes another way' },
+  { start: 20, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
+  { start: 24, title: 'Enrichment & export', blurb: 'Over-represented terms, and taking data with you' }
 ]
 
 // --- DOM helpers for the live search demo -----------------------------------
@@ -198,6 +198,88 @@ export default function buildSteps(getProps) {
   const ensureView = async (viewId, selector, timeout = 15000) => {
     if (!viewIsOn(viewId)) callIfPresent(doToggleGrameneView, viewId)
     return selector ? !!(await waitForElement(selector, { timeout })) : true
+  }
+
+  /** The Filters-panel node carrying the pathway term. */
+  const pathwayFilterNode = () =>
+    [...document.querySelectorAll('.gramene-filter-text')]
+      .find(n => (n.textContent || '').indexOf(PATHWAY_LABEL) !== -1) || null
+
+  /**
+   * Open that filter's menu, where the "expand search" radios live. Idempotent —
+   * clicking the node again would close it.
+   */
+  const openFilterMenu = async () => {
+    if (!document.querySelector('.gramene-filter-menu')) {
+      const node = pathwayFilterNode()
+      if (!node) return null
+      node.click()
+      await waitForElement('.gramene-filter-menu', { timeout: 4000 }).catch(() => null)
+    }
+    return document.querySelector('.gramene-filter-menu')
+  }
+
+  /**
+   * Click one of the expansion radios and wait for the re-run search to land, so
+   * the gene count in the panel visibly changes before we move on. Re-picking the
+   * radio that is already selected clears the expansion — that is how the
+   * sequence returns to "none" at the end.
+   */
+  const pickExpansion = async (label, dwell = 1200) => {
+    const menu = await openFilterMenu()
+    if (!menu) return false
+    const row = [...menu.querySelectorAll('.gramene-filter-menu-radio')]
+      .find(li => (li.textContent || '').toLowerCase().indexOf(label) !== -1)
+    if (!row) return false
+    const before = (getProps().grameneSearch || {}).response
+    const beforeCount = before ? before.numFound : null
+    row.click()
+    // Bounded: if a re-run is slow we move on rather than stalling the tour. The
+    // clear in the caller's `finally` is what guarantees we don't leave the set
+    // expanded, so a timeout here is survivable.
+    await waitFor(
+      () => {
+        const r = getProps().grameneSearch
+        const n = r && r.response ? r.response.numFound : null
+        return n !== null && n !== beforeCount ? n : null
+      },
+      { timeout: 8000 }
+    ).catch(() => null)
+    // The store having the new count isn't enough — the panel only prints the
+    // tally once the search reaches 'ready', and the whole point of this step is
+    // watching that number move. Wait for it to be on screen before dwelling.
+    await waitFor(
+      () => (getProps().grameneFiltersStatus === 'ready' ? true : null),
+      { timeout: 8000 }
+    ).catch(() => null)
+    // Hold each state long enough to be read.
+    await sleep(dwell)
+    return true
+  }
+
+  /**
+   * Clear whichever expansion is selected, by re-picking the checked radio.
+   * Reads the checked state rather than assuming which one was applied, so it
+   * still works if the sequence above stopped part-way.
+   */
+  const clearExpansion = async () => {
+    const menu = await openFilterMenu()
+    if (!menu) return false
+    const checked = [...menu.querySelectorAll('.gramene-filter-menu-radio')]
+      .find(li => {
+        const radio = li.querySelector('input[type=radio]')
+        return radio && radio.checked
+      })
+    if (!checked) return true // nothing applied
+    checked.click()
+    await waitFor(
+      () => {
+        const on = document.querySelector('.gramene-filter-expansion')
+        return on ? null : true
+      },
+      { timeout: 8000 }
+    ).catch(() => null)
+    return true
   }
 
   /**
@@ -450,6 +532,48 @@ export default function buildSteps(getProps) {
         `Filters combine with AND by default, so you can keep adding terms — a ` +
         `species, an expression class — to narrow the set. Click one to negate it, ` +
         `switch AND/OR, or remove it.`
+    },
+    {
+      // The menu is opened by the `before` hook below, so point at it if it is
+      // there and fall back to the panel if the filter could not be found.
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand the search beyond the filter',
+      content:
+        `Filters only ever narrow a set. "Expand search" grows it along a ` +
+        `biological relationship instead: the genes you matched become the ` +
+        `starting point, and the result is those genes plus everything reachable ` +
+        `from them. Watch the count as each option is picked — orthologs pulls in ` +
+        `the equivalent genes in other genomes, paralogs stays inside this one, ` +
+        `and neighborhood takes the ten genes either side along the chromosome. ` +
+        `Picking the selected option again clears it, which is where we finish so ` +
+        `the rest of the tour runs on the pathway genes.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        if (!(await openFilterMenu())) return false
+        // Demonstrate each in turn. The clear runs in `finally` so a slow or
+        // failed re-run can't leave the tour expanded — every later step assumes
+        // the plain pathway set.
+        try {
+          await pickExpansion('orthologs')
+          await pickExpansion('paralogs')
+          await pickExpansion('neighborhood')
+        } finally {
+          await clearExpansion()
+        }
+        return !!(await openFilterMenu())
+      },
+      after: async () => {
+        // Backstop: the visitor can hit Next or Skip mid-demo, which aborts the
+        // hook above before its `finally` has run.
+        await clearExpansion()
+        // Close the menu so it doesn't sit over the next step's target.
+        const node = pathwayFilterNode()
+        if (node && document.querySelector('.gramene-filter-menu')) node.click()
+      }
     },
     {
       target: '.results-vis',
