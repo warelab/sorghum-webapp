@@ -2,9 +2,9 @@
   "id": 'sorghum',
   "name": 'Sorghumbase',
   "url": 'https://sorghumbase.org',
-  "ensemblURL": 'https://ensembl.sorghumbase.org',
-  "ensemblSite": 'https://ensembl.sorghumbase.org',
-  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-108',
+  "ensemblURL": 'https://ensembl-dev.sorghumbase.org',
+  "ensemblSite": 'https://ensembl-dev.sorghumbase.org',
+  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-115',
   "grameneData": 'https://data.sorghumbase.org/sorghum_v11',
   // GXA instance the Expression tab's embedded atlas widget queries. The
   // widget defaults to the auth_testing instance when this is absent, so it
