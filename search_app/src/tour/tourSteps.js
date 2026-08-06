@@ -186,9 +186,13 @@ export default function buildSteps(getProps) {
     doSetOntologyEnrichmentActiveTaxon
   } = getProps()
 
-  // Sorghum BTx623 — the site's reference genome (config.targetTaxonId).
+  // The site's reference genome. Derived from the anchor genomes in /maps by
+  // gramene-search rather than configured, so it follows the deployment. Null
+  // until /maps lands, hence the fallback — 4558006 is Sb bicolor BTx623 v3, the
+  // sorghum anchor. (It used to fall back to 4558001, which is
+  // Sb verticilliflorum 353, a non-anchor wild relative.)
   const sorghumTaxon = () =>
-    String(getProps().targetTaxonId || 4558001)
+    String(getProps().targetTaxonId || 4558006)
 
   const viewIsOn = (viewId) => {
     const on = getProps().grameneViewsOn

@@ -10,7 +10,6 @@
   // widget defaults to the auth_testing instance when this is absent, so it
   // must be set explicitly per data release.
   "atlasUrl": 'https://data.sorghumbase.org/sorghum_v11/gxa/',
-  "targetTaxonId": 4558001,
   "ga": 'G-L5KXDCCZ16',
   "playlistIds": [
     'PLqQHG-yuRY19bQtXH61sw7AAmsUrT-G_K'  // SB new list

@@ -29,12 +29,10 @@ const config = {
   },
   selectGrameneAPI: state => state.config.grameneData,
   selectEnsemblAPI: state => state.config.ensemblRest,
-  selectTargetTaxonId: state => state.config.targetTaxonId,
   selectCuration: state => state.config.curation,
   selectConfiguration: state => state.config
   // selectEnsemblURL: state => state.config.ensemblSite,
   // selectGrameneAPI: state => state.config.grameneData,
-  // selectTargetTaxonId: state => state.config.targetTaxonId,
   // selectCuration: state => state.config.curation,
   // selectAlertMessage: state => state.config.alertText
 };
