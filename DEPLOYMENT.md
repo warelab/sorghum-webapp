@@ -64,6 +64,7 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 | `FORWARDED_ALLOW_IPS` | `*` | IPs trusted to set `X-Forwarded-*`. Set to your Apache host's IP in prod. |
 | `WP_BASE_URL` | `https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/` | WordPress REST root |
 | `WARM_SCHEDULE` | `*/30 * * * *` | Cron schedule for `warm_wp_cache.sh` |
+| `WARM_MAILTO` | `root` | `MAILTO` on the cron entry. Warm failures are mailed here — set it to a real address. |
 | `TYPESENSE_PORT` | `8108` | Loopback port for Typesense |
 
 ## First-time deploy
@@ -259,13 +260,35 @@ curl -s http://127.0.0.1:8000/api/typeahead/_status | python3 -m json.tool
 
 ### `warm_wp_cache.sh` reports `FAILED tags` (or similar)
 
-Almost always a transient WordPress / DNS issue. The wp_cache layer already retries 5x on connect errors. If it persists, hit WordPress directly to confirm it's reachable from the box:
+A healthy warm run is completely silent and exits 0. Anything it prints goes to stderr, so cron mails it to `WARM_MAILTO`; per-resource successes go to syslog (`journalctl -t wp_cache_warm`).
+
+`FAILED <resource>` means the refill request itself errored and there was no cached payload to fall back on. Almost always a transient WordPress / DNS issue — the wp_cache layer already retries 5x on connect errors. If it persists, hit WordPress directly to confirm it's reachable from the box:
 
 ```sh
 curl -sI 'https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/tags?per_page=1'
 ```
 
 If that times out from inside the host but works from your laptop, check firewalld and any outbound proxy rules on the box.
+
+### `warm_wp_cache.sh` reports `STALE tags: ...`
+
+**The cache is intact and the site is serving good data.** `STALE` means WordPress answered, but with a payload the refill guard refused to store — either empty, or more than `WP_CACHE_SHRINK_TOLERANCE` (default 20%) smaller than what was already cached. Rather than overwrite, wp_cache kept the previous payload, renewed its TTL, and left the Typesense collection alone.
+
+This guard exists because a broken CMS answering `200` with `[]` used to wipe both Redis and the Typesense index on the next cron tick.
+
+Check what the guard saw:
+
+```sh
+curl -s "http://127.0.0.1:8000/api/wp_cache/tags/meta" | python3 -m json.tool
+```
+
+`last_refill_error` explains the rejection and `stale_since` is when the run of failures began; `fetched_at` still points at the last good fetch. Responses also carry `X-Wp-Cache-Stale: 1`. All three clear automatically as soon as one refill succeeds.
+
+Fix WordPress, then re-run the warm. If the smaller payload is genuinely correct (a real bulk deletion), override the guard once:
+
+```sh
+curl -s "http://127.0.0.1:8000/api/wp_cache/tags/meta?force=1&allow_shrink=1"
+```
 
 ### Stale cache after a content update in WordPress
 
@@ -275,6 +298,8 @@ curl -s "http://127.0.0.1:8000/api/wp_cache/<resource>/meta?force=1"
 ```
 
 The default `WP_CACHE_TTL` is 7 days, so the cron warm is what keeps everything fresh. If the cron stopped firing, check `journalctl -t wp_cache_warm`.
+
+A rejected refill also rewrites the cached payload, which renews its Redis TTL — so a WordPress outage lasting longer than `WP_CACHE_TTL` can't quietly drain the cache while refills keep failing.
 
 ### Bumping the React bundle cache
 

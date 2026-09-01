@@ -49,7 +49,7 @@ from .navbar import navbar_template
 from .local_media import local_banner
 from .wp_cache import (
     _get_redis,
-    _invalidate as _wp_cache_invalidate,
+    _refresh as _wp_cache_refresh,
     _get_or_refresh as _wp_cache_get,
     _read_cache as _wp_cache_read,
     _write_cache as _wp_cache_write,
@@ -147,14 +147,16 @@ def _consume_publish_run(token):
 
 
 def _refresh_wp_cache(resource):
-    ''' Invalidate Redis for `resource` and immediately refill it, which
-    also re-syncs the matching Typesense collection (see
-    wp_cache._do_fetch_and_store). Equivalent to hitting
-    /api/wp_cache/<resource>/meta?force=1 over HTTP. Used only as a
-    fallback when an incremental patch isn't possible. '''
+    ''' Refill Redis for `resource`, which also re-syncs the matching
+    Typesense collection (see wp_cache._do_fetch_and_store). Equivalent to
+    hitting /api/wp_cache/<resource>/meta?force=1 over HTTP. Used only as a
+    fallback when an incremental patch isn't possible.
+
+    Deliberately _refresh rather than invalidate-then-get: _refresh
+    overwrites in place, so a WordPress failure during the refill leaves the
+    previous good payload intact instead of a hole. '''
     try:
-        _wp_cache_invalidate(resource)
-        _wp_cache_get(resource)
+        _wp_cache_refresh(resource)
     except Exception as e:
         logger.warning(
             "update_publications: refresh of wp_cache:%s failed (%s); "
@@ -204,8 +206,9 @@ def _patch_wp_cache(resource, new_records):
         )
         status["method"] = "full_refresh"
         try:
-            _wp_cache_invalidate(resource)
-            items, meta = _wp_cache_get(resource)
+            # _refresh, not invalidate-then-get: never delete the cache before
+            # we know the replacement actually arrived.
+            items, meta = _wp_cache_refresh(resource)
             status["redis_ok"] = True
             status["redis_total"] = len(items or [])
             # The full refresh path runs its own Typesense sync via

@@ -32,6 +32,19 @@ logger = logging.getLogger("sorghumbase")
 
 typesense_page = flask.Blueprint("typesense_page", __name__)
 
+# Same knob wp_cache uses for its refill guard. Defined locally rather than
+# imported: wp_cache imports this module (lazily, from _sync_typesense), so
+# importing it back at module scope would be circular.
+_DEFAULT_SHRINK_TOLERANCE = 0.20
+
+
+def _shrink_tolerance():
+    try:
+        return float(app.config.get("WP_CACHE_SHRINK_TOLERANCE",
+                                    _DEFAULT_SHRINK_TOLERANCE))
+    except (TypeError, ValueError):
+        return _DEFAULT_SHRINK_TOLERANCE
+
 
 # ---------------------------------------------------------------------------
 # Collection schemas
@@ -377,7 +390,7 @@ def ensure_collection(client, collection_name):
         )
 
 
-def sync_resource(resource_name, items, prune=True):
+def sync_resource(resource_name, items, prune=True, allow_empty=False):
     """Upsert `items` into the Typesense collection mapped to `resource_name`.
 
     Returns a status dict so callers (e.g. update_publications) can report
@@ -389,6 +402,13 @@ def sync_resource(resource_name, items, prune=True):
     appropriate when `items` is the full list from WordPress. Callers doing an
     incremental upsert of just a few new docs (e.g. update_publications after
     publishing a draft) should pass `prune=False`.
+
+    Deletions are guarded against a broken upstream. An empty `items` leaves the
+    collection alone unless `allow_empty=True`, and the stale-prune is skipped
+    when `items` is drastically smaller than what the collection already holds.
+    wp_cache._do_fetch_and_store applies the same shrink guard before we ever
+    get here, but this is the code that actually destroys the index, so it
+    checks for itself too.
     """
     entry = COLLECTIONS.get(resource_name)
     if not entry:
@@ -422,7 +442,17 @@ def sync_resource(resource_name, items, prune=True):
         docs.append(doc)
 
     if not docs:
-        # Wipe the collection if upstream returned nothing — avoids stale hits.
+        if not allow_empty:
+            # Upstream returning nothing is far more often a broken WordPress
+            # than a genuinely emptied collection. Keep what we have.
+            logger.warning(
+                "typesense: %s produced 0 documents; leaving %s untouched "
+                "(pass allow_empty=True to purge deliberately)",
+                resource_name, collection_name,
+            )
+            return {"ok": False, "collection": collection_name, "count": 0,
+                    "failed": 0, "error": None, "skipped": "empty_payload"}
+        # Deliberate purge.
         try:
             client.collections[collection_name].documents.delete({"filter_by": "id:!=__none__"})
         except Exception:
@@ -459,7 +489,22 @@ def sync_resource(resource_name, items, prune=True):
     if not prune:
         return status
 
-    # Drop docs that disappeared upstream.
+    # Drop docs that disappeared upstream -- unless the fresh set is so much
+    # smaller than the live collection that the "disappearance" is more likely
+    # an upstream failure than real deletions.
+    try:
+        existing_count = client.collections[collection_name].retrieve().get("num_documents", 0)
+    except Exception as e:
+        logger.debug("typesense: num_documents lookup failed for %s (%s)", collection_name, e)
+        existing_count = 0
+    if existing_count and len(docs) < existing_count * (1.0 - _shrink_tolerance()):
+        logger.warning(
+            "typesense: skipping stale-prune of %s -- %d fresh docs vs %d in the "
+            "collection exceeds the shrink tolerance",
+            collection_name, len(docs), existing_count,
+        )
+        return status
+
     try:
         live_ids = {d["id"] for d in docs}
         existing = client.collections[collection_name].documents.export({"include_fields": "id"})
