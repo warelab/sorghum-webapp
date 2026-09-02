@@ -3,6 +3,7 @@ import { getConfiguredCache } from 'money-clip'
 import { timestampFromResponse } from '../utils/wp_cache_timestamps'
 import { staleWhileRevalidate } from '../utils/wp_cache_swr'
 import { slugsMatch } from '../utils/slug'
+import { stringList } from '../utils/wpFields'
 
 // Separate cache instance from fundedProjects.js — the listing page stores
 // projects in a *normalized* shape (dropping fields like project_description,
@@ -47,11 +48,6 @@ function loadProjects(onFresh) {
       onFresh,
     }),
   )
-}
-
-function stringList(value) {
-  if (!value) return []
-  return Array.isArray(value) ? value : [value]
 }
 
 const InfoCard = ({ heading, children }) => (
