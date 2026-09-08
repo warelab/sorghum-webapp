@@ -66,6 +66,8 @@ class ScientificPaper(WPEntity):
 			elif self.post_response.status_code == 404: # not found
 				return None
 
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.post_response.status_code, self.post_response.text[:2000]))
+
 	# @property
 	# def categories(self):
 	# 	'''
@@ -184,6 +186,8 @@ class ScientificPaperRequest(WPRequest):
 				raise exc.BadRequest("400: Bad request. Error: \n{0}".format(json.dumps(self.response.json(), indent=4)))
 			elif self.response.status_code == 404: # not found
 				return None
+
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.text[:2000]))
 
 		self.process_response_headers()
 

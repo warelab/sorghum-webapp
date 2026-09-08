@@ -147,6 +147,8 @@ class JobRequest(WPRequest):
 			elif self.response.status_code == 404: # not found
 				return None
 
+			raise Exception("Unhandled HTTP response, code {0}. Error: \n{1}\n".format(self.response.status_code, self.response.text[:2000]))
+
 		jobs_data = self.response.json()
 
 		if isinstance(jobs_data, dict):
