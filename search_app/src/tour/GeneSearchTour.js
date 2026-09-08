@@ -253,6 +253,7 @@ export default connect(
   'selectGrameneViewsOn',
   'selectGrameneFilters',
   'selectGrameneSearch',
+  'selectGrameneFiltersStatus',
   'selectExprViz',
   'selectExpressionStudies',
   'selectExpressionSamples',

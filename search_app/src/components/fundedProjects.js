@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { getConfiguredCache } from 'money-clip'
 import { timestampFromResponse } from '../utils/wp_cache_timestamps'
 import { staleWhileRevalidate } from '../utils/wp_cache_swr'
+import { stringList, joinField } from '../utils/wpFields'
 
 // Bump the version any time the cache shape changes. v2 -> v3: switched
 // from bare-array to {data, fetched_at} envelope for timestamp-based
@@ -30,9 +31,11 @@ function normalize(raw) {
     project_title: titleCase(raw.project_title || ''),
     start_date: raw.start_date || '',
     end_date: raw.end_date || '',
-    pi: (raw.pi || []).join(','),
-    orgs: raw.organizations || [],
-    orgstr: (raw.organizations || []).map((o) => o.post_title).join(' '),
+    // Pods hands back a scalar when a repeatable field holds one value, so
+    // these must not assume an array -- see utils/wpFields.js.
+    pi: joinField(raw.pi),
+    orgs: stringList(raw.organizations),
+    orgstr: stringList(raw.organizations).map((o) => o.post_title).join(' '),
   }
 }
 

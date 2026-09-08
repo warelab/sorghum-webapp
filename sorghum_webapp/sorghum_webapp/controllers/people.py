@@ -50,9 +50,13 @@ def _ensure_wp_auth():
     if username and password:
         wpapi.authenticator = HTTPBasicAuth(username, password)
     else:
-        logger.warning(
-            "people: SB_WP_USERNAME / SB_WP_PASSWORD not set; the people "
-            "payload will be empty"
+        # Raise rather than warn: without credentials the UserRequest below
+        # returns nothing, and a silently empty payload used to be cached as
+        # if it were real content. A hard failure is caught by the wp_cache
+        # refill guard, which keeps the previous good payload instead.
+        raise RuntimeError(
+            "people: SB_WP_USERNAME / SB_WP_PASSWORD not set; refusing to "
+            "build an empty people payload"
         )
 
 

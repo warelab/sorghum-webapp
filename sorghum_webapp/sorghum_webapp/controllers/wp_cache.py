@@ -322,6 +322,119 @@ def _write_cache(resource, items, meta, ttl):
     _mem_cache[resource] = (items, meta)
 
 
+# --- Refill guard -----------------------------------------------------------
+#
+# A broken WordPress can answer HTTP 200 with an empty or badly truncated list
+# (a disabled plugin, a renamed custom post type, an auth/permission change).
+# Storing that payload destroys a good cache, and _sync_typesense then wipes
+# the matching Typesense collection along with it. So a refill that shrinks the
+# cached payload by more than this fraction is rejected and the existing data
+# is kept. Overridable per-deployment via WP_CACHE_SHRINK_TOLERANCE.
+_DEFAULT_SHRINK_TOLERANCE = 0.20
+
+
+def _shrink_tolerance():
+    try:
+        return float(app.config.get("WP_CACHE_SHRINK_TOLERANCE",
+                                    _DEFAULT_SHRINK_TOLERANCE))
+    except (TypeError, ValueError):
+        return _DEFAULT_SHRINK_TOLERANCE
+
+
+def _payload_size(items):
+    """Number of records in a cached payload.
+
+    Lists count directly. The builder resources (home_posts, people) return a
+    dict of lists, where len() is always the number of sections -- which would
+    hide an emptied section completely -- so those count the sum of their
+    branches instead.
+    """
+    if items is None:
+        return 0
+    if isinstance(items, dict):
+        return sum(_payload_size(v) for v in items.values())
+    try:
+        return len(items)
+    except TypeError:
+        return 0
+
+
+def _reject_reason(new_items, old_items, wp_total):
+    """Why `new_items` must not replace `old_items`, or None if it's safe.
+
+    A cold cache always accepts: there is nothing to protect, and a newly
+    registered resource has to be allowed to fill.
+    """
+    if new_items is None:
+        return "WordPress returned no payload"
+
+    new_size = _payload_size(new_items)
+    tolerance = _shrink_tolerance()
+
+    # WP reports how many records matched. Ending up with far fewer than it
+    # advertised means the paginated fetch lost data -- an inconsistency in the
+    # response itself, independent of what the cache holds.
+    if wp_total and new_size < wp_total * (1.0 - tolerance):
+        return ("fetched %d of the %d records WordPress reported in X-WP-Total"
+                % (new_size, wp_total))
+
+    if old_items is None:
+        return None
+
+    old_size = _payload_size(old_items)
+    if old_size == 0:
+        return None
+
+    if new_size == 0:
+        return "WordPress returned 0 items; the cache holds %d" % old_size
+
+    if new_size < old_size * (1.0 - tolerance):
+        return ("%d -> %d (%.0f%%) exceeds the %.0f%% shrink tolerance"
+                % (old_size, new_size,
+                   100.0 * (new_size - old_size) / old_size,
+                   100.0 * tolerance))
+    return None
+
+
+def _keep_existing(resource, ttl, reason):
+    """A refill failed or was rejected: keep what we already have.
+
+    Rewrites the cached payload unchanged, which also renews its Redis TTL.
+    That matters because _write_cache uses SETEX: during a prolonged WordPress
+    outage nothing else refreshes those keys, so they would eventually lapse on
+    their own and the cache would drain away even though no bad data was ever
+    written.
+
+    `fetched_at` and `count` are deliberately preserved -- clients gate their
+    money-clip refresh on /api/wp_cache/_timestamps, and the data hasn't
+    changed, so they shouldn't re-download it. Typesense is NOT resynced; the
+    index keeps the documents it already has.
+
+    Returns (items, meta), or (None, None) when the cache is cold and there is
+    nothing to fall back on.
+    """
+    items, meta = _read_cache_raw(resource)
+    if items is None or meta is None:
+        logger.error(
+            "wp_cache: refill of %s failed with a cold cache (%s); "
+            "nothing to fall back on", resource, reason,
+        )
+        return None, None
+
+    now = time.time()
+    meta = dict(meta)
+    meta.setdefault("stale_since", now)   # first rejection of this streak
+    meta["last_refill_error"] = reason
+    meta["last_refill_attempt"] = now
+    _write_cache(resource, items, meta, ttl)
+    logger.error(
+        "wp_cache: STALE %s -- refill rejected: %s (keeping %d cached records "
+        "fetched at %s)",
+        resource, reason, _payload_size(items), meta.get("fetched_at"),
+    )
+    return items, meta
+
+
 # Atomic compare-and-delete so we only release the lock if we still own it.
 # (TTL might have expired and another worker could now hold the same key.)
 _RELEASE_LOCK_LUA = (
@@ -337,19 +450,53 @@ _LOCK_POLL_SECONDS = 0.5
 _LOCK_WAIT_BUDGET = _LOCK_TTL_SECONDS + 30
 
 
-def _do_fetch_and_store(resource, ttl):
+def _do_fetch_and_store(resource, ttl, allow_shrink=False):
     entry = RESOURCES[resource]
     logger.info("wp_cache: refreshing %s from WordPress", resource)
     t0 = time.time()
-    if "builder" in entry:
-        items = entry["builder"]()
-        total = None
-    else:
-        items, total = _fetch_all_from_wp(entry)
     try:
-        count = len(items)
-    except TypeError:
-        count = 0
+        if "builder" in entry:
+            items = entry["builder"]()
+            total = None
+        else:
+            items, total = _fetch_all_from_wp(entry)
+    except Exception as e:
+        # A hard failure must never cost us the cache. Keep the old payload
+        # and renew its TTL; only a cold cache surfaces the error to the
+        # caller (and so to the cron warm as a non-zero exit).
+        kept_items, kept_meta = _keep_existing(resource, ttl, "fetch failed: %s" % e)
+        if kept_items is None:
+            raise
+        return kept_items, kept_meta
+
+    # Read the previous payload once -- it feeds both the shrink guard below
+    # and the change detection after it.
+    try:
+        old_items, old_meta = _read_cache_raw(resource)
+    except Exception as e:
+        logger.warning(
+            "wp_cache: could not read the previous %s payload (%s); "
+            "treating the refill as new", resource, e,
+        )
+        old_items, old_meta = None, None
+
+    reason = _reject_reason(items, old_items, total)
+    if reason and allow_shrink:
+        logger.warning(
+            "wp_cache: storing %s refill despite the guard (allow_shrink=1): %s",
+            resource, reason,
+        )
+        reason = None
+    if reason:
+        kept_items, kept_meta = _keep_existing(resource, ttl, reason)
+        if kept_items is not None:
+            return kept_items, kept_meta
+        # Cold cache: there is nothing to protect, so store what we got rather
+        # than leave the resource permanently unfilled.
+        logger.warning(
+            "wp_cache: %s tripped the refill guard (%s) but the cache is cold; "
+            "storing anyway", resource, reason,
+        )
 
     # Compare the freshly-fetched payload to the previous cache contents.
     # When they're identical, reuse the old fetched_at: clients gate their
@@ -357,23 +504,18 @@ def _do_fetch_and_store(resource, ttl):
     # timestamp lets them skip re-downloading data that didn't change.
     fetched_at = time.time()
     unchanged = False
-    try:
-        old_items, old_meta = _read_cache_raw(resource)
-        if old_items is not None and items == old_items:
-            unchanged = True
-            fetched_at = (old_meta or {}).get("fetched_at", fetched_at)
-            logger.info(
-                "wp_cache: %s content unchanged; keeping fetched_at=%s",
-                resource, fetched_at,
-            )
-    except Exception as e:
-        logger.warning(
-            "wp_cache: change-detection failed for %s (%s); treating as new",
-            resource, e,
+    if old_items is not None and items == old_items:
+        unchanged = True
+        fetched_at = (old_meta or {}).get("fetched_at", fetched_at)
+        logger.info(
+            "wp_cache: %s content unchanged; keeping fetched_at=%s",
+            resource, fetched_at,
         )
 
+    # A meta built from scratch drops any stale_since / last_refill_error left
+    # by an earlier rejection, so recovery is visible.
     meta = {
-        "count": count,
+        "count": _payload_size(items),
         "fetched_at": fetched_at,
         "fetch_seconds": round(time.time() - t0, 2),
     }
@@ -466,6 +608,12 @@ def _get_or_refresh(resource):
 
 
 def _invalidate(resource):
+    """Delete a resource's cache entries outright.
+
+    No callers -- kept as an admin primitive. Prefer _refresh(), which
+    overwrites in place: deleting before a refill means a WordPress failure
+    during that window leaves nothing behind.
+    """
     rds = _get_redis()
     if rds:
         try:
@@ -475,7 +623,7 @@ def _invalidate(resource):
     _mem_cache.pop(resource, None)
 
 
-def _refresh(resource):
+def _refresh(resource, allow_shrink=False):
     """Refill the cache regardless of TTL freshness, *without* deleting
     the existing entry first. The old payload stays in Redis until
     _do_fetch_and_store overwrites it, so the change-detection path can
@@ -489,12 +637,16 @@ def _refresh(resource):
     to redownload unchanged payloads every 30 minutes.
 
     Acquires the same cross-worker SET-NX lock as _get_or_refresh so we
-    don't race with a natural refill in another gunicorn worker."""
+    don't race with a natural refill in another gunicorn worker.
+
+    `allow_shrink` bypasses the shrink guard in _do_fetch_and_store, for the
+    case where content really was deleted in bulk in WordPress and the smaller
+    payload is the correct one. The cron warm never passes it."""
     ttl = int(app.config.get("WP_CACHE_TTL", 3600))
     rds = _get_redis()
     if rds is None:
         with _resource_lock(resource):
-            return _do_fetch_and_store(resource, ttl)
+            return _do_fetch_and_store(resource, ttl, allow_shrink=allow_shrink)
 
     lock_key = f"wp_cache:{resource}:lock"
     token = uuid.uuid4().hex
@@ -502,11 +654,11 @@ def _refresh(resource):
         acquired = rds.set(lock_key, token, nx=True, ex=_LOCK_TTL_SECONDS)
     except Exception as e:
         logger.warning("wp_cache: lock acquire failed (%s); refreshing unguarded", e)
-        return _do_fetch_and_store(resource, ttl)
+        return _do_fetch_and_store(resource, ttl, allow_shrink=allow_shrink)
 
     if acquired:
         try:
-            return _do_fetch_and_store(resource, ttl)
+            return _do_fetch_and_store(resource, ttl, allow_shrink=allow_shrink)
         finally:
             try:
                 rds.eval(_RELEASE_LOCK_LUA, 1, lock_key, token)
@@ -525,7 +677,7 @@ def _refresh(resource):
         "wp_cache: gave up waiting on lock for forced refresh of %s; refreshing unguarded",
         resource,
     )
-    return _do_fetch_and_store(resource, ttl)
+    return _do_fetch_and_store(resource, ttl, allow_shrink=allow_shrink)
 
 
 @wp_cache_page.route("/api/wp_cache/_resources")
@@ -567,12 +719,17 @@ def cache_resource(resource):
     if resource not in RESOURCES:
         flask.abort(404)
     if flask.request.args.get("force") == "1":
-        items, meta = _refresh(resource)
+        items, meta = _refresh(
+            resource, allow_shrink=flask.request.args.get("allow_shrink") == "1")
     else:
         items, meta = _get_or_refresh(resource)
+    # Always 200 with the good data, even when the last refill was rejected --
+    # the site keeps working; the header is what says the data is stale.
     response = flask.jsonify(items)
     response.headers["X-Wp-Cache-Count"] = str(meta["count"])
     response.headers["X-Wp-Cache-Fetched-At"] = str(meta["fetched_at"])
+    if meta.get("last_refill_error"):
+        response.headers["X-Wp-Cache-Stale"] = "1"
     return response
 
 
@@ -581,7 +738,13 @@ def cache_resource_meta(resource):
     if resource not in RESOURCES:
         flask.abort(404)
     if flask.request.args.get("force") == "1":
-        _, meta = _refresh(resource)
+        _, meta = _refresh(
+            resource, allow_shrink=flask.request.args.get("allow_shrink") == "1")
     else:
         _, meta = _get_or_refresh(resource)
-    return flask.jsonify(meta)
+    # `last_refill_error` / `stale_since` ride along in the JSON; warm_wp_cache.sh
+    # keys off them to report STALE and exit non-zero.
+    response = flask.jsonify(meta)
+    if meta.get("last_refill_error"):
+        response.headers["X-Wp-Cache-Stale"] = "1"
+    return response

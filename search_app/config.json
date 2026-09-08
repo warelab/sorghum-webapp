@@ -2,11 +2,14 @@
   "id": 'sorghum',
   "name": 'Sorghumbase',
   "url": 'https://sorghumbase.org',
-  "ensemblURL": 'https://ensembl.sorghumbase.org',
-  "ensemblSite": 'https://ensembl.sorghumbase.org',
-  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-108',
-  "grameneData": 'https://data.sorghumbase.org/sorghum_v10b',
-  "targetTaxonId": 4558001,
+  "ensemblURL": 'https://ensembl-dev.sorghumbase.org',
+  "ensemblSite": 'https://ensembl-dev.sorghumbase.org',
+  "ensemblRest": 'https://data.gramene.org/pansite-ensembl-115',
+  "grameneData": 'https://data.sorghumbase.org/sorghum_v11',
+  // GXA instance the Expression tab's embedded atlas widget queries. The
+  // widget defaults to the auth_testing instance when this is absent, so it
+  // must be set explicitly per data release.
+  "atlasUrl": 'https://data.sorghumbase.org/sorghum_v11/gxa/',
   "ga": 'G-L5KXDCCZ16',
   "playlistIds": [
     'PLqQHG-yuRY19bQtXH61sw7AAmsUrT-G_K'  // SB new list

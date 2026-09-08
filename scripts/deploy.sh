@@ -29,6 +29,7 @@
 #   FORWARDED_ALLOW_IPS   *                 # restrict to your proxy's IP in prod
 #   WP_BASE_URL           https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/
 #   WARM_SCHEDULE         */30 * * * *      # cron entry for warm_wp_cache.sh
+#   WARM_MAILTO           root              # address cron mails warm failures to
 #   TYPESENSE_PORT        8108              # bound to 127.0.0.1 only
 
 set -euo pipefail
@@ -51,6 +52,7 @@ GUNICORN_THREADS="${GUNICORN_THREADS:-2}"
 FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-*}"
 WP_BASE_URL="${WP_BASE_URL:-https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2/}"
 WARM_SCHEDULE="${WARM_SCHEDULE:-*/30 * * * *}"
+WARM_MAILTO="${WARM_MAILTO:-root}"
 TYPESENSE_PORT="${TYPESENSE_PORT:-8108}"
 
 LOG_DIR="/var/log/sorghum-webapp"
@@ -277,7 +279,8 @@ install_cron() {
 # Refill wp_cache + sync Typesense. See sorghum_webapp/scripts/warm_wp_cache.sh.
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-${WARM_SCHEDULE} ${APP_USER} ${FLASK_DIR}/scripts/warm_wp_cache.sh http://${GUNICORN_BIND} 2>&1 | logger -t wp_cache_warm
+MAILTO=${WARM_MAILTO}
+${WARM_SCHEDULE} ${APP_USER} ${FLASK_DIR}/scripts/warm_wp_cache.sh http://${GUNICORN_BIND}
 EOF
     sudo_ chmod 644 "$CRON_FILE"
 }
