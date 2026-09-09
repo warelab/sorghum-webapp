@@ -44,11 +44,11 @@ const PATHWAY_SUGGESTION = {
 export const TOUR_SECTIONS = [
   { start: 1, title: 'Run a search', blurb: 'Find genes by pathway, not by ID' },
   { start: 6, title: 'Read the results', blurb: 'Filters, distribution and the gene list' },
-  { start: 12, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs and the family tree' },
-  { start: 16, title: 'Refine the set', blurb: 'Count your results by category' },
-  { start: 18, title: 'Views', blurb: 'Read the same genes another way' },
-  { start: 20, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
-  { start: 24, title: 'Enrichment & export', blurb: 'Over-represented terms, and taking data with you' }
+  { start: 15, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs and the family tree' },
+  { start: 19, title: 'Refine the set', blurb: 'Count your results by category' },
+  { start: 21, title: 'Views', blurb: 'Read the same genes another way' },
+  { start: 23, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
+  { start: 27, title: 'Enrichment & export', blurb: 'Over-represented terms, and taking data with you' }
 ]
 
 // --- DOM helpers for the live search demo -----------------------------------
@@ -538,8 +538,11 @@ export default function buildSteps(getProps) {
         `switch AND/OR, or remove it.`
     },
     {
-      // The menu is opened by the `before` hook below, so point at it if it is
-      // there and fall back to the panel if the filter could not be found.
+      // Intro: open the menu and explain the idea, but change nothing yet. The
+      // three options each get their own step below, so the visitor reads about
+      // an expansion while looking at the count that expansion produced —
+      // previously all three fired inside one `before`, behind the loader, and
+      // the text only appeared once the whole demo was over.
       target: () =>
         document.querySelector('.gramene-filter-menu') ||
         document.querySelector('.sorghumbase-filter-container'),
@@ -549,30 +552,73 @@ export default function buildSteps(getProps) {
         `Filters only ever narrow a set. "Expand search" grows it along a ` +
         `biological relationship instead: the genes you matched become the ` +
         `starting point, and the result is those genes plus everything reachable ` +
-        `from them. Watch the count as each option is picked — orthologs pulls in ` +
-        `the equivalent genes in other genomes, paralogs stays inside this one, ` +
-        `and neighborhood takes the ten genes either side along the chromosome. ` +
-        `Picking the selected option again clears it, which is where we finish so ` +
-        `the rest of the tour runs on the pathway genes.`,
+        `from them. There are three ways to do it — orthologs, paralogs and ` +
+        `neighborhood. We take them one at a time; watch the gene count as each ` +
+        `is applied.`,
       before: async () => {
         if (!(await ensurePathwaySearch())) return false
         await revealTarget('.sorghumbase-filter-container', { block: 'start' })
-        if (!(await openFilterMenu())) return false
-        // Demonstrate each in turn. The clear runs in `finally` so a slow or
-        // failed re-run can't leave the tour expanded — every later step assumes
-        // the plain pathway set.
-        try {
-          await pickExpansion('orthologs')
-          await pickExpansion('paralogs')
-          await pickExpansion('neighborhood')
-        } finally {
-          await clearExpansion()
-        }
+        // Start clean: replaying this chapter must not inherit an expansion left
+        // behind by an earlier pass. No-op when nothing is applied.
+        await clearExpansion()
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by orthologs',
+      content:
+        `Orthologs are the equivalent genes in other genomes. This keeps every ` +
+        `gene you already had and adds their counterparts in the other species, ` +
+        `so the count climbs and the set spreads out across the species tree.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        // dwell 0: the step itself now holds the state for as long as the
+        // visitor reads, so the artificial hold the combined step needed is gone.
+        await pickExpansion('orthologs', 0)
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by paralogs',
+      content:
+        `Paralogs stay inside a single genome — copies that arose by duplication ` +
+        `rather than speciation. These are radio options, so picking paralogs ` +
+        `switches straight from orthologs: the count changes in character as ` +
+        `well as in size.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        await pickExpansion('paralogs', 0)
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by neighborhood',
+      content:
+        `Neighborhood takes the ten genes either side of each match along the ` +
+        `chromosome — genomic context rather than homology. Picking the selected ` +
+        `option again clears it, which is what happens as we leave this step, so ` +
+        `the rest of the tour runs on the plain pathway genes.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        await pickExpansion('neighborhood', 0)
         return !!(await openFilterMenu())
       },
       after: async () => {
-        // Backstop: the visitor can hit Next or Skip mid-demo, which aborts the
-        // hook above before its `finally` has run.
         await clearExpansion()
         // Close the menu so it doesn't sit over the next step's target.
         const node = pathwayFilterNode()
@@ -587,7 +633,13 @@ export default function buildSteps(getProps) {
         `The top of the results shows how the matching genes are distributed across ` +
         `the species tree and along the genome — a quick read on whether a result ` +
         `set is broad or concentrated.`,
-      before: async () => revealTarget('.results-vis', { block: 'start' })
+      before: async () => {
+        // Backstop: the previous step's `after` does not run when the visitor
+        // hits Skip, so an abandoned tour could otherwise leave the set
+        // expanded. clearExpansion() is a no-op when nothing is applied.
+        await clearExpansion()
+        return revealTarget('.results-vis', { block: 'start' })
+      }
     },
     {
       target: '.results-vis .tbrowse-zone-toggle',
