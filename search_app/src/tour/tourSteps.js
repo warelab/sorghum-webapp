@@ -455,7 +455,11 @@ export default function buildSteps(getProps) {
       title: 'Start with the spyglass',
       content:
         `Every search starts here. Click the spyglass in the menu bar — or just ` +
-        `press / — to open the search box from any page on the site.`
+        `press / — to open the search box from any page on the site.`,
+      // Joyride runs with skipScroll, so a step that does not scroll its own
+      // target leaves the tooltip anchored off-screen when the visitor started
+      // the tour from part-way down the page.
+      before: async () => revealTarget('.search-open', { block: 'center' })
     },
     {
       // The whole search overlay, so the highlight covers the input together
@@ -478,6 +482,7 @@ export default function buildSteps(getProps) {
         // and the panel together, so measuring before it opens would clip it.
         await waitFor(() => findSuggestion(PATHWAY_LABEL), { timeout: 20000 })
         searchAreaBox()
+        return revealTarget(() => searchAreaBox(), { block: 'center' })
       }
     },
     {
@@ -492,12 +497,18 @@ export default function buildSteps(getProps) {
       before: async () => {
         // Wait for the suggestion fetch to land, not just the panel to mount.
         await waitFor(() => findSuggestion(PATHWAY_LABEL), { timeout: 20000 })
+        return revealTarget('.search-suggestions', { block: 'center' })
       }
     },
     {
       target: () => findSuggestion(PATHWAY_LABEL),
       placement: 'bottom',
       title: 'Pick the pathway',
+      // The suggestions list is its own scroll pane and this row is often below
+      // its fold, so without this the tooltip anchors off-screen and the overlay
+      // leaves no way to scroll to it.
+      before: async () =>
+        revealTarget(() => findSuggestion(PATHWAY_LABEL), { block: 'center' }),
       content:
         `Under Plant Reactome: Pathway, "${PATHWAY_LABEL}" matches 32 genes across ` +
         `the pan-genome. Choosing it turns the term into a search filter — that's ` +
@@ -531,6 +542,10 @@ export default function buildSteps(getProps) {
       target: '.sorghumbase-filter-container',
       placement: 'right',
       title: 'Filters build the query',
+      // Don't inherit step 6's scroll position — stepping Back from step 8
+      // arrives here with the sidebar scrolled elsewhere.
+      before: async () =>
+        revealTarget('.sorghumbase-filter-container', { block: 'start' }),
       content:
         `The term you accepted is now a filter, shown as "category | value". ` +
         `Filters combine with AND by default, so you can keep adding terms — a ` +
@@ -641,16 +656,16 @@ export default function buildSteps(getProps) {
         return revealTarget('.results-vis', { block: 'start' })
       }
     },
-    {
-      target: '.results-vis .tbrowse-zone-toggle',
-      placement: 'bottom',
-      title: 'TBrowse, over your results',
-      content:
-        `This is TBrowse, which composes "zones" side by side. Tree and Labels show ` +
-        `which species carry these genes, Genes counts them per genome, and Genome ` +
-        `distribution maps them onto the chromosomes.`,
-      before: async () => revealTarget('.results-vis .tbrowse-zone-toggle', { block: 'start' })
-    },
+    // {
+    //   target: '.results-vis .tbrowse-zone-toggle',
+    //   placement: 'bottom',
+    //   title: 'TBrowse, over your results',
+    //   content:
+    //     `This is TBrowse, which composes "zones" side by side. Tree and Labels show ` +
+    //     `which species carry these genes, Genes counts them per genome, and Genome ` +
+    //     `distribution maps them onto the chromosomes.`,
+    //   before: async () => revealTarget('.results-vis .tbrowse-zone-toggle', { block: 'start' })
+    // },
     {
       target: '.result-gene',
       placement: 'top',
@@ -725,7 +740,7 @@ export default function buildSteps(getProps) {
     {
       target: () => {
         const card = findGeneCard(EXAMPLE_GENE)
-        return card ? card.querySelector('.gene-genetree .tbrowse-zone-toggle') : null
+        return card ? card.querySelector('.gene-genetree') : null
       },
       placement: 'bottom',
       title: 'Zones stack the evidence',
@@ -797,12 +812,22 @@ export default function buildSteps(getProps) {
           if (viewIsOn('attrTable')) callIfPresent(doToggleGrameneView, 'attrTable')
           return false
         }
-        return revealTarget('.attrtable-aggrid', { block: 'start', settle: 700 })
+        // `block: 'start'` puts the table's top flush with the top of the pane,
+        // which leaves a `placement: 'top'` tooltip nowhere to go: the grid is
+        // taller than the viewport, so Joyride can't flip it below either, and it
+        // renders clipped off the top edge with only its button row visible.
+        // Reserve room above the table for the tooltip — proportional to the
+        // viewport so short screens don't push the grid off the bottom.
+        return revealTarget('.attrtable-aggrid', {
+          block: 'start',
+          margin: Math.min(360, Math.round(window.innerHeight * 0.42)),
+          settle: 700
+        })
       },
     },
     {
       target: '.exprviz-view',
-      placement: 'top',
+      placement: 'center',
       title: 'Expression visualization',
       content:
         `Expression data is per genome, so this view opens on a tab per genome in ` +
@@ -820,7 +845,7 @@ export default function buildSteps(getProps) {
     },
     {
       target: () => exprVizActive('.exprviz-hm-container'),
-      placement: 'top',
+      placement: 'center',
       title: 'Pick samples, then load',
       content:
         `Choose fields to add sample columns — grouped by study, so you can take a ` +
