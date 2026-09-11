@@ -44,11 +44,11 @@ const PATHWAY_SUGGESTION = {
 export const TOUR_SECTIONS = [
   { start: 1, title: 'Run a search', blurb: 'Find genes by pathway, not by ID' },
   { start: 6, title: 'Read the results', blurb: 'Filters, distribution and the gene list' },
-  { start: 12, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs and the family tree' },
-  { start: 16, title: 'Refine the set', blurb: 'Count your results by category' },
-  { start: 18, title: 'Views', blurb: 'Read the same genes another way' },
-  { start: 20, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
-  { start: 24, title: 'Enrichment & export', blurb: 'Over-represented terms, and taking data with you' }
+  { start: 14, title: `One gene: ${EXAMPLE_GENE_NAME.toUpperCase()}`, blurb: 'Evidence tabs, pathways and the family tree' },
+  { start: 19, title: 'Refine the set', blurb: 'Count your results by category' },
+  { start: 20, title: 'Views', blurb: 'Read the same genes another way' },
+  { start: 22, title: 'Expression', blurb: 'Heatmap, parallel coordinates, brushing' },
+  { start: 26, title: 'Enrichment, lists & export', blurb: 'Over-represented terms, your own gene lists, and taking data with you' }
 ]
 
 // --- DOM helpers for the live search demo -----------------------------------
@@ -455,7 +455,11 @@ export default function buildSteps(getProps) {
       title: 'Start with the spyglass',
       content:
         `Every search starts here. Click the spyglass in the menu bar — or just ` +
-        `press / — to open the search box from any page on the site.`
+        `press / — to open the search box from any page on the site.`,
+      // Joyride runs with skipScroll, so a step that does not scroll its own
+      // target leaves the tooltip anchored off-screen when the visitor started
+      // the tour from part-way down the page.
+      before: async () => revealTarget('.search-open', { block: 'center' })
     },
     {
       // The whole search overlay, so the highlight covers the input together
@@ -478,6 +482,7 @@ export default function buildSteps(getProps) {
         // and the panel together, so measuring before it opens would clip it.
         await waitFor(() => findSuggestion(PATHWAY_LABEL), { timeout: 20000 })
         searchAreaBox()
+        return revealTarget(() => searchAreaBox(), { block: 'center' })
       }
     },
     {
@@ -487,17 +492,23 @@ export default function buildSteps(getProps) {
       content:
         `As you type, matching terms are grouped by what they are — pathways, ` +
         `ontology terms, gene names — and each one shows how many genes it would ` +
-        `find. That number tells you whether a term is worth pursuing before you ` +
+        `find. That number tells you whether a term is broad or specific before you ` +
         `commit to it.`,
       before: async () => {
         // Wait for the suggestion fetch to land, not just the panel to mount.
         await waitFor(() => findSuggestion(PATHWAY_LABEL), { timeout: 20000 })
+        return revealTarget('.search-suggestions', { block: 'center' })
       }
     },
     {
       target: () => findSuggestion(PATHWAY_LABEL),
       placement: 'bottom',
       title: 'Pick the pathway',
+      // The suggestions list is its own scroll pane and this row is often below
+      // its fold, so without this the tooltip anchors off-screen and the overlay
+      // leaves no way to scroll to it.
+      before: async () =>
+        revealTarget(() => findSuggestion(PATHWAY_LABEL), { block: 'center' }),
       content:
         `Under Plant Reactome: Pathway, "${PATHWAY_LABEL}" matches 32 genes across ` +
         `the pan-genome. Choosing it turns the term into a search filter — that's ` +
@@ -528,58 +539,6 @@ export default function buildSteps(getProps) {
       }
     },
     {
-      target: '.sorghumbase-filter-container',
-      placement: 'right',
-      title: 'Filters build the query',
-      content:
-        `The term you accepted is now a filter, shown as "category | value". ` +
-        `Filters combine with AND by default, so you can keep adding terms — a ` +
-        `species, an expression class — to narrow the set. Click one to negate it, ` +
-        `switch AND/OR, or remove it.`
-    },
-    {
-      // The menu is opened by the `before` hook below, so point at it if it is
-      // there and fall back to the panel if the filter could not be found.
-      target: () =>
-        document.querySelector('.gramene-filter-menu') ||
-        document.querySelector('.sorghumbase-filter-container'),
-      placement: 'right',
-      title: 'Expand the search beyond the filter',
-      content:
-        `Filters only ever narrow a set. "Expand search" grows it along a ` +
-        `biological relationship instead: the genes you matched become the ` +
-        `starting point, and the result is those genes plus everything reachable ` +
-        `from them. Watch the count as each option is picked — orthologs pulls in ` +
-        `the equivalent genes in other genomes, paralogs stays inside this one, ` +
-        `and neighborhood takes the ten genes either side along the chromosome. ` +
-        `Picking the selected option again clears it, which is where we finish so ` +
-        `the rest of the tour runs on the pathway genes.`,
-      before: async () => {
-        if (!(await ensurePathwaySearch())) return false
-        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
-        if (!(await openFilterMenu())) return false
-        // Demonstrate each in turn. The clear runs in `finally` so a slow or
-        // failed re-run can't leave the tour expanded — every later step assumes
-        // the plain pathway set.
-        try {
-          await pickExpansion('orthologs')
-          await pickExpansion('paralogs')
-          await pickExpansion('neighborhood')
-        } finally {
-          await clearExpansion()
-        }
-        return !!(await openFilterMenu())
-      },
-      after: async () => {
-        // Backstop: the visitor can hit Next or Skip mid-demo, which aborts the
-        // hook above before its `finally` has run.
-        await clearExpansion()
-        // Close the menu so it doesn't sit over the next step's target.
-        const node = pathwayFilterNode()
-        if (node && document.querySelector('.gramene-filter-menu')) node.click()
-      }
-    },
-    {
       target: '.results-vis',
       placement: 'bottom',
       title: 'Where the matches are',
@@ -587,24 +546,132 @@ export default function buildSteps(getProps) {
         `The top of the results shows how the matching genes are distributed across ` +
         `the species tree and along the genome — a quick read on whether a result ` +
         `set is broad or concentrated.`,
-      before: async () => revealTarget('.results-vis', { block: 'start' })
+      before: async () => {
+        // Backstop: the previous step's `after` does not run when the visitor
+        // hits Skip, so an abandoned tour could otherwise leave the set
+        // expanded. clearExpansion() is a no-op when nothing is applied.
+        await clearExpansion()
+        return revealTarget('.results-vis', { block: 'start' })
+      }
     },
     {
-      target: '.results-vis .tbrowse-zone-toggle',
-      placement: 'bottom',
-      title: 'TBrowse, over your results',
+      target: '.sorghumbase-filter-container',
+      placement: 'right',
+      title: 'Filters build the query',
+      // Don't inherit step 6's scroll position — stepping Back from step 8
+      // arrives here with the sidebar scrolled elsewhere.
+      before: async () =>
+        revealTarget('.sorghumbase-filter-container', { block: 'start' }),
       content:
-        `This is TBrowse, which composes "zones" side by side. Tree and Labels show ` +
-        `which species carry these genes, Genes counts them per genome, and Genome ` +
-        `distribution maps them onto the chromosomes.`,
-      before: async () => revealTarget('.results-vis .tbrowse-zone-toggle', { block: 'start' })
+        `The term you accepted is now a filter, shown as "category | value". ` +
+        `Filters combine with AND by default, so you can keep adding terms — a ` +
+        `species, an expression class, a gene list — to narrow the set. Click one to negate it, ` +
+        `switch AND/OR, or remove it.`
     },
+    {
+      // Intro: open the menu and explain the idea, but change nothing yet. The
+      // three options each get their own step below, so the visitor reads about
+      // an expansion while looking at the count that expansion produced —
+      // previously all three fired inside one `before`, behind the loader, and
+      // the text only appeared once the whole demo was over.
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand the search',
+      content:
+        `Filters only ever narrow the search. "Expand search" grows it along a ` +
+        `biological relationship instead: the genes you matched become the ` +
+        `starting point, and the result is those genes plus everything reachable ` +
+        `from them. There are three ways to do it — orthologs, paralogs and ` +
+        `neighborhood. We take them one at a time; watch the gene count and taxonomic distribution as each ` +
+        `is applied.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        // Start clean: replaying this chapter must not inherit an expansion left
+        // behind by an earlier pass. No-op when nothing is applied.
+        await clearExpansion()
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by orthologs',
+      content:
+        `Orthologs are the equivalent genes in other genomes. This keeps every ` +
+        `gene you already had and adds their counterparts in the other species, ` +
+        `so the count climbs and the set spreads out across the species tree.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        // dwell 0: the step itself now holds the state for as long as the
+        // visitor reads, so the artificial hold the combined step needed is gone.
+        await pickExpansion('orthologs', 0)
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by paralogs',
+      content:
+        `Paralogs stay inside a single genome — copies that arose by duplication ` +
+        `rather than speciation. These are radio options, so picking paralogs ` +
+        `switches straight from orthologs: the count changes in character as ` +
+        `well as in size.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        await pickExpansion('paralogs', 0)
+        return !!(await openFilterMenu())
+      }
+    },
+    {
+      target: () =>
+        document.querySelector('.gramene-filter-menu') ||
+        document.querySelector('.sorghumbase-filter-container'),
+      placement: 'right',
+      title: 'Expand by neighborhood',
+      content:
+        `Neighborhood takes the ten genes either side of each match along the ` +
+        `chromosome — genomic context rather than homology. Picking the selected ` +
+        `option again clears it, which is what happens as we leave this step, so ` +
+        `the rest of the tour runs on the plain pathway genes.`,
+      before: async () => {
+        if (!(await ensurePathwaySearch())) return false
+        await revealTarget('.sorghumbase-filter-container', { block: 'start' })
+        await pickExpansion('neighborhood', 0)
+        return !!(await openFilterMenu())
+      },
+      after: async () => {
+        await clearExpansion()
+        // Close the menu so it doesn't sit over the next step's target.
+        const node = pathwayFilterNode()
+        if (node && document.querySelector('.gramene-filter-menu')) node.click()
+      }
+    },
+    // {
+    //   target: '.results-vis .tbrowse-zone-toggle',
+    //   placement: 'bottom',
+    //   title: 'TBrowse, over your results',
+    //   content:
+    //     `This is TBrowse, which composes "zones" side by side. Tree and Labels show ` +
+    //     `which species carry these genes, Genes counts them per genome, and Genome ` +
+    //     `distribution maps them onto the chromosomes.`,
+    //   before: async () => revealTarget('.results-vis .tbrowse-zone-toggle', { block: 'start' })
+    // },
     {
       target: '.result-gene',
       placement: 'top',
       title: 'The gene list',
       content:
-        `Below that is the paginated list of the 32 matching genes, each with its ` +
+        `Below the taxonomic distribution is the paginated list of matching genes, each with its ` +
         `species, identifiers and description.`,
       before: async () => revealTarget('.result-gene', { block: 'start' })
     },
@@ -648,15 +715,64 @@ export default function buildSteps(getProps) {
     {
       target: () => {
         const card = findGeneCard(EXAMPLE_GENE)
+        return card ? card.querySelector('.pathways-container') : null
+      },
+      placement: 'top',
+      title: 'Pathways: where the gene acts',
+      content:
+        `Pathways is what put ${EXAMPLE_GENE_NAME.toUpperCase()} in this result set. ` +
+        `The tree on the left lists every Plant Reactome pathway and reaction the ` +
+        `gene takes part in; the diagram shows the selected one with the gene ` +
+        `flagged.`,
+      before: async () => {
+        await ensurePathwaySearch()
+        const card = await waitFor(() => findGeneCard(EXAMPLE_GENE), { timeout: 15000 })
+        if (!card) return false
+        callIfPresent(doExpandGeneDetail, { geneId: EXAMPLE_GENE, detail: 'pathways' })
+        // The hierarchy needs a pathway-doc fetch before it picks a node, and the
+        // explore link under the diagram only renders once one is selected.
+        const tree = await waitFor(
+          () => {
+            const c = findGeneCard(EXAMPLE_GENE)
+            return c && c.querySelector(
+              '.pathways-tree-panel .rstm-tree-item--active, .pathways-tree-empty'
+            )
+          },
+          { timeout: 20000 }
+        )
+        if (!tree) return false
+        // The diagram is Reactome's GWT widget inside a srcdoc iframe (same
+        // origin, so readable). Give it a chance to draw before the spotlight
+        // lands, but don't drop the step if Reactome is slow.
+        await waitFor(
+          () => {
+            const c = findGeneCard(EXAMPLE_GENE)
+            const frame = c && c.querySelector('.pathways-diagram-panel iframe')
+            const doc = frame && frame.contentDocument
+            return doc ? doc.querySelector('#holder canvas') : null
+          },
+          { timeout: 10000 }
+        )
+        // Taller than the space a top-placed tooltip leaves at block 'start'
+        // (500px diagram plus links) — reserve room, as for Gene attributes.
+        return revealTarget(
+          () => { const c = findGeneCard(EXAMPLE_GENE); return c && c.querySelector('.pathways-container') },
+          { block: 'start', margin: Math.min(320, Math.round(window.innerHeight * 0.36)), settle: 800 }
+        )
+      }
+    },
+    {
+      target: () => {
+        const card = findGeneCard(EXAMPLE_GENE)
         return card ? card.querySelector('.gene-genetree') : null
       },
       placement: 'top',
       title: 'TBrowse: the gene family tree',
       content:
-        `Opening Homology draws the gene family tree in TBrowse. Protein domains ` +
-        `are colour coded; click a triangle to expand or collapse a branch, or a ` +
-        `gene name for its description, location and transcripts. When a search ` +
-        `returns a single gene this tab opens on its own.`,
+        `Opening Homology draws the gene family tree in TBrowse and the multiple sequence alignment zone (MSA). ` +
+        `Click a triangle to expand or collapse a branch, or a ` +
+        `gene name for more details. ` +
+        `Protein domains are color coded; zoom in to the amino acid sequence level. `,
       before: async () => {
         callIfPresent(doExpandGeneDetail, { geneId: EXAMPLE_GENE, detail: 'homology' })
         // Homology remembers its viewer per gene; force TBrowse so the zone
@@ -673,14 +789,13 @@ export default function buildSteps(getProps) {
     {
       target: () => {
         const card = findGeneCard(EXAMPLE_GENE)
-        return card ? card.querySelector('.gene-genetree .tbrowse-zone-toggle') : null
+        return card ? card.querySelector('.gene-genetree') : null
       },
       placement: 'bottom',
-      title: 'Zones stack the evidence',
+      title: 'Explore regional and functional conservation',
       content:
-        `The same zone idea, now across the family: switch on MSA to zoom to the ` +
-        `amino-acid alignment, Neighborhood to compare ±10 flanking genes, and ` +
-        `Expression to read an organ-level heatmap for every gene in the tree.`,
+        `Switch between zones: Neighborhood to compare ±10 flanking genes, and ` +
+        `Expression to read an organ-level heatmap for genes with expression data.`,
       before: async () => {
         const zone = await waitFor(
           () => { const c = findGeneCard(EXAMPLE_GENE); return c && c.querySelector('.gene-genetree .tbrowse-zone-toggle') },
@@ -699,7 +814,9 @@ export default function buildSteps(getProps) {
       content:
         `Refine counts your current results by category, so you can see what you ` +
         `have before narrowing further. It stays collapsed until you open it, and ` +
-        `the counts always describe the search in front of you.`,
+        `the counts always describe the search in front of you. The number beside each ` +
+        `value is how many of your genes match it — click it and that becomes a ` +
+        `new filter, ANDed onto the search.`,
       before: async () => {
         await ensurePathwaySearch()
         callIfPresent(doToggleFacetCounts, true)
@@ -709,20 +826,9 @@ export default function buildSteps(getProps) {
       }
     },
     {
-      target: '.facet-count',
-      placement: 'right',
-      title: 'Click a count to filter',
-      content:
-        `Available data shows which evidence these genes carry; Expression class ` +
-        `and TF family (GRASSIUS) group them biologically. The number beside each ` +
-        `value is how many of your genes match it — click it and that becomes a ` +
-        `new filter, ANDed onto the search.`,
-      before: async () => revealTarget('.facet-count', { block: 'center' })
-    },
-    {
       target: '.gramene-view-container',
       placement: 'right',
-      title: 'Views change the question',
+      title: 'Views sidebar panel',
       content:
         `The same result set can be read many ways. Toggle a view on to add it to ` +
         `the results column; click its name to jump straight to it.`,
@@ -738,19 +844,29 @@ export default function buildSteps(getProps) {
       content:
         `Gene attributes puts the whole result set in one sortable table — maximum ` +
         `expression, an organ-level heatmap, expression class, and the conditions ` +
-        `that activate or repress each gene. Click any cell to filter on that value.`,
+        `that activate or repress each gene. Click any cell to filter the search on that value.`,
       before: async () => {
         const ok = await ensureView('attrTable', '.attrtable-aggrid')
         if (!ok) {
           if (viewIsOn('attrTable')) callIfPresent(doToggleGrameneView, 'attrTable')
           return false
         }
-        return revealTarget('.attrtable-aggrid', { block: 'start', settle: 700 })
+        // `block: 'start'` puts the table's top flush with the top of the pane,
+        // which leaves a `placement: 'top'` tooltip nowhere to go: the grid is
+        // taller than the viewport, so Joyride can't flip it below either, and it
+        // renders clipped off the top edge with only its button row visible.
+        // Reserve room above the table for the tooltip — proportional to the
+        // viewport so short screens don't push the grid off the bottom.
+        return revealTarget('.attrtable-aggrid', {
+          block: 'start',
+          margin: Math.min(360, Math.round(window.innerHeight * 0.42)),
+          settle: 700
+        })
       },
     },
     {
       target: '.exprviz-view',
-      placement: 'top',
+      placement: 'center',
       title: 'Expression visualization',
       content:
         `Expression data is per genome, so this view opens on a tab per genome in ` +
@@ -768,12 +884,12 @@ export default function buildSteps(getProps) {
     },
     {
       target: () => exprVizActive('.exprviz-hm-container'),
-      placement: 'top',
+      placement: 'center',
       title: 'Pick samples, then load',
       content:
         `Choose fields to add sample columns — grouped by study, so you can take a ` +
         `whole experiment at once — then press Load data. We've loaded the first ` +
-        `study: each row is a gene, each column a sample, and the colour is its ` +
+        `study: each row is a gene, each column a sample, and the color is its ` +
         `expression level. Hover any cell for the sample's study, group and factors.`,
       before: async () => {
         const loaded = await loadExpressionForSorghum()
@@ -849,13 +965,42 @@ export default function buildSteps(getProps) {
       },
     },
     {
+      target: '[data-tour-view="userLists"]',
+      placement: 'top',
+      title: 'User Gene Lists',
+      content:
+        `Bring your own genes. Paste or drop a list of IDs on the left and they're ` +
+        `checked against the database; sign in to save the list, privately or ` +
+        `publicly. Saved lists — yours and any made public — appear on the right: ` +
+        `View turns one into a "Gene List" filter you can combine with other terms. ` +
+        `Deleted lists wait in Trash for 30 days.`,
+      before: async () => {
+        // gramene-search drops this view entirely when the site has no Firebase
+        // config, and every available view gets a data-tour-view wrapper whether
+        // it's on or not — so a missing wrapper means skip, without toggling a
+        // view that doesn't exist and waiting out the element timeout.
+        if (!document.querySelector('[data-tour-view="userLists"]')) return false
+        const ok = await ensureView('userLists', '.gene-list-display-component')
+        if (!ok) {
+          if (viewIsOn('userLists')) callIfPresent(doToggleGrameneView, 'userLists')
+          return false
+        }
+        // Taller than most viewports (textarea plus a 500px list table), so a
+        // top-placed tooltip needs room reserved above it — see Gene attributes.
+        return revealTarget('[data-tour-view="userLists"]', {
+          block: 'start',
+          margin: Math.min(360, Math.round(window.innerHeight * 0.42)),
+          settle: 500
+        })
+      },
+    },
+    {
       target: '.exporter-view',
       placement: 'top',
       title: 'Data exporter',
       content:
         `Anything you can search, you can take with you: pick the fields you want ` +
-        `and export the result set as a table. User Gene Lists (once you sign in) ` +
-        `does the same for a set of genes you want to keep.`,
+        `and export the result set as a table.`,
       before: async () => {
         const ok = await ensureView('export', '.exporter-view')
         if (!ok) return false
@@ -868,8 +1013,7 @@ export default function buildSteps(getProps) {
       title: 'Keep what you built',
       content:
         `Sign in to save a search — filters, views and open tabs — as a link you can ` +
-        `share or return to. That's the tour; the quick guides under Guides go ` +
-        `deeper on each tab.`,
+        `share or return to.`,
       before: async () => revealTarget('.sorghumbase-auth-container', { block: 'start' })
     }
   ]
