@@ -37,6 +37,9 @@
   "enable_tbrowse_expression_zone": true,
   details: {
     sequences: true,
+    // Primers tab (gramene-primers). sorghum_v11 does not serve /primers yet, so
+    // the tab uses sorghum_v11a until the primer design API is deployed there.
+    primers: { apiBase: 'https://data.sorghumbase.org/sorghum_v11a' },
     VEP: true,
     location: true,
     expression: true,
