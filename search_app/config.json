@@ -37,9 +37,9 @@
   "enable_tbrowse_expression_zone": true,
   details: {
     sequences: true,
-    // Primers tab (gramene-primers). sorghum_v11 does not serve /primers yet, so
-    // the tab uses sorghum_v11a until the primer design API is deployed there.
-    primers: { apiBase: 'https://data.sorghumbase.org/sorghum_v11a' },
+    // Primers tab (gramene-primers), including the Genotyping (KASP/AS-PCR)
+    // mode. sorghum_v11 serves /primers; `genotyping: false` hides that mode.
+    primers: { apiBase: 'https://data.sorghumbase.org/sorghum_v11' },
     VEP: true,
     location: true,
     expression: true,
