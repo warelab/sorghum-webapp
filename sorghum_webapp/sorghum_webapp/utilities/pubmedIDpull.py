@@ -520,12 +520,20 @@ def _refs_from_pymed(ids):
                 pmid = _extract_pmid(article)
                 if not pmid:
                     continue
+                # pymed (<=0.8.9) parses with the stdlib xml.etree, and
+                # lxml's tostring() refuses stdlib Elements -- so serialize
+                # with whichever library owns the element. An empty blob
+                # makes getMetaData skip date/journal/keywords/affiliations,
+                # so a failure here is worth a warning, not a debug line.
                 xml_blob = b""
-                if article.xml is not None and _lxml_etree is not None:
+                if article.xml is not None:
                     try:
-                        xml_blob = _lxml_etree.tostring(article.xml)
+                        if isinstance(article.xml, ET.Element):
+                            xml_blob = ET.tostring(article.xml)
+                        elif _lxml_etree is not None:
+                            xml_blob = _lxml_etree.tostring(article.xml)
                     except Exception as e:
-                        logger.debug("pymed: tostring failed for pmid %s (%s)", pmid, e)
+                        logger.warning("pymed: tostring failed for pmid %s (%s)", pmid, e)
                 # Pull abstract + title directly from the XML to bypass
                 # pymed's .text-only extraction (truncates at the first
                 # inline child like <sup>, <sub>, <i>, <b>). Fall back to
@@ -574,6 +582,8 @@ def getMetaData(papersToFind):
         paper.s.doi = ref['doi']
 
         if not ref['xml']:
+            logger.warning("pymed: no XML for pmid %s; date, journal, keywords, "
+                           "affiliations and funding will be empty", paper.s.pubmed_id)
             paper.s.affiliations = []
             paper.s.funding_agencies = []
             paper.s.keywords = 'No keywords in Pubmed'
@@ -628,8 +638,8 @@ def getMetaData(papersToFind):
                     break
 
         if day != "not a day":
-            paper.s.publication_date = year + "-" + month + "-" + day
-            paper.s.date = year + "-" + month.zfill(2) + "-" + day.zfill(2) + "T00:00:00"
+            paper.s.publication_date = year + "-" + month.zfill(2) + "-" + day.zfill(2)
+            paper.s.date = paper.s.publication_date + "T00:00:00"
             print("set date", paper.s.date, paper.s.publication_date)
         else:
             paper.s.publication_date = ""
