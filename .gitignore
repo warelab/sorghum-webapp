@@ -109,3 +109,5 @@ typings/
 #PyCharm
 #
 .idea/
+# Source maps of gramene-search's lazy chunks (anatomogram SVGs etc.): large, and not needed to serve the site
+sorghum_webapp/sorghum_webapp/static/search/*.*.js.map
