@@ -20,6 +20,7 @@ def news():
     add_link(menu, 'Newsletters', 'https://ftp.sorghumbase.org/outreach/newsletters/')
     add_link(menu, 'Meetings & Events', '/events')
     add_link(menu, 'Conference Proceedings', 'none')
+    add_link(menu, 'Global Sorghum 2026', '/conferences?conference=gsc-2026')
     add_link(menu, 'SICNA 2024', '/conferences?conference=sicna-2024')
     add_link(menu, 'SICNA 2022', '/conferences?conference=sicna-2022')
 #     add_link(menu, 'Job Postings', '/jobs')

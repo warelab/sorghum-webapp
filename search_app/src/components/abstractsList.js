@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { loadAbstracts } from '../utils/abstracts_cache'
 import { loadSicnaTags } from '../utils/sicna_tags_cache'
+import { presenterOrgs } from '../utils/presenter_orgs'
 
 // Mirrors controllers/abstracts.py: tag name "SICNA 2024" -> ("SICNA", "2024").
 const TAG_YEAR_RE = /^(.*?)\s+(\d{4})\s*$/
@@ -12,32 +13,13 @@ function deriveConfYear(tag) {
   return m ? [m[1].trim(), m[2]] : [name, '']
 }
 
-// Mirrors _normalize_orgs in controllers/abstracts.py: affiliation comes in
-// as strings, as rich dicts with post_title, or as bare numeric IDs.
-function normalizeOrgs(presenter) {
-  const raw = (presenter && (presenter.affiliation || presenter.organization)) || []
-  if (!Array.isArray(raw)) return []
-  return raw
-    .map((item) => {
-      if (typeof item === 'string') {
-        const name = item.trim()
-        return name ? { post_title: name } : null
-      }
-      if (item && typeof item === 'object' && typeof item.post_title === 'string') {
-        return item.post_title.trim() ? item : null
-      }
-      return null
-    })
-    .filter(Boolean)
-}
-
 function buildRow(raw, tagById) {
   const presenter = (raw.presenting_author || [{}])[0] || {}
   const first = (presenter.first_name || '').trim()
   const last = (presenter.last_name || '').trim()
   const author = last && first ? `${last}, ${first}` : (last || first || '')
 
-  const orgs = normalizeOrgs(presenter)
+  const orgs = presenterOrgs(presenter)
   const tagIds = raw.tags || []
   const [conf, year] = deriveConfYear(tagIds[0] != null ? tagById[tagIds[0]] : null)
 

@@ -42,9 +42,12 @@ wp_cache_page = flask.Blueprint("wp_cache_page", __name__)
 
 # Resource name in our URL -> entry describing how to refill the cache.
 # Two flavors:
-#   { "path": "<wp_rest_path>", "params"?: {...} }
+#   { "path": "<wp_rest_path>", "params"?: {...}, "sort"?: "<field>" }
 #       Page through a single WP REST endpoint. `params` holds fixed
-#       query args baked into the cache key.
+#       query args baked into the cache key. Pages are fetched in parallel,
+#       so the WP order must be unique (orderby id) or rows that tie on the
+#       sort field can land on two pages and drop off another; `sort`
+#       re-sorts the combined list by that field (ties by id) afterwards.
 #   { "builder": callable() -> json_serializable }
 #       Run a custom Python function (e.g. multi-query aggregations like
 #       /api/people). The return value is stored as-is.
@@ -59,11 +62,12 @@ RESOURCES = {
     # conferences is registered below as a builder so we can fold the
     # featured-media + sponsor logo URLs into the payload server-side.
     # "conferences":          {"path": "conference"},
-    "conference_sessions":  {"path": "conference_session"},
-    "conference_abstracts": {"path": "conference_abstract", "params": {"orderby": "date", "order": "asc"}},
-    "conference_people":    {"path": "conference_person"},
+    "conference_sessions":  {"path": "conference_session", "params": {"orderby": "id", "order": "asc"}},
+    "conference_abstracts": {"path": "conference_abstract", "params": {"orderby": "id", "order": "asc"}, "sort": "date"},
+    "conference_people":    {"path": "conference_person", "params": {"orderby": "id", "order": "asc"}},
     "organizations":        {"path": "organization"},
-    "sicna_tags":           {"path": "tags", "params": {"search": "sicna"}},
+    # sicna_tags is registered below as a builder: one tag per conference,
+    # SICNA or not.
     "events":               {"path": "event"},
     "resource_links":       {"path": "resource-link"},
     "post_categories":      {"path": "categories", "params": {"per_page": 50}},
@@ -186,6 +190,25 @@ def _build_conferences():
 
 RESOURCES["conferences"] = {"builder": _build_conferences}
 
+
+def _build_conference_tags():
+    """wp_cache builder for the sicna_tags resource. Each conference's
+    abstracts carry a tag whose slug is the conference slug (sicna-2024,
+    gsc-2026); the conference page and /abstracts use it to group abstracts
+    by conference. The resource keeps its old name, from when it was a
+    tags?search=sicna query that could only find SICNA meetings."""
+    conferences, _total = _fetch_all_from_wp(
+        {"path": "conference", "params": {"_fields": "slug"}})
+    slugs = sorted({c["slug"] for c in conferences if c.get("slug")})
+    if not slugs:
+        return []
+    tags, _total = _fetch_all_from_wp(
+        {"path": "tags", "params": {"slug": ",".join(slugs)}})
+    return tags
+
+
+RESOURCES["sicna_tags"] = {"builder": _build_conference_tags}
+
 _redis_client = None
 _redis_init_lock = threading.Lock()
 _resource_locks = {}
@@ -277,6 +300,10 @@ def _fetch_all_from_wp(resource_entry):
         with ThreadPoolExecutor(max_workers=8) as ex:
             for chunk in ex.map(fetch_page, range(2, total_pages + 1)):
                 items.extend(chunk)
+
+    sort_field = resource_entry.get("sort")
+    if sort_field:
+        items.sort(key=lambda it: (it.get(sort_field) or "", it.get("id") or 0))
 
     return items, total
 

@@ -6,46 +6,70 @@ import he from 'he';
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import './conference.css'
+import { presenterOrgs } from '../utils/presenter_orgs'
+
+// "SICNA 2024" -> "SICNA", "Global Sorghum Conference 2026" -> "Global Sorghum Conference"
+function conferenceSeries(conference) {
+  return he.decode(conference.title.rendered).replace(/\s*\d{4}\s*$/, '');
+}
+
+// Most recent first. Conferences without start_date sort to the bottom.
+function conferencesNewestFirst(sorghumConference) {
+  return Object.values(sorghumConference).sort((a, b) => {
+    const da = a.start_date || '';
+    const db = b.start_date || '';
+    return db.localeCompare(da);
+  });
+}
 
 const About = ({conference, imgUrl}) => {
+  // The CMS returns false, not [], for an empty relationship.
+  const boardMembers = conference.board_members || [];
   return <Accordion.Item eventKey="about">
     <Accordion.Header>
       <div>
-        <h5 className="text-uppercase" style={{'color': '#c74f03'}}>{conference.slogan}</h5>
+        {conference.slogan && <h5 className="text-uppercase" style={{'color': '#c74f03'}}>{conference.slogan}</h5>}
         <h2 className="mb20">About {conference.title.rendered}</h2>
       </div>
     </Accordion.Header>
     <Accordion.Body>
       <div className="row align-items-center">
-        <div className="col-md-6 mb30">
+        {imgUrl && <div className="col-md-6 mb30">
           <img src={imgUrl} alt="" className="img-fluid"/>
-        </div>
-        <div className="col-md-6 mb30"><br/>
+        </div>}
+        <div className={imgUrl ? "col-md-6 mb30" : "col-md-12 mb30"}><br/>
           <p className="lead" dangerouslySetInnerHTML={{__html: conference.content.rendered}}/>
-          <p>The {conference.title.rendered} board members</p>
-          <ul className="mb20">
-            {conference.board_members.map((bm, idx) => {
-              return <li key={idx}>{bm.post_title} <i>{bm.organization[0].post_title}</i></li>
-            })}
-          </ul>
+          {boardMembers.length > 0 && <>
+            <p>The {conference.title.rendered} board members</p>
+            <ul className="mb20">
+              {boardMembers.map((bm, idx) => {
+                const org = (bm.organization || [])[0];
+                return <li key={idx}>{bm.post_title} {org && <i>{org.post_title}</i>}</li>
+              })}
+            </ul>
+          </>}
         </div>
       </div>
     </Accordion.Body>
   </Accordion.Item>
 }
 
-const Sponsors = ({organizers, sponsors}) => {
+const Sponsors = ({conference}) => {
+  const sponsors = conference.sponsors || [];
+  if (sponsors.length === 0) return null;
+  const series = conferenceSeries(conference);
+  const contact = (conference.organizers || []).find(o => o.email);
 
   return <Accordion.Item eventKey="sponsors">
     <Accordion.Header>
       <div>
-        <h5 className="text-uppercase" style={{'color': '#c74f03'}}>SICNA Support</h5>
+        <h5 className="text-uppercase" style={{'color': '#c74f03'}}>{series} Support</h5>
         <h2 className="mb20">Sponsors</h2>
       </div>
     </Accordion.Header>
     <Accordion.Body>
-      <p className="lead">A special thanks to our generous sponsors. If your are interested in sponsorship for future
-        SICNA events, please contact <a className='sicna' href={`mailto:${organizers[0].email}`}>{organizers[0].post_title}</a></p>
+      <p className="lead">A special thanks to our generous sponsors.{contact && <> If your are interested in sponsorship for future
+        {' '}{series} events, please contact <a className='sicna' href={`mailto:${contact.email}`}>{contact.post_title}</a></>}</p>
       <div className="row">
       {sponsors.map((sponsor,idx) => {
         return <div key={idx} className="col-lg-4 col-md-6  mb30">
@@ -136,16 +160,26 @@ function assembleUniqueIds(objects, key) {
   return Array.from(uniqueIds);
 }
 
+// job_title and affiliation are plain strings in the CMS (an earlier
+// version of this code expected lists and crashed the agenda).
 function formatChairs(people,lut) {
-  let formatted = people.map(p => `${lut[p].title.rendered}, ${lut[p].affiliation.join(', ')}`);
+  let formatted = people.filter(p => lut[p]).map(p => {
+    const names = [he.decode(lut[p].title.rendered), ...presenterOrgs(lut[p]).map(o => o.post_title)];
+    return names.join(', ');
+  });
   let last = formatted.pop();
   return formatted.length > 0 ?`${formatted.join(', ')} & ${last}` : last;
 }
 function formatSpeaker(person) {
-  let names = [person.post_title];
-  person.job_title.forEach(jt => jt && names.push(jt));
-  person.affiliation.forEach(aff => aff && names.push(aff));
+  if (!person) return null;
+  const names = [person.post_title, person.job_title, ...presenterOrgs(person).map(o => o.post_title)]
+    .filter(s => typeof s === 'string' && s.trim());
   return <i>{names.join(', ')}</i>
+}
+// Everything presented in the session's time slot: talks, 3 minute theses,
+// competition talks; posters are only listed under Abstracts.
+function isPresentedInSession(abstract) {
+  return !/poster/i.test(abstract.presentation_type || '');
 }
 const AgendaCmp = props => {
   if (!(props.sorghumSessions && props.sorghumPeople)) return <Accordion.Item eventKey="agenda">
@@ -169,19 +203,19 @@ const AgendaCmp = props => {
           </thead>
           <tbody>
           {byDay[day].map((session, sess_idx) => {
+            const talks = ((abstracts && abstracts[session.id]) || []).filter(isPresentedInSession);
             return <tr key={sess_idx}>
               <td className="date-column">{session.formattedTime}</td>
               <td className="title-column"><b>{session.session_name}</b>
-                {session.organizers && <p><i>{session.organizer_label && <span>{session.organizer_label}: </span>}
+                {session.organizers && session.organizers.length > 0 && <p><i>{session.organizer_label && <span>{session.organizer_label}: </span>}
                   {formatChairs(session.organizers, props.sorghumPeople)}</i></p>}
-                {abstracts && abstracts[session.id] && abstracts[session.id][0].presentation_type === "talk" &&
-                  abstracts[session.id].map((ab, idx) => {
+                {talks.map((ab, idx) => {
                     const htmlTitle = he.decode(ab.title.rendered);
-                    return <div key={idx}><b>Session {idx+1}</b> - {htmlTitle}<br/>{formatSpeaker(ab.presenting_author[0])}</div>
+                    return <div key={idx}><b>Session {idx+1}</b> - {htmlTitle}<br/>{formatSpeaker((ab.presenting_author || [])[0])}</div>
                   })
                 }
               </td>
-              <td className="sponsor-column">{session.sponsors &&
+              <td className="sponsor-column">{session.sponsors && session.sponsors.length > 0 &&
                 <a className='sicna' href={session.sponsors[0].resource_url} target="_blank">{session.sponsors[0].post_title}</a>}</td>
               <td className="room-column">{session.room}</td>
             </tr>
@@ -215,15 +249,17 @@ const AbstractsCmp = props => {
   if (props.sorghumOrganizations && props.sorghumAbstracts && props.sorghumSessions && props.sicnaTags) {
     for (const [session_id,abList] of Object.entries(props.sorghumAbstracts)) {
       abList.forEach(ab => {
-        if (props.sicnaTags[ab.tags[0]] && props.sicnaTags[ab.tags[0]].slug === props.conference.slug) {
+        const tag = props.sicnaTags[(ab.tags || [])[0]];
+        if (tag && tag.slug === props.conference.slug) {
+          const presenter = (ab.presenting_author || [])[0] || {};
           abstractTable.push({
             // author: ab.presenting_author[0].post_title,
             title: he.decode(ab.title.rendered),
-            orgs: ab.presenting_author[0].organization[0],
+            orgs: presenterOrgs(presenter).map(o => o.post_title).join('; '),
             type: ab.presentation_type,
-            conference: props.sicnaTags[ab.tags[0]].name,
+            conference: tag.name,
             link: ab.slug,
-            author: `${ab.presenting_author[0].last_name}, ${ab.presenting_author[0].first_name}`
+            author: [presenter.last_name, presenter.first_name].filter(Boolean).join(', ')
           });
         }
       })
@@ -252,12 +288,7 @@ const Abstracts = connect(
 )
 const ConferenceSwitcherCmp = ({sorghumConference, slug, onChange}) => {
   if (!sorghumConference) return null;
-  // Most recent first. Conferences without start_date sort to the bottom.
-  const conferences = Object.values(sorghumConference).sort((a, b) => {
-    const da = a.start_date || '';
-    const db = b.start_date || '';
-    return db.localeCompare(da);
-  });
+  const conferences = conferencesNewestFirst(sorghumConference);
   if (conferences.length < 2) return null;
   return (
     <div className="mb20" style={{maxWidth: 360}}>
@@ -283,21 +314,23 @@ const ConferenceSwitcherCmp = ({sorghumConference, slug, onChange}) => {
 const ConferenceSwitcher = connect('selectSorghumConference', ConferenceSwitcherCmp);
 
 const ConferenceCmp = props => {
-  if (props.sorghumConference && props.sorghumConference.hasOwnProperty(props.slug)) {
-    const conference = props.sorghumConference[props.slug];
+  if (!props.sorghumConference) return <code>loading...</code>
+  // No ?conference= in the URL: show the most recent one.
+  const slug = props.slug || (conferencesNewestFirst(props.sorghumConference)[0] || {}).slug;
+  if (props.sorghumConference.hasOwnProperty(slug)) {
+    const conference = props.sorghumConference[slug];
     const imgUrl = conference.featured_image_url;
-    if (!imgUrl) return <code>loading...</code>
     return <div>
-      <ConferenceSwitcher slug={props.slug} onChange={props.onSlugChange}/>
+      <ConferenceSwitcher slug={slug} onChange={props.onSlugChange}/>
       <Accordion defaultActiveKey={['about','abstracts']} flush alwaysOpen={true}>
         <About conference={conference} imgUrl={imgUrl}/>
-        <Sponsors organizers={conference.organizers} sponsors={conference.sponsors}/>
+        <Sponsors conference={conference}/>
         <Agenda conference={conference}/>
         <Abstracts conference={conference}/>
       </Accordion>
     </div>
   }
-  return <code>invalid conference id '{props.slug}'</code>
+  return <code>invalid conference id '{slug}'</code>
 }
 
 const Conference = connect(

@@ -24,7 +24,8 @@ def conference():
 	''' Conference page. '''
 	templateDict = navbar_template('News')
 	templateDict["banner_media"] = local_banner("aerial_combines")
-	templateDict["conference_slug"] = valueFromRequest(key="conference", request=request, default="sicna-2024")
+	# No ?conference= shows the most recent one (picked client-side).
+	templateDict["conference_slug"] = valueFromRequest(key="conference", request=request, default="")
 
 	populate_footer_template(template_dictionary=templateDict, wp_api=api)
 

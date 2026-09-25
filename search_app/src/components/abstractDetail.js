@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { loadAbstracts } from '../utils/abstracts_cache'
 import { slugsMatch } from '../utils/slug'
+import { presenterOrgs } from '../utils/presenter_orgs'
 
 function formatPresenter(p) {
   if (!p) return ''
@@ -8,26 +9,6 @@ function formatPresenter(p) {
   const first = (p.first_name || '').trim()
   if (last && first) return `${first} ${last}`
   return last || first || ''
-}
-
-// Mirrors _normalize_orgs in controllers/abstracts.py: affiliations come in
-// as plain strings, ready-shaped dicts, or stray integer IDs. Coerce them
-// all to {post_title} so the renderer doesn't print "undefined".
-function organizationsFor(presenter) {
-  const raw = (presenter && (presenter.affiliation || presenter.organization)) || []
-  if (!Array.isArray(raw)) return []
-  return raw
-    .map((item) => {
-      if (typeof item === 'string') {
-        const name = item.trim()
-        return name ? { post_title: name } : null
-      }
-      if (item && typeof item === 'object' && typeof item.post_title === 'string') {
-        return item.post_title.trim() ? item : null
-      }
-      return null
-    })
-    .filter(Boolean)
 }
 
 const AbstractDetail = ({ slug }) => {
@@ -107,7 +88,7 @@ const AbstractDetail = ({ slug }) => {
   const content = (abstract.content && abstract.content.rendered) || ''
   const presenter = (abstract.presenting_author || [])[0]
   const presenterName = formatPresenter(presenter)
-  const orgs = organizationsFor(presenter)
+  const orgs = presenterOrgs(presenter)
 
   return (
     <div className="container pb50">
