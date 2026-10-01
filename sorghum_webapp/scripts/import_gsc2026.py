@@ -42,13 +42,18 @@ Two passes
 
   apply  - create the manifest's records in dependency order, resolving the
            symbolic references to the new post IDs. Every created (or
-           adopted) ID is saved to --state after each write, so an
+           updated) ID is saved to --state after each write, so an
            interrupted run resumes where it stopped and a re-run never
-           duplicates. A record whose slug already exists in WP is adopted
-           instead of created. The first record of each post type is read
-           back and its Pods fields compared with what was sent; the run
-           stops if WordPress did not store them. --dry-run shows the plan
-           without writing.
+           duplicates. A record whose slug already exists in WP is updated
+           in place instead of created. The first record of each post type
+           is read back and its Pods fields compared with what was sent; if
+           WordPress did not store them the run stops, and a re-run (after
+           fixing the Pods REST settings) rewrites that post. --dry-run
+           shows the plan without writing.
+
+  resend - write the named fields again to records apply already created,
+           e.g. after enabling REST writes on a field that was dropped:
+             resend --manifest ... --type conference_session --fields organizers
 
   rollback - move every post recorded in --state to the WP trash
            (recoverable from wp-admin). People and organizations that were
@@ -707,13 +712,10 @@ def cmd_apply(args):
             save()
             continue
 
-        if auth:
-            existing = find_existing(wp_base, rec, auth)
-            if existing:
-                log.info("adopt %s %s -> %s", rec["type"], rec["slug"], existing)
-                state[key] = existing
-                save()
-                continue
+        # A post with this slug is one of ours whose state entry was lost or
+        # dropped after a failed check (plan never picks a slug already in
+        # use): write the fields to it rather than creating a duplicate.
+        existing = find_existing(wp_base, rec, auth) if auth else None
 
         try:
             fields = {k: resolve(v, state) for k, v in rec["fields"].items()}
@@ -725,17 +727,18 @@ def cmd_apply(args):
         if rec["type"] != "tag":
             fields["slug"] = rec["slug"]
 
+        verb = "update" if existing else "create"
         if args.dry_run:
             created[rec["type"]] += 1
-            state[key] = f"<new {rec['type']}>"
+            state[key] = existing or f"<new {rec['type']}>"
             if created[rec["type"]] <= args.show:
-                print(f"would create {rec['type']} {rec['slug']}")
+                print(f"would {verb} {rec['type']} {rec['slug']}")
                 print("  " + json.dumps({k: v for k, v in fields.items() if k != "content"},
                                         ensure_ascii=False)[:600])
             continue
 
-        resp = requests.post(f"{wp_base}/{REST_PATH[rec['type']]}", json=fields,
-                             auth=auth, timeout=120)
+        url = f"{wp_base}/{REST_PATH[rec['type']]}" + (f"/{existing}" if existing else "")
+        resp = requests.post(url, json=fields, auth=auth, timeout=120)
         if rec["type"] == "tag" and not resp.ok:
             j = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             if j.get("code") == "term_exists":
@@ -744,28 +747,73 @@ def cmd_apply(args):
                 continue
         if not resp.ok:
             save()
-            sys.exit(f"{key}: create failed: {wp_error(resp)}")
+            sys.exit(f"{key}: {verb} failed: {wp_error(resp)}")
         post_id = int(resp.json()["id"])
         state[key] = post_id
-        if rec["type"] != "tag":
+        if rec["type"] != "tag" and not existing:
             state["_created"].append([rec["type"], post_id])
         save()
         created[rec["type"]] += 1
-        log.info("created %s %s -> %s", rec["type"], rec["slug"], post_id)
+        log.info("%sd %s %s -> %s", verb, rec["type"], rec["slug"], post_id)
 
         if rec["type"] not in verified and rec["type"] != "tag":
             bad = verify(wp_base, rec, post_id, fields, auth)
             if bad:
+                # Forget it (rollback still has it) so the next run finds it
+                # by slug and writes the fields again.
+                del state[key]
+                save()
                 sys.exit(f"{key} (post {post_id}): WordPress did not store these fields:\n  "
                          + "\n  ".join(bad)
-                         + "\nCheck the Pods REST write settings for this post type, then "
-                           "`rollback` and re-run.")
+                         + "\nEnable REST writes for this post type in Pods, then re-run "
+                           "apply; it will fill in this post.")
             verified.add(rec["type"])
 
     verb = "would create" if args.dry_run else "created"
     print(f"{verb}: " + (", ".join(f"{t} {n}" for t, n in created.items()) or "nothing"))
     if not args.dry_run:
         print("Now refresh the site caches, e.g. warm_wp_cache.sh https://www.sorghumbase.org")
+
+
+def cmd_resend(args):
+    """Write some fields again to records apply already created -- for a
+    field that only accepted REST writes after the run (apply checks the
+    first record of each type, so a field empty there goes unnoticed).
+    Records whose resent fields are all empty are skipped; each write is
+    read back, and the run stops at the first that does not stick."""
+    if not (os.environ.get("SB_WP_USERNAME") and os.environ.get("SB_WP_PASSWORD")):
+        sys.exit("SB_WP_USERNAME and SB_WP_PASSWORD must be set")
+    auth = HTTPBasicAuth(os.environ["SB_WP_USERNAME"], os.environ["SB_WP_PASSWORD"])
+    with open(args.manifest, encoding="utf-8") as fh:
+        manifest = json.load(fh)
+    with open(args.state, encoding="utf-8") as fh:
+        state = json.load(fh)
+    wp_base = manifest["wp_base"]
+    names = [f.strip() for f in args.fields.split(",") if f.strip()]
+
+    done = 0
+    for rec in manifest["records"]:
+        if rec["type"] != args.type or "fields" not in rec or rec["key"] not in state:
+            continue
+        body = {k: resolve(rec["fields"][k], state) for k in names if k in rec["fields"]}
+        if not any(body.values()):
+            continue
+        post_id = state[rec["key"]]
+        if args.dry_run:
+            print(f"would resend {rec['type']} {post_id} {json.dumps(body)}")
+            done += 1
+            continue
+        resp = requests.post(f"{wp_base}/{REST_PATH[rec['type']]}/{post_id}", json=body,
+                             auth=auth, timeout=120)
+        if not resp.ok:
+            sys.exit(f"{rec['key']} (post {post_id}): update failed: {wp_error(resp)}")
+        bad = verify(wp_base, rec, post_id, body, auth)
+        if bad:
+            sys.exit(f"{rec['key']} (post {post_id}): WordPress did not store:\n  "
+                     + "\n  ".join(bad))
+        done += 1
+        log.info("resent %s %s -> %s", rec["type"], ",".join(body), post_id)
+    print(f"{'would resend' if args.dry_run else 'resent'} {done} {args.type} records")
 
 
 def cmd_rollback(args):
@@ -802,6 +850,14 @@ def main():
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--show", type=int, default=2, help="records per type to print on --dry-run")
     p.set_defaults(func=cmd_apply)
+
+    p = sub.add_parser("resend", help="write some fields again to records already created")
+    p.add_argument("--manifest", required=True)
+    p.add_argument("--state", default="gsc2026_state.json")
+    p.add_argument("--type", required=True, help="e.g. conference_session")
+    p.add_argument("--fields", required=True, help="comma-separated, e.g. organizers")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_resend)
 
     p = sub.add_parser("rollback", help="trash every post created by apply")
     p.add_argument("--state", default="gsc2026_state.json")
