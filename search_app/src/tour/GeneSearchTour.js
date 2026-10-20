@@ -5,8 +5,11 @@
 import React from 'react'
 import { GeneSearchTour } from 'gramene-search-tour'
 import 'gramene-search-tour/dist/tour.css'
-import buildSteps from './tourSteps'
+import buildSteps, { closeSearchBox } from './tourSteps'
 
-const SorghumBaseTour = () => <GeneSearchTour buildSteps={buildSteps} primaryColor="#a03e34" />
+// Exiting partway also closes the navbar search overlay the tour opened.
+const SorghumBaseTour = () => (
+  <GeneSearchTour buildSteps={buildSteps} primaryColor="#a03e34" onExit={closeSearchBox} />
+)
 
 export default SorghumBaseTour

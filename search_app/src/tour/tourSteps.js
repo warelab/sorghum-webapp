@@ -59,7 +59,7 @@ function openSearchBox() {
 
 const SEARCH_AREA_ID = 'gene-search-tour-search-area'
 
-function closeSearchBox() {
+export function closeSearchBox() {
   const box = document.getElementById(SEARCH_BOX_ID)
   if (box) box.classList.remove('search-visible')
   const area = document.getElementById(SEARCH_AREA_ID)
