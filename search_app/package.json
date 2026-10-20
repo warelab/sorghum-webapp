@@ -18,6 +18,7 @@
     "gramene-alerts": "^1.0.3",
     "gramene-githubdocs": "^1.4.0",
     "gramene-search": "^2.38.1",
+    "gramene-search-tour": "file:vendor/gramene-search-tour-0.1.0.tgz",
     "gramene-videos": "^1.0.6",
     "he": "^1.2.0",
     "is-email": "^1.0.0",
