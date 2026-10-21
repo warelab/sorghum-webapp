@@ -51,6 +51,9 @@ wp_cache_page = flask.Blueprint("wp_cache_page", __name__)
 #   { "builder": callable() -> json_serializable }
 #       Run a custom Python function (e.g. multi-query aggregations like
 #       /api/people). The return value is stored as-is.
+# Either flavor may set "shrink_guard": False for a resource small enough
+# that losing a few items legitimately trips the percentage guard (see
+# _reject_reason); an empty payload is still refused.
 # Builder entries are typically registered from their owning controller
 # module after import (see controllers/people.py).
 RESOURCES = {
@@ -208,6 +211,102 @@ def _build_conference_tags():
 
 
 RESOURCES["sicna_tags"] = {"builder": _build_conference_tags}
+
+
+# Gramene sites' news. Editors file a post under a child of the "Gramene"
+# category: `all` for every Gramene site, or a site id (main, maize, oryza,
+# grapevine) for just those. The builder looks the categories up by slug so
+# a renamed id never silently empties the feed.
+GRAMENE_CATEGORY_SLUG = "gramene"
+
+
+def _normalize_gramene_post(raw, site_by_cat):
+    media = (raw.get("_embedded") or {}).get("wp:featuredmedia") or []
+    return {
+        "id":           raw.get("id"),
+        "slug":         raw.get("slug"),
+        "title":        (raw.get("title") or {}).get("rendered"),
+        "excerpt":      (raw.get("excerpt") or {}).get("rendered"),
+        "content":      (raw.get("content") or {}).get("rendered"),
+        "date":         raw.get("date"),
+        "modified":     raw.get("modified"),
+        "featuredUrl":  media[0].get("source_url") if media else None,
+        "sites":        sorted({site_by_cat[c] for c in (raw.get("categories") or []) if c in site_by_cat}),
+    }
+
+
+def _build_gramene_posts():
+    """wp_cache builder for the gramene_posts resource: every post in a
+    child category of "Gramene", newest first, reduced to what the Gramene
+    sites render (title, date, excerpt, content, featured image) plus the
+    `sites` it was filed for. Served cross-origin to the Gramene sites."""
+    parents, _total = _fetch_all_from_wp({
+        "path": "categories",
+        "params": {"slug": GRAMENE_CATEGORY_SLUG, "_fields": "id,slug"},
+    })
+    if not parents:
+        return []
+    children, _total = _fetch_all_from_wp({
+        "path": "categories",
+        "params": {"parent": parents[0]["id"], "_fields": "id,slug"},
+    })
+    site_by_cat = {c["id"]: c["slug"] for c in children}
+    if not site_by_cat:
+        return []
+    # orderby id keeps the parallel pages disjoint (see RESOURCES); the
+    # newest-first order is applied afterwards.
+    posts, _total = _fetch_all_from_wp({
+        "path": "posts",
+        "params": {
+            "categories": ",".join(str(i) for i in sorted(site_by_cat)),
+            "orderby": "id",
+            "order": "asc",
+            "_embed": "wp:featuredmedia",
+        },
+    })
+    out = [_normalize_gramene_post(p, site_by_cat) for p in posts]
+    out.sort(key=lambda p: (p.get("date") or "", p.get("id") or 0), reverse=True)
+    return out
+
+
+# A handful of posts: unfiling one is a large percentage drop, not breakage.
+RESOURCES["gramene_posts"] = {"builder": _build_gramene_posts, "shrink_guard": False}
+
+# Resources the Gramene sites read from another origin.
+_CROSS_ORIGIN_RESOURCES = {"gramene_posts"}
+
+
+def _allow_cross_origin(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    # Lets the browser hand the cache headers to the client's freshness check.
+    response.headers["Access-Control-Expose-Headers"] = "X-Wp-Cache-Fetched-At, X-Wp-Cache-Count"
+    return response
+
+
+def gramene_category_ids():
+    """IDs of the "Gramene" category and everything under it, read from the
+    cached post_categories (no WordPress traffic). Empty when that cache is
+    cold, so callers filtering on it fail open."""
+    try:
+        cats, _meta = _read_cache_raw("post_categories")
+    except Exception:
+        cats = None
+    if not isinstance(cats, list):
+        return set()
+    children = {}
+    roots = set()
+    for c in cats:
+        if c.get("slug") == GRAMENE_CATEGORY_SLUG:
+            roots.add(c.get("id"))
+        children.setdefault(c.get("parent"), []).append(c.get("id"))
+    out, stack = set(), list(roots)
+    while stack:
+        cid = stack.pop()
+        if cid in out:
+            continue
+        out.add(cid)
+        stack.extend(children.get(cid, []))
+    return out
 
 _redis_client = None
 _redis_init_lock = threading.Lock()
@@ -386,11 +485,12 @@ def _payload_size(items):
         return 0
 
 
-def _reject_reason(new_items, old_items, wp_total):
+def _reject_reason(new_items, old_items, wp_total, compare_old=True):
     """Why `new_items` must not replace `old_items`, or None if it's safe.
 
     A cold cache always accepts: there is nothing to protect, and a newly
-    registered resource has to be allowed to fill.
+    registered resource has to be allowed to fill. `compare_old=False`
+    (a resource's "shrink_guard": False) skips the old-vs-new comparison.
     """
     if new_items is None:
         return "WordPress returned no payload"
@@ -405,7 +505,7 @@ def _reject_reason(new_items, old_items, wp_total):
         return ("fetched %d of the %d records WordPress reported in X-WP-Total"
                 % (new_size, wp_total))
 
-    if old_items is None:
+    if old_items is None or not compare_old:
         return None
 
     old_size = _payload_size(old_items)
@@ -507,7 +607,8 @@ def _do_fetch_and_store(resource, ttl, allow_shrink=False):
         )
         old_items, old_meta = None, None
 
-    reason = _reject_reason(items, old_items, total)
+    reason = _reject_reason(items, old_items, total,
+                            compare_old=entry.get("shrink_guard", True))
     if reason and allow_shrink:
         logger.warning(
             "wp_cache: storing %s refill despite the guard (allow_shrink=1): %s",
@@ -738,7 +839,8 @@ def list_timestamps():
             if cached:
                 ts = float((cached[1] or {}).get("fetched_at", 0) or 0)
         out[resource] = ts
-    return flask.jsonify(out)
+    # Public timestamps; the Gramene sites poll these cross-origin.
+    return _allow_cross_origin(flask.jsonify(out))
 
 
 @wp_cache_page.route("/api/wp_cache/<resource>")
@@ -757,6 +859,8 @@ def cache_resource(resource):
     response.headers["X-Wp-Cache-Fetched-At"] = str(meta["fetched_at"])
     if meta.get("last_refill_error"):
         response.headers["X-Wp-Cache-Stale"] = "1"
+    if resource in _CROSS_ORIGIN_RESOURCES:
+        _allow_cross_origin(response)
     return response
 
 

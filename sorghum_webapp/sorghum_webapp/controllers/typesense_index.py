@@ -142,6 +142,16 @@ def _map_post(item):
     return doc
 
 
+def _is_sorghumbase_post(item):
+    """False for a post filed only under the Gramene categories: it belongs
+    to the Gramene sites' feed (wp_cache gramene_posts), not SorghumBase's
+    listings. A post that also has a SorghumBase category (e.g. News) stays."""
+    from .wp_cache import gramene_category_ids
+    cats = set(item.get("categories") or [])
+    gramene = gramene_category_ids()
+    return not (cats and gramene and cats <= gramene)
+
+
 def _map_paper(item):
     # Pods plugin exposes these at the top level of the JSON response (see
     # wordpress_orm_extensions/scientific_paper.py schema_fields).
@@ -247,7 +257,8 @@ _QB_PAPERS = {"query_by": "title,authors,journal,excerpt", "query_by_weights": "
 _QB_TITLE  = {"query_by": "title", "query_by_weights": "1"}
 
 COLLECTIONS = {
-    "posts":                {"collection": "posts",          "mapper": _map_post,           "qb": _QB_COMMON, "typeahead": True},
+    "posts":                {"collection": "posts",          "mapper": _map_post,           "qb": _QB_COMMON, "typeahead": True,
+                             "include": _is_sorghumbase_post},
     "publications":         {"collection": "papers",         "mapper": _map_paper,          "qb": _QB_PAPERS, "typeahead": True},
     "projects":             {"collection": "projects",       "mapper": _map_project,        "qb": _QB_COMMON, "typeahead": True},
     "conference_abstracts": {"collection": "abstracts",      "mapper": _map_abstract,       "qb": _QB_COMMON, "typeahead": True},
@@ -423,6 +434,11 @@ def sync_resource(resource_name, items, prune=True, allow_empty=False):
                 "failed": 0, "error": _client_reason, "skipped": "no_client"}
     collection_name = entry["collection"]
     mapper = entry["mapper"]
+    # Optional per-collection filter on the raw items; anything it drops is
+    # also pruned from the index below.
+    include = entry.get("include")
+    if include:
+        items = [it for it in items if include(it)]
     try:
         ensure_collection(client, collection_name)
     except Exception as e:
@@ -554,7 +570,7 @@ def _posts_search_from_wp_cache(category_ids, page, per_page):
     Typesense path, minus the `*_highlight` fields."""
     from .wp_cache import _get_or_refresh
     items, _meta = _get_or_refresh("posts")
-    docs = [_map_post(it) for it in (items or [])]
+    docs = [_map_post(it) for it in (items or []) if _is_sorghumbase_post(it)]
     if category_ids:
         wanted = set(category_ids)
         docs = [d for d in docs if wanted.intersection(d.get("categories") or [])]
