@@ -106,6 +106,8 @@
         <script type="text/javascript" src="{{request.script_root}}/static/assan/classic-template/revolution/js/extensions/revolution.extension.parallax.min.js"></script>
         <script type="text/javascript" src="{{request.script_root}}/static/assan/classic-template/revolution/js/extensions/revolution.extension.slideanims.min.js"></script>
         <script type="text/javascript" src="{{request.script_root}}/static/assan/classic-template/revolution/js/extensions/revolution.extension.video.min.js"></script>
+        <!-- Per-site settings (live.cfg / dev.cfg) for the search app -->
+        <script>window.SORGHUMBASE_SITE = {{ site_config|tojson }};</script>
         <!-- Site-wide type-ahead search interface -->
         <script type="text/javascript" src="{{request.script_root}}/static/search/index.js"></script>
         <script type="text/javascript" src="{{request.script_root}}/static/js/shuffle.js"></script>

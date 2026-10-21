@@ -19,6 +19,21 @@ import initialState from '../../config.json';
   catch (e) { console.warn('FIREBASE_CONFIG_JSON is not valid JSON; Auth disabled.', e); }
 })();
 
+// Per-site settings (sorghum_webapp configuration_files/live.cfg or dev.cfg,
+// chosen by TARGET_SITE) that base.html writes into window.SORGHUMBASE_SITE
+// before loading this bundle. They override config.json -- `details` key by
+// key -- so one build serves both sites. Without them (a standalone dev page)
+// config.json's live defaults apply.
+(() => {
+  const site = typeof window !== 'undefined' && window.SORGHUMBASE_SITE;
+  if (!site) return;
+  const {details, ...rest} = site;
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) initialState[key] = value;
+  });
+  if (details) initialState.details = {...initialState.details, ...details};
+})();
+
 
 const config = {
   name: 'config',

@@ -219,6 +219,15 @@ def create_app(debug=False, log_level=None):#, conf=dict()):
 	default_config_file = _app_setup_utils.getConfigFile("default.cfg") # returns the file path
 	app.config.from_pyfile(default_config_file) # reads values into app.config dictionary
 
+	# Which public site this process serves: TARGET_SITE=live (default) or
+	# dev. deploy.sh writes it into the service's env file; the matching
+	# <site>.cfg sets per-site values such as the Ensembl URL. A per-host
+	# server config (below) can still override any of them.
+	target_site = os.environ.get("TARGET_SITE", "live").strip().lower()
+	if target_site not in ("live", "dev"):
+		raise Exception("TARGET_SITE must be 'live' or 'dev', not '{0}'".format(target_site))
+	app.config.from_pyfile(_app_setup_utils.getConfigFile(target_site + ".cfg"))
+
 	if app.debug:
 		#
 		# Look for configuration file by host name.
@@ -311,6 +320,20 @@ def create_app(debug=False, log_level=None):#, conf=dict()):
 
 	# Register all Jinja filters in the file.
 	app.register_blueprint(jinja_filters.blueprint)
+
+	# The search app's per-site settings (from <TARGET_SITE>.cfg). base.html
+	# writes them into window.SORGHUMBASE_SITE ahead of the bundle, which
+	# merges them over search_app/config.json -- so one build serves both
+	# live and dev.
+	@app.context_processor
+	def inject_site_config():
+		primers_api = app.config.get("PRIMERS_API")
+		return {"site_config": {
+			"targetSite": app.config.get("TARGET_SITE", "live"),
+			"ensemblURL": app.config.get("ENSEMBL_URL"),
+			"ensemblSite": app.config.get("ENSEMBL_URL"),
+			"details": {"primers": {"apiBase": primers_api} if primers_api else False},
+		}}
 
 	# -------------------------------
 	# Authenticate with WordPress API

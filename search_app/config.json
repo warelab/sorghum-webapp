@@ -2,8 +2,11 @@
   "id": 'sorghum',
   "name": 'Sorghumbase',
   "url": 'https://sorghumbase.org',
-  "ensemblURL": 'https://ensembl-dev.sorghumbase.org',
-  "ensemblSite": 'https://ensembl-dev.sorghumbase.org',
+  // ensemblURL / ensemblSite and details.primers are per-site: the Flask
+  // page overrides them from live.cfg / dev.cfg (TARGET_SITE). The values
+  // here are the live ones, for builds that run without Flask.
+  "ensemblURL": 'https://ensembl.sorghumbase.org',
+  "ensemblSite": 'https://ensembl.sorghumbase.org',
   "ensemblRest": 'https://data.gramene.org/pansite-ensembl-115',
   "grameneData": 'https://data.sorghumbase.org/sorghum_v11',
   // GXA instance (gramene-swagger /gxa/) the Expression tab's heatmaps query.
@@ -37,9 +40,9 @@
   "enable_tbrowse_expression_zone": true,
   details: {
     sequences: true,
-    // Primers tab (gramene-primers), including the Genotyping (KASP/AS-PCR)
-    // mode. sorghum_v11 serves /primers; `genotyping: false` hides that mode.
-    primers: { apiBase: 'https://data.sorghumbase.org/sorghum_v11' },
+    // Primers tab (gramene-primers, incl. the Genotyping mode): off here;
+    // PRIMERS_API in dev.cfg turns it on for dev.sorghumbase.org.
+    primers: false,
     VEP: true,
     location: true,
     expression: true,

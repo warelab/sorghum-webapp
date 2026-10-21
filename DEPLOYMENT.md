@@ -46,6 +46,7 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 
 | Variable | Purpose |
 |---|---|
+| `TARGET_SITE` | `live` (www.sorghumbase.org) or `dev` (dev.sorghumbase.org). Selects `sorghum_webapp/sorghum_webapp/configuration_files/<TARGET_SITE>.cfg` — the Ensembl URL, whether the gene search's Primers tab is on, and other per-site settings. Written into the service's env file; Flask loads the file at startup and passes the search app its share via `window.SORGHUMBASE_SITE`, so the same build serves either site. |
 | `TYPESENSE_API_KEY` | Long random string. Both the Typesense container and the Flask process read this. Generate once with `openssl rand -hex 32`. |
 | `SB_WP_USERNAME` | WordPress admin used by `/update_publications` to PUT updates. |
 | `SB_WP_PASSWORD` | WordPress admin password. |
@@ -71,6 +72,7 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 
 ```sh
 # On the target host:
+export TARGET_SITE=live                               # or dev
 export TYPESENSE_API_KEY="$(openssl rand -hex 32)"   # store this somewhere safe
 export SB_WP_USERNAME='<wordpress admin>'
 export SB_WP_PASSWORD='<wordpress admin password>'

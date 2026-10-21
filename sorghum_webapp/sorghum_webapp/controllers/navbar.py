@@ -1,8 +1,11 @@
 import logging
+import flask
 app_logger = logging.getLogger("sorghumbase")
 
-ensemblURL = 'https://ensembl-dev.sorghumbase.org'
-# ensemblURL = 'https://ensembl.sorghumbase.org'
+def ensembl_url():
+    """The Ensembl browser for this site (ENSEMBL_URL in live.cfg / dev.cfg,
+    picked by TARGET_SITE)."""
+    return flask.current_app.config.get('ENSEMBL_URL', 'https://ensembl.sorghumbase.org')
 
 def make_menu(label, style='simple'):
     return { 'label':label, 'style':style, 'links':[] }
@@ -40,6 +43,7 @@ def engage():
     return menu
 
 def genomes():
+    ensemblURL = ensembl_url()
     genomes = make_menu('Genomes')
 
     add_link(genomes, 'Species table','/'.join([ensemblURL,'species.html']))
@@ -156,6 +160,7 @@ def germplasm():
 #     return menu
 
 def tools():
+   ensemblURL = ensembl_url()
    menu = make_menu('Tools')
    add_link(menu, 'Gene Search','/genes')
    add_link(menu, 'Genome Browser',ensemblURL)
