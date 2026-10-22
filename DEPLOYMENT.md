@@ -50,6 +50,7 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 | `TYPESENSE_API_KEY` | Long random string. Both the Typesense container and the Flask process read this. Generate once with `openssl rand -hex 32`. |
 | `SB_WP_USERNAME` | WordPress admin used by `/update_publications` to PUT updates. |
 | `SB_WP_PASSWORD` | WordPress admin password. |
+| `SB_RECAPTCHA_SECRET` | reCAPTCHA secret the mailing-list signup form verifies against. |
 
 ## Optional environment variables
 
@@ -57,7 +58,7 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 |---|---|---|
 | `APP_USER` | `sorghum` | System user that owns the app and runs Gunicorn |
 | `APP_DIR` | `/opt/sorghum-webapp` | Repo checkout location |
-| `REPO_URL` | `git@github.com:warelab/sorghum-webapp.git` | Git remote |
+| `REPO_URL` | `https://github.com/warelab/sorghum-webapp` | Git remote |
 | `GIT_BRANCH` | `master` | Branch to deploy |
 | `GUNICORN_BIND` | `127.0.0.1:8000` | Bind address. Use a private IP if Apache is on another host. |
 | `GUNICORN_WORKERS` | `4` | Worker process count |
@@ -67,6 +68,8 @@ The deploy script touches only the **internal app host**. The Apache reverse pro
 | `WARM_SCHEDULE` | `*/30 * * * *` | Cron schedule for `warm_wp_cache.sh` |
 | `WARM_MAILTO` | `root` | `MAILTO` on the cron entry. Warm failures are mailed here — set it to a real address. |
 | `TYPESENSE_PORT` | `8108` | Loopback port for Typesense |
+| `WPORM_REPO_URL` | `https://github.com/warelab/wordpress_orm` | wordpress_orm is not pip-installable: the script clones it into `$APP_DIR/wordpress_orm` and registers it with a `.pth` file in the venv |
+| `WPORM_BRANCH` | `master` | Branch of wordpress_orm to deploy |
 
 ## First-time deploy
 
@@ -76,6 +79,7 @@ export TARGET_SITE=live                               # or dev
 export TYPESENSE_API_KEY="$(openssl rand -hex 32)"   # store this somewhere safe
 export SB_WP_USERNAME='<wordpress admin>'
 export SB_WP_PASSWORD='<wordpress admin password>'
+export SB_RECAPTCHA_SECRET='<recaptcha secret>'
 
 # Optional overrides for cross-host proxying:
 # export GUNICORN_BIND='10.0.0.5:8000'

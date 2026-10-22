@@ -21,6 +21,7 @@
 #                       openssl rand -hex 32
 #   SB_WP_USERNAME      WordPress admin (used by /update_publications POSTs).
 #   SB_WP_PASSWORD      ditto.
+#   SB_RECAPTCHA_SECRET reCAPTCHA secret for the mailing-list signup form.
 #
 # Optional (with defaults):
 #   APP_USER              sorghum
@@ -35,6 +36,8 @@
 #   WARM_SCHEDULE         */30 * * * *      # cron entry for warm_wp_cache.sh
 #   WARM_MAILTO           root              # address cron mails warm failures to
 #   TYPESENSE_PORT        8108              # bound to 127.0.0.1 only
+#   WPORM_REPO_URL        https://github.com/warelab/wordpress_orm
+#   WPORM_BRANCH          master
 
 set -euo pipefail
 shopt -s inherit_errexit 2>/dev/null || true
@@ -50,10 +53,11 @@ esac
 : "${TYPESENSE_API_KEY:?TYPESENSE_API_KEY must be set in the calling env}"
 : "${SB_WP_USERNAME:?SB_WP_USERNAME must be set in the calling env}"
 : "${SB_WP_PASSWORD:?SB_WP_PASSWORD must be set in the calling env}"
+: "${SB_RECAPTCHA_SECRET:?SB_RECAPTCHA_SECRET must be set in the calling env}"
 
 APP_USER="${APP_USER:-sorghum}"
 APP_DIR="${APP_DIR:-/opt/sorghum-webapp}"
-REPO_URL="${REPO_URL:-git@github.com:warelab/sorghum-webapp.git}"
+REPO_URL="${REPO_URL:-https://github.com/warelab/sorghum-webapp}"
 GIT_BRANCH="${GIT_BRANCH:-master}"
 GUNICORN_BIND="${GUNICORN_BIND:-127.0.0.1:8000}"
 GUNICORN_WORKERS="${GUNICORN_WORKERS:-4}"
@@ -63,6 +67,9 @@ WP_BASE_URL="${WP_BASE_URL:-https://content.sorghumbase.org/wordpress/index.php/
 WARM_SCHEDULE="${WARM_SCHEDULE:-*/30 * * * *}"
 WARM_MAILTO="${WARM_MAILTO:-root}"
 TYPESENSE_PORT="${TYPESENSE_PORT:-8108}"
+WPORM_REPO_URL="${WPORM_REPO_URL:-https://github.com/warelab/wordpress_orm}"
+WPORM_BRANCH="${WPORM_BRANCH:-master}"
+WPORM_DIR="${APP_DIR}/wordpress_orm"
 
 LOG_DIR="/var/log/sorghum-webapp"
 ENV_FILE="/etc/sorghum-webapp/sorghum.env"
@@ -82,6 +89,9 @@ die()  { printf '\033[1;31m[deploy]\033[0m %s\n' "$*" >&2; exit 1; }
 sudo_() {
     if [ "$(id -u)" = 0 ]; then "$@"; else sudo "$@"; fi
 }
+# Commands run as the app user use plain `sudo -u`, never `sudo_ -u`: as root,
+# sudo_ runs its arguments directly, so `sudo_ -u ...` would try to execute
+# "-u". (Likewise no `sudo_ -E`.)
 
 # ---------------------------------------------------------------------------
 # 0. Distro sanity check
@@ -125,7 +135,7 @@ install_node() {
     log "installing node 20 LTS via nodesource (for parcel build)"
     # Disable the Rocky-shipped nodejs module so the nodesource RPM wins.
     sudo_ dnf -q -y module disable nodejs >/dev/null 2>&1 || true
-    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo_ -E bash -
+    curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo_ bash -
     sudo_ dnf -q -y install nodejs
 }
 
@@ -167,11 +177,11 @@ create_user_and_dirs() {
 clone_or_pull() {
     if [ -d "${REPO_ROOT}/.git" ]; then
         log "git pull on $REPO_ROOT"
-        sudo_ -u "$APP_USER" git -C "$REPO_ROOT" fetch --quiet origin "$GIT_BRANCH"
-        sudo_ -u "$APP_USER" git -C "$REPO_ROOT" reset --hard "origin/${GIT_BRANCH}"
+        sudo -u "$APP_USER" git -C "$REPO_ROOT" fetch --quiet origin "$GIT_BRANCH"
+        sudo -u "$APP_USER" git -C "$REPO_ROOT" reset --hard "origin/${GIT_BRANCH}"
     else
         log "cloning $REPO_URL into $REPO_ROOT"
-        sudo_ -u "$APP_USER" git clone --branch "$GIT_BRANCH" "$REPO_URL" "$REPO_ROOT"
+        sudo -u "$APP_USER" git clone --branch "$GIT_BRANCH" "$REPO_URL" "$REPO_ROOT"
     fi
 }
 
@@ -181,12 +191,12 @@ clone_or_pull() {
 setup_venv() {
     if [ ! -x "${VENV_DIR}/bin/python" ]; then
         log "creating venv at $VENV_DIR"
-        sudo_ -u "$APP_USER" python3 -m venv "$VENV_DIR"
+        sudo -u "$APP_USER" python3 -m venv "$VENV_DIR"
     fi
     log "pip install -r requirements.txt + gunicorn"
-    sudo_ -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-    sudo_ -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet -r "${FLASK_DIR}/requirements.txt"
-    sudo_ -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet gunicorn
+    sudo -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
+    sudo -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet -r "${FLASK_DIR}/requirements.txt"
+    sudo -u "$APP_USER" "${VENV_DIR}/bin/pip" install --quiet gunicorn
 }
 
 # The site's settings file must exist in the checkout being deployed;
@@ -198,12 +208,42 @@ check_site_config() {
 }
 
 # ---------------------------------------------------------------------------
+# 4b. wordpress_orm: clone alongside the app and expose via .pth
+# ---------------------------------------------------------------------------
+# The wordpress_orm package isn't pip-installable (no setup.py / pyproject)
+# and lives in its own git repo. Clone it into ${APP_DIR}/wordpress_orm and
+# drop a .pth file in the venv's site-packages so `import wordpress_orm`
+# resolves to ${WPORM_DIR}/wordpress_orm.
+install_wordpress_orm() {
+    if [ -d "${WPORM_DIR}/.git" ]; then
+        log "git pull on $WPORM_DIR"
+        sudo -u "$APP_USER" git -C "$WPORM_DIR" fetch --quiet origin "$WPORM_BRANCH"
+        sudo -u "$APP_USER" git -C "$WPORM_DIR" reset --hard "origin/${WPORM_BRANCH}"
+    else
+        log "cloning $WPORM_REPO_URL into $WPORM_DIR"
+        sudo -u "$APP_USER" git clone --quiet --branch "$WPORM_BRANCH" \
+            "$WPORM_REPO_URL" "$WPORM_DIR"
+    fi
+
+    local site_packages
+    site_packages=$(sudo -u "$APP_USER" "${VENV_DIR}/bin/python" -c \
+        'import sysconfig; print(sysconfig.get_paths()["purelib"])')
+    log "registering $WPORM_DIR via wordpress_orm.pth in $site_packages"
+    echo "$WPORM_DIR" | sudo_ tee "${site_packages}/wordpress_orm.pth" >/dev/null
+    sudo_ chown "$APP_USER:$APP_USER" "${site_packages}/wordpress_orm.pth"
+
+    # Sanity check -- fail loudly here rather than at gunicorn startup.
+    sudo -u "$APP_USER" "${VENV_DIR}/bin/python" -c 'import wordpress_orm' \
+        || die "wordpress_orm import still failing after install; check ${WPORM_DIR}"
+}
+
+# ---------------------------------------------------------------------------
 # 5. React bundle
 # ---------------------------------------------------------------------------
 build_search_app() {
     log "npm ci + parcel build in $SEARCH_DIR"
-    sudo_ -u "$APP_USER" env -C "$SEARCH_DIR" npm ci --no-audit --no-fund --prefer-offline
-    sudo_ -u "$APP_USER" env -C "$SEARCH_DIR" npm run build
+    sudo -u "$APP_USER" env -C "$SEARCH_DIR" npm ci --no-audit --no-fund --prefer-offline
+    sudo -u "$APP_USER" env -C "$SEARCH_DIR" npm run build
 }
 
 # ---------------------------------------------------------------------------
@@ -219,6 +259,7 @@ TARGET_SITE=${TARGET_SITE}
 TYPESENSE_API_KEY=${TYPESENSE_API_KEY}
 SB_WP_USERNAME=${SB_WP_USERNAME}
 SB_WP_PASSWORD=${SB_WP_PASSWORD}
+SB_RECAPTCHA_SECRET=${SB_RECAPTCHA_SECRET}
 WP_BASE_URL=${WP_BASE_URL}
 TYPESENSE_PORT=${TYPESENSE_PORT}
 EOF
@@ -234,7 +275,7 @@ start_typesense() {
     # docker-compose.yml at repo root expects TYPESENSE_API_KEY (+ optional
     # TYPESENSE_PORT) in env. Loopback-bind for safety; if your prod compose
     # already has 127.0.0.1: prefixed in the ports stanza, this is a no-op.
-    sudo_ -u "$APP_USER" \
+    sudo -u "$APP_USER" \
         env TYPESENSE_API_KEY="$TYPESENSE_API_KEY" \
             TYPESENSE_PORT="$TYPESENSE_PORT" \
         docker compose -f "${REPO_ROOT}/docker-compose.yml" up -d typesense
@@ -252,7 +293,9 @@ After=network.target redis.service docker.service
 Wants=redis.service
 
 [Service]
-Type=notify
+# Simple, not notify: systemd shouldn't wait on a READY signal from gunicorn
+# (that wait is what failed on the dev host).
+Type=simple
 User=${APP_USER}
 Group=${APP_USER}
 WorkingDirectory=${FLASK_DIR}
@@ -277,7 +320,9 @@ TimeoutStopSec=30
 ProtectSystem=full
 PrivateTmp=true
 NoNewPrivileges=true
-ReadWritePaths=${LOG_DIR} ${APP_DIR}/.parcel-cache ${APP_DIR}/search_app/.parcel-cache
+# "-" makes a path optional: a missing directory here otherwise fails the
+# start with 226/NAMESPACE (the repo-root .parcel-cache usually doesn't exist).
+ReadWritePaths=${LOG_DIR} -${APP_DIR}/.parcel-cache -${APP_DIR}/search_app/.parcel-cache
 
 [Install]
 WantedBy=multi-user.target
@@ -318,7 +363,7 @@ restart_service() {
 warm_initial() {
     log "warming wp_cache (also populates Typesense collections)"
     sleep 3  # give gunicorn a moment to settle
-    sudo_ -u "$APP_USER" "${FLASK_DIR}/scripts/warm_wp_cache.sh" "http://${GUNICORN_BIND}" || \
+    sudo -u "$APP_USER" "${FLASK_DIR}/scripts/warm_wp_cache.sh" "http://${GUNICORN_BIND}" || \
         warn "initial warm reported errors; check logs and re-run manually"
 }
 
@@ -343,6 +388,7 @@ create_user_and_dirs
 clone_or_pull
 check_site_config
 setup_venv
+install_wordpress_orm
 build_search_app
 write_env_file
 write_systemd_unit
