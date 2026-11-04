@@ -650,10 +650,25 @@ def _do_fetch_and_store(resource, ttl, allow_shrink=False):
     if total is not None:
         meta["wp_total"] = total
     _write_cache(resource, items, meta, ttl)
-    # Skip Typesense resync when content is identical -- nothing to reindex.
-    if not unchanged:
+    # Skip the Typesense resync when content is identical -- but only while the
+    # index still holds the data. "Unchanged" stopped being a safe proxy for
+    # "already indexed" the first time a collection was lost: WordPress content
+    # is what triggers a resync, so a wiped collection would never be rebuilt.
+    if not unchanged or not _typesense_has_data(resource):
         _sync_typesense(resource, items)
     return items, meta
+
+
+def _typesense_has_data(resource):
+    """Whether the mirrored collection already holds documents. Imported lazily
+    for the same reason as _sync_typesense; on any doubt says True so this can
+    only ever add a sync, never suppress one."""
+    try:
+        from . import typesense_index
+        return typesense_index.collection_is_populated(resource)
+    except Exception as e:
+        logger.debug("typesense collection probe failed (%s); assuming populated", e)
+        return True
 
 
 def _sync_typesense(resource, items):

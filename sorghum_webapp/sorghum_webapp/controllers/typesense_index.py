@@ -401,6 +401,32 @@ def ensure_collection(client, collection_name):
         )
 
 
+def collection_is_populated(resource_name):
+    """True when this resource's collection exists and holds documents.
+
+    wp_cache skips the resync when WordPress content is unchanged, which is only
+    safe while the index still has the data. After a Typesense volume wipe or a
+    dropped collection it does not -- and since a *content* change is the only
+    thing that triggers a resync, the collection would stay empty indefinitely.
+    A static resource like resource_links might never recover.
+
+    Errs toward resyncing: a missing collection, an unreachable server or any
+    unexpected shape returns False, and an unnecessary upsert is cheap compared
+    with an index that silently stays empty.
+    """
+    entry = COLLECTIONS.get(resource_name)
+    if not entry:
+        return True          # not mirrored at all; nothing to rebuild
+    client = get_client()
+    if not client:
+        return True          # no client -- _sync_typesense would no-op anyway
+    try:
+        info = client.collections[entry["collection"]].retrieve()
+        return int(info.get("num_documents") or 0) > 0
+    except Exception:
+        return False
+
+
 def sync_resource(resource_name, items, prune=True, allow_empty=False):
     """Upsert `items` into the Typesense collection mapped to `resource_name`.
 
