@@ -7,6 +7,10 @@ def ensembl_url():
     picked by TARGET_SITE)."""
     return flask.current_app.config.get('ENSEMBL_URL', 'https://ensembl.sorghumbase.org')
 
+# The AI Assistant (MCP) guide in release-notes/test, opened directly in the
+# Guides page. Also linked from the home page tile.
+AI_GUIDE_URL = '/guides?doc=test%2FAI%20Assistant%20Guide---2026-11-17.md'
+
 def make_menu(label, style='simple'):
     return { 'label':label, 'style':style, 'links':[] }
 
@@ -35,6 +39,7 @@ def engage():
 #     add_link(menu, 'Research Notes', '/posts?categories=researchnote')
 #     add_link(menu, 'Working Groups', '/workingGroups')
     add_link(menu, 'Training Materials', '/guides')
+    add_link(menu, 'AI Assistant Guide', AI_GUIDE_URL)
     add_link(menu, 'Videos', '/videos')
 #     add_link(menu, 'Videos', 'https://www.youtube.com/channel/UCXpgZNk1JDIn0-7AaS4EBxQ')
 #     add_link(menu, 'Office Hours', '/office_hours')
