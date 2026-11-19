@@ -26,8 +26,10 @@ What gets written
 Values come from getMetaData itself, so each post ends up with what
 /update_publications would have written if the bug had never existed:
 
-  journal, affiliations,     only if the post's field is still empty
-  funding_agencies
+  journal, affiliations,     only if the post's field is still empty; the
+  funding_agencies           two lists are "; "-joined, since Pods rejects a
+                             JSON list for them (see PODS_LIST_SEPARATOR in
+                             controllers/update_publications.py)
   keywords + tags            only if keywords is still the sentinel and
                              PubMed has a KeywordList; tags are created or
                              resolved by name and added to any already on
@@ -90,6 +92,8 @@ from requests.auth import HTTPBasicAuth
 DEFAULT_CACHE_URL = "https://www.sorghumbase.org/api/wp_cache/publications"
 DEFAULT_WP_BASE = "https://content.sorghumbase.org/wordpress/index.php/wp-json/wp/v2"
 NO_KEYWORDS = "No keywords in Pubmed"
+# Must match PODS_LIST_SEPARATOR in controllers/update_publications.py.
+PODS_LIST_SEPARATOR = "; "
 
 logger = logging.getLogger("patch_pubmed_meta")
 
@@ -168,7 +172,7 @@ def _plan(post, meta):
         fields["keywords"] = meta["keywords"]
     for k in ("affiliations", "funding_agencies"):
         if meta[k] and not _norm(post.get(k)):
-            fields[k] = meta[k]
+            fields[k] = PODS_LIST_SEPARATOR.join(meta[k])
 
     cms_pub = (post.get("publication_date") or "").strip()
     post_day = (post.get("date") or "")[:10]

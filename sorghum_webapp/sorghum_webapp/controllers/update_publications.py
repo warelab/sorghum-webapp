@@ -26,6 +26,7 @@ serve stale or empty results from a per-worker memory cache, every
 endpoint here raises a 503 with a clear message when Redis is down.
 '''
 
+import html
 import json
 import logging
 import os
@@ -318,8 +319,8 @@ def _paper_record_for_cache(created, payload, tag_ids):
         "publication_date": payload.get("publication_date") or "",
         "keywords": payload.get("keywords") or "",
         "pubmed_id": payload.get("pubmed_id") or "",
-        "affiliations": payload.get("affiliations") or [],
-        "funding_agencies": payload.get("funding_agencies") or [],
+        "affiliations": _pods_text(payload.get("affiliations")),
+        "funding_agencies": _pods_text(payload.get("funding_agencies")),
         "funding": [],
         "posts": [],
         "tags": [int(t) for t in (tag_ids or []) if str(t).isdigit()],
@@ -391,19 +392,87 @@ def _build_post_content(payload):
     return "\n".join(p for p in parts if p)
 
 
+# affiliations / funding_agencies are plain Pods text fields. Since the Pods
+# 2.8.23.4/.5 security releases, a JSON list sent to one of them fails the
+# whole save -- Pods reports each element as a validation "issue" -- where
+# it used to silently keep a single element. Send one joined string; "; "
+# rather than newlines so the value survives a save from wp-admin, which
+# edits these fields in a single-line input.
+PODS_LIST_SEPARATOR = "; "
+
+
+def _pods_text(value):
+    ''' Flatten a list-valued field into the string Pods stores. '''
+    if isinstance(value, (list, tuple)):
+        return PODS_LIST_SEPARATOR.join(v.strip() for v in value if v and v.strip())
+    return value or ""
+
+
+def _wp_post_json(url, body, auth):
+    ''' POST `body` to a WP REST URL and return the JSON, or raise an
+    HTTPError carrying WordPress's diagnostic. '''
+    resp = requests.post(url, json=body, auth=auth, timeout=60)
+    if resp.ok:
+        return resp.json()
+    # raise_for_status() drops WP's error body, which is where the
+    # actual diagnostic lives (rest_invalid_param + the offending
+    # field, Pods validation messages, etc.). Pull what we can out
+    # of the response and put it in the exception message so the
+    # admin UI can show it.
+    detail = ""
+    try:
+        j = resp.json()
+        code = j.get("code") or ""
+        # Pods formats multi-issue validation errors as an HTML list.
+        msg = re.sub(r"<[^>]+>", " ", (j.get("message") or "").replace("</li>", ";"))
+        msg = html.unescape(re.sub(r"\s+", " ", msg)).strip(" ;")
+        params = (j.get("data") or {}).get("params") or {}
+        param_msgs = "; ".join(f"{k}: {v}" for k, v in params.items())
+        parts = [p for p in (code, msg, param_msgs) if p]
+        if parts:
+            detail = " — " + " | ".join(parts)
+    except ValueError:
+        # Not JSON; surface a truncated body.
+        body_text = (resp.text or "").strip()
+        if body_text:
+            detail = " — " + body_text[:300]
+    raise requests.HTTPError(
+        f"{resp.status_code} {resp.reason} for url: {resp.url}{detail}",
+        response=resp,
+    )
+
+
 def _create_paper_in_wp(payload, tag_ids):
-    ''' POST a new scientific_paper to WordPress with status=publish. Returns
-    the WP REST JSON of the created record (which carries the assigned id
-    + slug) or raises on error.
+    ''' Create and publish a new scientific_paper in WordPress. Returns the
+    WP REST JSON of the published record (which carries the assigned id +
+    slug) or raises on error.
+
+    Pods saves its fields in WP's rest_insert hook, after the post row
+    already exists, so a single create-and-publish that Pods rejects leaves
+    a public post with no Pods fields -- and no pubmed_id for the duplicate
+    check to find, so every retry adds another. Instead: create a draft,
+    save the Pods fields + tags onto it, then publish; on any failure the
+    draft is moved to the trash.
 
     Pods custom fields (paper_authors, abstract, journal, etc.) are sent as
-    top-level keys -- same shape we've been writing on update() and the same
-    shape Pods returns on GET. '''
+    top-level keys -- the same shape Pods returns on GET. '''
     base_url = app.config["WP_BASE_URL"].rstrip("/") + "/scientific_paper"
-    body = {
-        "status": "publish",
+    auth = getattr(api, "authenticator", None)
+
+    core = {
+        "status": "draft",
         "title": payload.get("title") or "",
         "content": _build_post_content(payload),
+    }
+    # WP REST treats empty-string date fields as "Invalid date." instead of
+    # "use the default." Only include them when populated. (PubMed returns
+    # empty dates for some entries -- e.g. ahead-of-print articles where the
+    # JournalIssue PubDate lacks Year/Month/Day.)
+    post_date = (payload.get("date") or "").strip()
+    if post_date:
+        core["date"] = post_date
+
+    fields = {
         "paper_authors": payload.get("paper_authors") or "",
         "abstract": payload.get("abstract") or "",
         "source_url": payload.get("source_url") or "",
@@ -411,50 +480,33 @@ def _create_paper_in_wp(payload, tag_ids):
         "journal": payload.get("journal") or "",
         "keywords": payload.get("keywords") or "",
         "pubmed_id": payload.get("pubmed_id") or "",
-        "affiliations": payload.get("affiliations") or [],
-        "funding_agencies": payload.get("funding_agencies") or [],
+        "affiliations": _pods_text(payload.get("affiliations")),
+        "funding_agencies": _pods_text(payload.get("funding_agencies")),
     }
-    # WP REST treats empty-string date fields as "Invalid date." instead of
-    # "use the default." Only include them when populated. (PubMed returns
-    # empty dates for some entries -- e.g. ahead-of-print articles where the
-    # JournalIssue PubDate lacks Year/Month/Day.)
     pub_date = (payload.get("publication_date") or "").strip()
     if pub_date:
-        body["publication_date"] = pub_date
-    post_date = (payload.get("date") or "").strip()
-    if post_date:
-        body["date"] = post_date
+        fields["publication_date"] = pub_date
     int_tags = [int(t) for t in (tag_ids or []) if str(t).isdigit()]
     if int_tags:
-        body["tags"] = int_tags
-    auth = getattr(api, "authenticator", None)
-    resp = requests.post(base_url, json=body, auth=auth, timeout=60)
-    if not resp.ok:
-        # raise_for_status() drops WP's error body, which is where the
-        # actual diagnostic lives (rest_invalid_param + the offending
-        # field, Pods validation messages, etc.). Pull what we can out
-        # of the response and put it in the exception message so the
-        # admin UI can show it.
-        detail = ""
+        fields["tags"] = int_tags
+
+    draft = _wp_post_json(base_url, core, auth)
+    post_url = f"{base_url}/{draft['id']}"
+    try:
+        _wp_post_json(post_url, fields, auth)
+        # Re-send the date with the publish so WP can't swap in "now".
+        publish = {"status": "publish"}
+        if post_date:
+            publish["date"] = post_date
+        return _wp_post_json(post_url, publish, auth)
+    except Exception as e:
         try:
-            j = resp.json()
-            code = j.get("code") or ""
-            msg = j.get("message") or ""
-            params = (j.get("data") or {}).get("params") or {}
-            param_msgs = "; ".join(f"{k}: {v}" for k, v in params.items())
-            parts = [p for p in (code, msg, param_msgs) if p]
-            if parts:
-                detail = " — " + " | ".join(parts)
-        except ValueError:
-            # Not JSON; surface a truncated body.
-            body_text = (resp.text or "").strip()
-            if body_text:
-                detail = " — " + body_text[:300]
-        raise requests.HTTPError(
-            f"{resp.status_code} {resp.reason} for url: {resp.url}{detail}",
-            response=resp,
-        )
-    return resp.json()
+            requests.delete(post_url, auth=auth, timeout=60).raise_for_status()
+        except Exception as trash_err:
+            logger.warning("update_publications: could not trash draft %s (%s)",
+                           draft["id"], trash_err)
+            raise requests.HTTPError(f"{e} (draft {draft['id']} left in WordPress)") from e
+        raise
 
 
 def _placeholder_paper(pmid):
